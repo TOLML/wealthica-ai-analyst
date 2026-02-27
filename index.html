@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>AI Portfolio Analyst</title>
-<script src="https://unpkg.com/@wealthica/wealthica.js@0.3.1/dist/addon.min.js"></script>
+<script src="https://unpkg.com/@wealthica/wealthica.js/dist/addon.min.js"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
@@ -819,8 +819,19 @@ Use CAD. Be specific with dollar amounts.`,
 try {
   addon = new Addon();
 
+  // Set a timeout — if 'init' hasn't fired after 10s, show a message
+  let initReceived = false;
+  setTimeout(function() {
+    if (!initReceived) {
+      console.warn('Wealthica init event not received after 10s');
+      showToast('Waiting for Wealthica... Make sure you loaded this via the Developer Add-on', 'error');
+    }
+  }, 10000);
+
   addon.on('init', function(options) {
+    initReceived = true;
     currentOptions = options;
+    console.log('Wealthica init received:', options);
     // Restore saved API key
     if (options.data && options.data.apiKey) {
       apiKey = options.data.apiKey;
