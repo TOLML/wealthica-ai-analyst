@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>AI Portfolio Analyst</title>
-<script src="https://unpkg.com/@wealthica/wealthica.js/dist/addon.min.js"></script>
+<script src="https://wealthica.github.io/wealthica.js/dist/addon.min.js"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
@@ -31,6 +31,11 @@
   }
 
   * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  html, body {
+    height: 100%;
+    width: 100%;
+  }
 
   body {
     font-family: 'DM Sans', sans-serif;
@@ -816,44 +821,50 @@ Use CAD. Be specific with dollar amounts.`,
 };
 
 // ─── Initialize Add-on ──────────────────────────────────────────────────────
-try {
-  addon = new Addon();
-
-  // Set a timeout — if 'init' hasn't fired after 10s, show a message
-  let initReceived = false;
-  setTimeout(function() {
-    if (!initReceived) {
-      console.warn('Wealthica init event not received after 10s');
-      showToast('Waiting for Wealthica... Make sure you loaded this via the Developer Add-on', 'error');
-    }
-  }, 10000);
-
-  addon.on('init', function(options) {
-    initReceived = true;
-    currentOptions = options;
-    console.log('Wealthica init received:', options);
-    // Restore saved API key
-    if (options.data && options.data.apiKey) {
-      apiKey = options.data.apiKey;
-      document.getElementById('apiKeyInput').value = apiKey;
-      updateStatus('connected', 'API key loaded');
-    }
-    loadPortfolio();
-  });
-
-  addon.on('reload', function() {
-    loadPortfolio();
-  });
-
-  addon.on('update', function(options) {
-    currentOptions = { ...currentOptions, ...options };
-    loadPortfolio();
-  });
-} catch(e) {
-  // Running outside Wealthica — show demo mode notice
-  console.log('Not running inside Wealthica. Add-on API unavailable.', e);
-  showToast('Running outside Wealthica — using demo mode', 'error');
+if (typeof Addon === 'undefined') {
+  console.error('wealthica.js failed to load — Addon class is not defined');
+  showToast('wealthica.js failed to load — running in demo mode', 'error');
   loadDemoData();
+} else {
+  try {
+    addon = new Addon();
+
+    // Set a timeout — if 'init' hasn't fired after 10s, show a message
+    let initReceived = false;
+    setTimeout(function() {
+      if (!initReceived) {
+        console.warn('Wealthica init event not received after 10s');
+        showToast('Waiting for Wealthica... Make sure you loaded this via the Developer Add-on', 'error');
+      }
+    }, 10000);
+
+    addon.on('init', function(options) {
+      initReceived = true;
+      currentOptions = options;
+      console.log('Wealthica init received:', options);
+      // Restore saved API key
+      if (options.data && options.data.apiKey) {
+        apiKey = options.data.apiKey;
+        document.getElementById('apiKeyInput').value = apiKey;
+        updateStatus('connected', 'API key loaded');
+      }
+      loadPortfolio();
+    });
+
+    addon.on('reload', function() {
+      loadPortfolio();
+    });
+
+    addon.on('update', function(options) {
+      currentOptions = { ...currentOptions, ...options };
+      loadPortfolio();
+    });
+  } catch(e) {
+    // Running outside Wealthica — show demo mode notice
+    console.log('Not running inside Wealthica. Add-on API unavailable.', e);
+    showToast('Running outside Wealthica — using demo mode', 'error');
+    loadDemoData();
+  }
 }
 
 // ─── Portfolio Loading ───────────────────────────────────────────────────────
