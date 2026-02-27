@@ -868,13 +868,21 @@ if (typeof Addon === 'undefined') {
 }
 
 // ─── Portfolio Loading ───────────────────────────────────────────────────────
+function buildQuery(options) {
+  return {
+    from: options.dateRangeFilter && options.dateRangeFilter[0],
+    to: options.dateRangeFilter && options.dateRangeFilter[1],
+    groups: options.groupsFilter,
+    institutions: options.institutionsFilter,
+    investments: options.investmentsFilter === 'all' ? null : options.investmentsFilter,
+  };
+}
+
 async function loadPortfolio() {
   if (!addon) return;
 
   try {
-    const query = {};
-    if (currentOptions.groups) query.groups = currentOptions.groups;
-    if (currentOptions.institutions) query.institutions = currentOptions.institutions;
+    const query = buildQuery(currentOptions);
 
     const [positions, institutions] = await Promise.all([
       addon.api.getPositions(query),
@@ -896,7 +904,7 @@ async function loadPortfolio() {
     }
   } catch(err) {
     console.error('Failed to load portfolio:', err);
-    showToast('Failed to load portfolio data', 'error');
+    showToast('Failed to load portfolio: ' + (err.message || err), 'error');
   }
 }
 
