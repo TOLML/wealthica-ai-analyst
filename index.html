@@ -1,0 +1,1342 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AI Portfolio Analyst</title>
+<script src="https://unpkg.com/@wealthica/wealthica.js@0.3.1/dist/addon.min.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg-primary: #0a0e17;
+    --bg-secondary: #111827;
+    --bg-card: #1a2234;
+    --bg-card-hover: #1f2a3f;
+    --border: #2a3550;
+    --border-accent: #3b82f6;
+    --text-primary: #f1f5f9;
+    --text-secondary: #94a3b8;
+    --text-muted: #64748b;
+    --accent: #3b82f6;
+    --accent-glow: rgba(59, 130, 246, 0.15);
+    --green: #22c55e;
+    --green-bg: rgba(34, 197, 94, 0.1);
+    --red: #ef4444;
+    --red-bg: rgba(239, 68, 68, 0.1);
+    --yellow: #f59e0b;
+    --yellow-bg: rgba(245, 158, 11, 0.1);
+    --purple: #a855f7;
+    --purple-bg: rgba(168, 85, 247, 0.1);
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: 'DM Sans', sans-serif;
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    line-height: 1.6;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* Ambient background glow */
+  body::before {
+    content: '';
+    position: fixed;
+    top: -200px;
+    right: -200px;
+    width: 600px;
+    height: 600px;
+    background: radial-gradient(circle, rgba(59,130,246,0.06) 0%, transparent 70%);
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .container {
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 24px 20px;
+    position: relative;
+    z-index: 1;
+  }
+
+  /* Header */
+  .header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 28px;
+    padding-bottom: 20px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .header-left {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+  }
+
+  .logo-mark {
+    width: 40px;
+    height: 40px;
+    border-radius: 10px;
+    background: linear-gradient(135deg, var(--accent), #7c3aed);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 18px;
+    font-weight: 700;
+    color: white;
+    box-shadow: 0 4px 16px rgba(59,130,246,0.25);
+  }
+
+  .header h1 {
+    font-size: 20px;
+    font-weight: 600;
+    letter-spacing: -0.3px;
+  }
+
+  .header h1 span {
+    color: var(--accent);
+  }
+
+  .header-right {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  /* Settings button */
+  .btn-settings {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    color: var(--text-secondary);
+    padding: 8px 14px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-family: inherit;
+    font-size: 13px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    transition: all 0.2s;
+  }
+
+  .btn-settings:hover {
+    border-color: var(--accent);
+    color: var(--text-primary);
+    background: var(--bg-card-hover);
+  }
+
+  /* Status indicator */
+  .status-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--text-muted);
+    transition: background 0.3s;
+  }
+
+  .status-dot.connected { background: var(--green); box-shadow: 0 0 8px rgba(34,197,94,0.4); }
+  .status-dot.error { background: var(--red); }
+
+  /* Settings Panel */
+  .settings-panel {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 20px;
+    margin-bottom: 20px;
+    display: none;
+    animation: slideDown 0.2s ease-out;
+  }
+
+  .settings-panel.visible { display: block; }
+
+  @keyframes slideDown {
+    from { opacity: 0; transform: translateY(-8px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  .settings-panel label {
+    display: block;
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 8px;
+  }
+
+  .settings-panel .input-row {
+    display: flex;
+    gap: 10px;
+  }
+
+  .settings-panel input {
+    flex: 1;
+    background: var(--bg-primary);
+    border: 1px solid var(--border);
+    color: var(--text-primary);
+    padding: 10px 14px;
+    border-radius: 8px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 13px;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+
+  .settings-panel input:focus { border-color: var(--accent); }
+  .settings-panel input::placeholder { color: var(--text-muted); }
+
+  .settings-panel .hint {
+    font-size: 12px;
+    color: var(--text-muted);
+    margin-top: 8px;
+    line-height: 1.5;
+  }
+
+  .settings-panel .hint a {
+    color: var(--accent);
+    text-decoration: none;
+  }
+
+  /* Buttons */
+  .btn-primary {
+    background: var(--accent);
+    color: white;
+    border: none;
+    padding: 10px 20px;
+    border-radius: 8px;
+    font-family: inherit;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .btn-primary:hover { background: #2563eb; transform: translateY(-1px); box-shadow: 0 4px 12px rgba(59,130,246,0.3); }
+  .btn-primary:active { transform: translateY(0); }
+  .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; transform: none; box-shadow: none; }
+
+  .btn-secondary {
+    background: var(--bg-card);
+    color: var(--text-primary);
+    border: 1px solid var(--border);
+    padding: 10px 20px;
+    border-radius: 8px;
+    font-family: inherit;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .btn-secondary:hover { border-color: var(--accent); background: var(--bg-card-hover); }
+
+  /* Portfolio Summary Cards */
+  .summary-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 12px;
+    margin-bottom: 24px;
+  }
+
+  .summary-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 16px;
+    transition: border-color 0.2s;
+  }
+
+  .summary-card:hover { border-color: var(--border-accent); }
+
+  .summary-card .label {
+    font-size: 11px;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--text-muted);
+    margin-bottom: 6px;
+  }
+
+  .summary-card .value {
+    font-size: 22px;
+    font-weight: 700;
+    letter-spacing: -0.5px;
+    font-family: 'JetBrains Mono', monospace;
+  }
+
+  .summary-card .sub {
+    font-size: 12px;
+    color: var(--text-secondary);
+    margin-top: 4px;
+  }
+
+  .positive { color: var(--green); }
+  .negative { color: var(--red); }
+
+  /* Analysis Section */
+  .analysis-section {
+    margin-top: 8px;
+  }
+
+  .analysis-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 16px;
+  }
+
+  .analysis-header h2 {
+    font-size: 16px;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .analysis-actions {
+    display: flex;
+    gap: 8px;
+  }
+
+  /* Prompt selector */
+  .prompt-select {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    color: var(--text-primary);
+    padding: 8px 12px;
+    border-radius: 8px;
+    font-family: inherit;
+    font-size: 13px;
+    cursor: pointer;
+    outline: none;
+  }
+
+  .prompt-select:focus { border-color: var(--accent); }
+
+  /* AI Response */
+  .ai-response {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 24px;
+    min-height: 200px;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .ai-response::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 2px;
+    background: linear-gradient(90deg, var(--accent), var(--purple), var(--accent));
+    background-size: 200% 100%;
+    opacity: 0;
+    transition: opacity 0.3s;
+  }
+
+  .ai-response.loading::before {
+    opacity: 1;
+    animation: shimmer 2s linear infinite;
+  }
+
+  @keyframes shimmer {
+    0% { background-position: -200% 0; }
+    100% { background-position: 200% 0; }
+  }
+
+  .ai-response .placeholder {
+    color: var(--text-muted);
+    text-align: center;
+    padding: 60px 20px;
+    font-size: 14px;
+  }
+
+  .ai-response .placeholder svg {
+    display: block;
+    margin: 0 auto 16px;
+    opacity: 0.3;
+  }
+
+  /* Markdown-like rendering */
+  .ai-content {
+    font-size: 14px;
+    line-height: 1.75;
+    color: var(--text-primary);
+  }
+
+  .ai-content h1, .ai-content h2, .ai-content h3 {
+    margin-top: 20px;
+    margin-bottom: 10px;
+    font-weight: 600;
+    letter-spacing: -0.3px;
+  }
+
+  .ai-content h1 { font-size: 18px; }
+  .ai-content h2 { font-size: 16px; color: var(--accent); }
+  .ai-content h3 { font-size: 15px; color: var(--text-secondary); }
+
+  .ai-content p { margin-bottom: 12px; }
+
+  .ai-content strong { color: var(--text-primary); font-weight: 600; }
+  .ai-content em { color: var(--text-secondary); }
+
+  .ai-content ul, .ai-content ol {
+    margin: 8px 0 12px 20px;
+  }
+
+  .ai-content li { margin-bottom: 4px; }
+
+  .ai-content code {
+    background: var(--bg-primary);
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    color: var(--purple);
+  }
+
+  .ai-content hr {
+    border: none;
+    border-top: 1px solid var(--border);
+    margin: 16px 0;
+  }
+
+  /* Risk badges */
+  .risk-badge {
+    display: inline-block;
+    padding: 3px 10px;
+    border-radius: 20px;
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+  }
+
+  .risk-high { background: var(--red-bg); color: var(--red); }
+  .risk-medium { background: var(--yellow-bg); color: var(--yellow); }
+  .risk-low { background: var(--green-bg); color: var(--green); }
+
+  /* Holdings table */
+  .holdings-section {
+    margin-top: 24px;
+  }
+
+  .holdings-section h3 {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text-secondary);
+    margin-bottom: 12px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .holdings-table-wrap {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    overflow: hidden;
+    max-height: 400px;
+    overflow-y: auto;
+  }
+
+  .holdings-table-wrap::-webkit-scrollbar { width: 6px; }
+  .holdings-table-wrap::-webkit-scrollbar-track { background: transparent; }
+  .holdings-table-wrap::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+  }
+
+  thead {
+    position: sticky;
+    top: 0;
+    z-index: 2;
+  }
+
+  th {
+    background: var(--bg-secondary);
+    padding: 10px 14px;
+    text-align: left;
+    font-weight: 500;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--text-muted);
+    border-bottom: 1px solid var(--border);
+  }
+
+  th:last-child, td:last-child { text-align: right; }
+
+  td {
+    padding: 10px 14px;
+    border-bottom: 1px solid rgba(42, 53, 80, 0.5);
+    color: var(--text-secondary);
+  }
+
+  tr:last-child td { border-bottom: none; }
+  tr:hover td { background: rgba(59, 130, 246, 0.03); }
+
+  td .symbol {
+    font-family: 'JetBrains Mono', monospace;
+    font-weight: 500;
+    color: var(--text-primary);
+    font-size: 13px;
+  }
+
+  td .name {
+    font-size: 11px;
+    color: var(--text-muted);
+    margin-top: 2px;
+  }
+
+  td .mono {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+  }
+
+  /* Loading spinner */
+  .spinner {
+    display: inline-block;
+    width: 16px;
+    height: 16px;
+    border: 2px solid rgba(255,255,255,0.2);
+    border-top-color: white;
+    border-radius: 50%;
+    animation: spin 0.7s linear infinite;
+  }
+
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* Custom prompt input */
+  .custom-prompt-area {
+    display: none;
+    margin-top: 12px;
+  }
+
+  .custom-prompt-area.visible { display: block; }
+
+  .custom-prompt-area textarea {
+    width: 100%;
+    background: var(--bg-primary);
+    border: 1px solid var(--border);
+    color: var(--text-primary);
+    padding: 12px 14px;
+    border-radius: 8px;
+    font-family: inherit;
+    font-size: 13px;
+    line-height: 1.6;
+    resize: vertical;
+    min-height: 80px;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+
+  .custom-prompt-area textarea:focus { border-color: var(--accent); }
+  .custom-prompt-area textarea::placeholder { color: var(--text-muted); }
+
+  /* Responsive */
+  @media (max-width: 600px) {
+    .summary-grid { grid-template-columns: 1fr 1fr; }
+    .header { flex-direction: column; align-items: flex-start; gap: 12px; }
+    .analysis-header { flex-direction: column; align-items: flex-start; gap: 10px; }
+    .analysis-actions { width: 100%; }
+    .analysis-actions .btn-primary { flex: 1; justify-content: center; }
+  }
+
+  /* Streaming cursor effect */
+  .streaming-cursor::after {
+    content: '▊';
+    color: var(--accent);
+    animation: blink 0.8s step-end infinite;
+  }
+
+  @keyframes blink {
+    50% { opacity: 0; }
+  }
+
+  /* Accounts breakdown */
+  .accounts-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 8px;
+    margin-bottom: 24px;
+  }
+
+  .account-chip {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 10px 14px;
+    font-size: 12px;
+  }
+
+  .account-chip .acct-name {
+    font-weight: 500;
+    color: var(--text-primary);
+    margin-bottom: 2px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .account-chip .acct-value {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--accent);
+  }
+
+  /* Notification toast */
+  .toast {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 12px 18px;
+    font-size: 13px;
+    color: var(--text-primary);
+    box-shadow: 0 8px 32px rgba(0,0,0,0.3);
+    transform: translateY(100px);
+    opacity: 0;
+    transition: all 0.3s ease;
+    z-index: 100;
+  }
+
+  .toast.visible { transform: translateY(0); opacity: 1; }
+  .toast.error { border-color: var(--red); }
+  .toast.success { border-color: var(--green); }
+</style>
+</head>
+<body>
+
+<div class="container">
+  <!-- Header -->
+  <div class="header">
+    <div class="header-left">
+      <div class="logo-mark">AI</div>
+      <h1>Portfolio <span>Analyst</span></h1>
+    </div>
+    <div class="header-right">
+      <div class="status-dot" id="statusDot" title="Not connected"></div>
+      <button class="btn-settings" id="btnSettings" onclick="toggleSettings()">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+        API Key
+      </button>
+    </div>
+  </div>
+
+  <!-- Settings Panel -->
+  <div class="settings-panel" id="settingsPanel">
+    <label>Anthropic API Key</label>
+    <div class="input-row">
+      <input type="password" id="apiKeyInput" placeholder="sk-ant-api03-..." autocomplete="off" />
+      <button class="btn-primary" onclick="saveApiKey()">Save</button>
+    </div>
+    <div class="hint">
+      Your key is stored in Wealthica's add-on data (tied to your account). Get a key from
+      <a href="https://console.anthropic.com/settings/keys" target="_blank">console.anthropic.com</a>.
+      <br>⚠️ API calls are billed to your Anthropic account. Each analysis uses ~2K tokens.
+    </div>
+  </div>
+
+  <!-- Portfolio Summary -->
+  <div class="summary-grid" id="summaryGrid">
+    <div class="summary-card">
+      <div class="label">Total Value</div>
+      <div class="value" id="totalValue">—</div>
+      <div class="sub" id="totalAccounts"></div>
+    </div>
+    <div class="summary-card">
+      <div class="label">Positions</div>
+      <div class="value" id="totalPositions">—</div>
+      <div class="sub" id="positionsSub"></div>
+    </div>
+    <div class="summary-card">
+      <div class="label">Total Gain/Loss</div>
+      <div class="value" id="totalGainLoss">—</div>
+      <div class="sub" id="gainLossPct"></div>
+    </div>
+    <div class="summary-card">
+      <div class="label">Top Holding</div>
+      <div class="value" id="topHolding" style="font-size:16px">—</div>
+      <div class="sub" id="topHoldingPct"></div>
+    </div>
+  </div>
+
+  <!-- Accounts -->
+  <div class="accounts-grid" id="accountsGrid"></div>
+
+  <!-- Analysis -->
+  <div class="analysis-section">
+    <div class="analysis-header">
+      <h2>
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>
+        AI Analysis
+      </h2>
+      <div class="analysis-actions">
+        <select class="prompt-select" id="promptSelect" onchange="onPromptChange()">
+          <option value="full">Full Analysis</option>
+          <option value="risk">Concentration & Risk</option>
+          <option value="tax">Tax Optimization (Canadian)</option>
+          <option value="rebalance">Rebalancing Suggestions</option>
+          <option value="income">Income & Dividends</option>
+          <option value="custom">Custom Question...</option>
+        </select>
+        <button class="btn-primary" id="btnAnalyze" onclick="runAnalysis()" disabled>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+          Analyze
+        </button>
+      </div>
+    </div>
+
+    <div class="custom-prompt-area" id="customPromptArea">
+      <textarea id="customPrompt" placeholder="Ask anything about your portfolio... e.g. 'What's my exposure to US tech stocks?' or 'How should I rebalance for retirement in 20 years?'"></textarea>
+    </div>
+
+    <div class="ai-response" id="aiResponse">
+      <div class="placeholder">
+        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1"><circle cx="12" cy="12" r="10"/><path d="M8 12h8M12 8v8"/></svg>
+        Load your portfolio data, then click <strong>Analyze</strong> to get AI-powered insights.
+      </div>
+    </div>
+  </div>
+
+  <!-- Holdings Table -->
+  <div class="holdings-section" id="holdingsSection" style="display:none">
+    <h3>
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg>
+      All Positions
+    </h3>
+    <div class="holdings-table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Symbol</th>
+            <th>Account</th>
+            <th>Quantity</th>
+            <th>Book Value</th>
+            <th>Market Value</th>
+            <th>Gain/Loss</th>
+          </tr>
+        </thead>
+        <tbody id="holdingsBody"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- Toast -->
+<div class="toast" id="toast"></div>
+
+<script>
+// ─── State ───────────────────────────────────────────────────────────────────
+let addon = null;
+let apiKey = '';
+let portfolioData = {
+  positions: [],
+  institutions: [],
+  accounts: [],
+  totalValue: 0,
+  totalBook: 0,
+};
+let currentOptions = {};
+
+// ─── Prompt Templates ────────────────────────────────────────────────────────
+const PROMPTS = {
+  full: `You are a senior portfolio analyst. Analyze this Canadian investor's portfolio and provide:
+
+1. **Portfolio Overview** — Total value, number of positions, asset class breakdown
+2. **Concentration Risk** — Any single positions >10% of portfolio, sector concentration
+3. **Geographic Exposure** — Canadian vs US vs International allocation
+4. **Account Type Optimization** — Are holdings in the right account types (RRSP/TFSA/Non-reg) for tax efficiency?
+5. **Key Risks** — What are the top 3 risks in this portfolio?
+6. **Suggestions** — 3-5 actionable rebalancing suggestions
+
+Use CAD as the default currency. Be specific with numbers and percentages. Format with markdown headers and bullet points.`,
+
+  risk: `You are a risk analyst. Analyze this portfolio for concentration and risk:
+
+1. **Single Stock Concentration** — Flag any position >5% of total portfolio
+2. **Sector Exposure** — Identify sector tilts vs broad market
+3. **Correlation Risk** — Which holdings are likely highly correlated?
+4. **Downside Scenarios** — What happens if the top 3 holdings drop 30%?
+5. **Diversification Score** — Rate the portfolio's diversification 1-10
+
+Be specific with dollar amounts and percentages. Use CAD.`,
+
+  tax: `You are a Canadian tax optimization specialist. Analyze this portfolio for tax efficiency:
+
+1. **Account Placement** — Are US dividend payers in RRSP (withholding tax advantage)? Are growth stocks in TFSA?
+2. **Tax-Loss Harvesting** — Any positions with unrealized losses that could be harvested?
+3. **Capital Gains Exposure** — Large unrealized gains that may create future tax events?
+4. **TFSA Optimization** — Is the TFSA being used for highest-growth assets?
+5. **Recommendations** — Specific moves to improve after-tax returns
+
+Reference Canadian tax rules. Be specific with numbers.`,
+
+  rebalance: `You are a portfolio manager. Suggest specific rebalancing moves:
+
+1. **Current Allocation** — Break down by asset class, geography, and sector
+2. **Target vs Actual** — Assuming a balanced growth portfolio, what's over/underweight?
+3. **Specific Trades** — List exact positions to trim or add to
+4. **Priority Order** — Which changes have the highest impact?
+5. **Implementation** — Which accounts should each trade happen in?
+
+Be specific and actionable. Use CAD amounts.`,
+
+  income: `You are a dividend and income analyst. Analyze this portfolio's income characteristics:
+
+1. **Estimated Annual Dividends** — By position and total
+2. **Yield Analysis** — Portfolio yield vs benchmark
+3. **Dividend Safety** — Any positions with at-risk dividends?
+4. **Growth vs Income** — Current balance and recommendations
+5. **Tax-Efficient Income** — Which account types hold which income producers?
+
+Use CAD. Be specific with dollar amounts.`,
+};
+
+// ─── Initialize Add-on ──────────────────────────────────────────────────────
+try {
+  addon = new Addon();
+
+  addon.on('init', function(options) {
+    currentOptions = options;
+    // Restore saved API key
+    if (options.data && options.data.apiKey) {
+      apiKey = options.data.apiKey;
+      document.getElementById('apiKeyInput').value = apiKey;
+      updateStatus('connected', 'API key loaded');
+    }
+    loadPortfolio();
+  });
+
+  addon.on('reload', function() {
+    loadPortfolio();
+  });
+
+  addon.on('update', function(options) {
+    currentOptions = { ...currentOptions, ...options };
+    loadPortfolio();
+  });
+} catch(e) {
+  // Running outside Wealthica — show demo mode notice
+  console.log('Not running inside Wealthica. Add-on API unavailable.', e);
+  showToast('Running outside Wealthica — using demo mode', 'error');
+  loadDemoData();
+}
+
+// ─── Portfolio Loading ───────────────────────────────────────────────────────
+async function loadPortfolio() {
+  if (!addon) return;
+
+  try {
+    const query = {};
+    if (currentOptions.groups) query.groups = currentOptions.groups;
+    if (currentOptions.institutions) query.institutions = currentOptions.institutions;
+
+    const [positions, institutions] = await Promise.all([
+      addon.api.getPositions(query),
+      addon.api.getInstitutions(query),
+    ]);
+
+    portfolioData.positions = positions || [];
+    portfolioData.institutions = institutions || [];
+
+    processPortfolio();
+    renderSummary();
+    renderAccounts();
+    renderHoldings();
+
+    document.getElementById('btnAnalyze').disabled = !apiKey;
+
+    if (portfolioData.positions.length > 0) {
+      showToast(`Loaded ${portfolioData.positions.length} positions`, 'success');
+    }
+  } catch(err) {
+    console.error('Failed to load portfolio:', err);
+    showToast('Failed to load portfolio data', 'error');
+  }
+}
+
+function processPortfolio() {
+  let totalValue = 0;
+  let totalBook = 0;
+
+  // Build institution lookup
+  const instMap = {};
+  portfolioData.institutions.forEach(inst => {
+    instMap[inst._id] = inst;
+    if (inst.investments) {
+      inst.investments.forEach(inv => {
+        instMap[inv._id] = { ...inst, accountName: inv.name || inst.name };
+      });
+    }
+  });
+
+  portfolioData.positions.forEach(pos => {
+    const mv = pos.market_value || pos.value || 0;
+    const bv = pos.book_value || mv;
+    totalValue += mv;
+    totalBook += bv;
+
+    // Attach institution name
+    if (pos.investment && instMap[pos.investment]) {
+      pos._accountName = instMap[pos.investment].accountName || instMap[pos.investment].name;
+    } else if (pos.institution && instMap[pos.institution]) {
+      pos._accountName = instMap[pos.institution].name;
+    }
+  });
+
+  portfolioData.totalValue = totalValue;
+  portfolioData.totalBook = totalBook;
+}
+
+// ─── Rendering ───────────────────────────────────────────────────────────────
+function fmt(n, decimals = 0) {
+  if (n === undefined || n === null || isNaN(n)) return '—';
+  return new Intl.NumberFormat('en-CA', {
+    style: 'currency',
+    currency: 'CAD',
+    minimumFractionDigits: decimals,
+    maximumFractionDigits: decimals,
+  }).format(n);
+}
+
+function pct(n) {
+  if (!n || isNaN(n)) return '';
+  return (n >= 0 ? '+' : '') + n.toFixed(2) + '%';
+}
+
+function renderSummary() {
+  const { totalValue, totalBook, positions, institutions } = portfolioData;
+  const gainLoss = totalValue - totalBook;
+  const gainLossPctVal = totalBook > 0 ? ((totalValue - totalBook) / totalBook) * 100 : 0;
+
+  document.getElementById('totalValue').textContent = fmt(totalValue);
+  document.getElementById('totalAccounts').textContent = `${institutions.length} account${institutions.length !== 1 ? 's' : ''}`;
+
+  document.getElementById('totalPositions').textContent = positions.length;
+  const uniqueSymbols = new Set(positions.map(p => p.security?.symbol || p.symbol).filter(Boolean));
+  document.getElementById('positionsSub').textContent = `${uniqueSymbols.size} unique securities`;
+
+  const glEl = document.getElementById('totalGainLoss');
+  glEl.textContent = fmt(gainLoss);
+  glEl.className = 'value ' + (gainLoss >= 0 ? 'positive' : 'negative');
+  document.getElementById('gainLossPct').textContent = pct(gainLossPctVal);
+  document.getElementById('gainLossPct').className = 'sub ' + (gainLoss >= 0 ? 'positive' : 'negative');
+
+  // Top holding
+  if (positions.length > 0) {
+    const sorted = [...positions].sort((a, b) => (b.market_value || b.value || 0) - (a.market_value || a.value || 0));
+    const top = sorted[0];
+    const topSymbol = top.security?.symbol || top.symbol || top.security?.name || 'N/A';
+    const topPctVal = totalValue > 0 ? ((top.market_value || top.value || 0) / totalValue * 100) : 0;
+    document.getElementById('topHolding').textContent = topSymbol;
+    document.getElementById('topHoldingPct').textContent = `${topPctVal.toFixed(1)}% of portfolio`;
+  }
+}
+
+function renderAccounts() {
+  const grid = document.getElementById('accountsGrid');
+  grid.innerHTML = '';
+
+  // Aggregate value by institution
+  const acctValues = {};
+  portfolioData.positions.forEach(pos => {
+    const name = pos._accountName || 'Unknown';
+    if (!acctValues[name]) acctValues[name] = 0;
+    acctValues[name] += (pos.market_value || pos.value || 0);
+  });
+
+  const sorted = Object.entries(acctValues).sort((a, b) => b[1] - a[1]);
+  sorted.forEach(([name, value]) => {
+    const chip = document.createElement('div');
+    chip.className = 'account-chip';
+    chip.innerHTML = `
+      <div class="acct-name">${escapeHtml(name)}</div>
+      <div class="acct-value">${fmt(value)}</div>
+    `;
+    grid.appendChild(chip);
+  });
+}
+
+function renderHoldings() {
+  const tbody = document.getElementById('holdingsBody');
+  tbody.innerHTML = '';
+
+  if (portfolioData.positions.length === 0) {
+    document.getElementById('holdingsSection').style.display = 'none';
+    return;
+  }
+
+  document.getElementById('holdingsSection').style.display = 'block';
+
+  const sorted = [...portfolioData.positions].sort(
+    (a, b) => (b.market_value || b.value || 0) - (a.market_value || a.value || 0)
+  );
+
+  sorted.forEach(pos => {
+    const symbol = pos.security?.symbol || pos.symbol || '—';
+    const name = pos.security?.name || '';
+    const qty = pos.quantity;
+    const bv = pos.book_value;
+    const mv = pos.market_value || pos.value || 0;
+    const gl = bv ? mv - bv : null;
+    const acct = pos._accountName || '—';
+
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td>
+        <div class="symbol">${escapeHtml(symbol)}</div>
+        ${name ? `<div class="name">${escapeHtml(name)}</div>` : ''}
+      </td>
+      <td>${escapeHtml(acct)}</td>
+      <td class="mono">${qty != null ? Number(qty).toLocaleString('en-CA', { maximumFractionDigits: 4 }) : '—'}</td>
+      <td class="mono">${bv != null ? fmt(bv) : '—'}</td>
+      <td class="mono">${fmt(mv)}</td>
+      <td class="mono ${gl != null ? (gl >= 0 ? 'positive' : 'negative') : ''}">${gl != null ? fmt(gl) : '—'}</td>
+    `;
+    tbody.appendChild(tr);
+  });
+}
+
+// ─── AI Analysis ─────────────────────────────────────────────────────────────
+async function runAnalysis() {
+  if (!apiKey) {
+    showToast('Please set your Anthropic API key first', 'error');
+    toggleSettings();
+    return;
+  }
+
+  if (portfolioData.positions.length === 0) {
+    showToast('No portfolio data loaded', 'error');
+    return;
+  }
+
+  const btn = document.getElementById('btnAnalyze');
+  const responseEl = document.getElementById('aiResponse');
+  const promptType = document.getElementById('promptSelect').value;
+
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span> Analyzing...';
+  responseEl.classList.add('loading');
+  responseEl.innerHTML = '<div class="ai-content streaming-cursor"></div>';
+
+  // Build portfolio summary for the prompt
+  const portfolioSummary = buildPortfolioSummary();
+
+  // Get the system prompt
+  let systemPrompt = PROMPTS[promptType];
+  if (promptType === 'custom') {
+    const customQ = document.getElementById('customPrompt').value.trim();
+    if (!customQ) {
+      showToast('Please enter a question', 'error');
+      resetButton();
+      return;
+    }
+    systemPrompt = `You are a senior portfolio analyst helping a Canadian investor. Answer their specific question based on the portfolio data provided. Be specific with numbers, percentages, and actionable advice. Use CAD as default currency. Format with markdown.`;
+    portfolioSummary.customQuestion = customQ;
+  }
+
+  const userMessage = promptType === 'custom'
+    ? `Here is my portfolio data:\n\n${JSON.stringify(portfolioSummary, null, 2)}\n\nMy question: ${portfolioSummary.customQuestion}`
+    : `Here is my portfolio data:\n\n${JSON.stringify(portfolioSummary, null, 2)}\n\nPlease analyze this portfolio according to your instructions.`;
+
+  try {
+    const response = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': apiKey,
+        'anthropic-version': '2023-06-01',
+        'anthropic-dangerous-direct-browser-access': 'true',
+      },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 4096,
+        system: systemPrompt,
+        messages: [{ role: 'user', content: userMessage }],
+        stream: true,
+      }),
+    });
+
+    if (!response.ok) {
+      const errData = await response.json().catch(() => ({}));
+      throw new Error(errData.error?.message || `API error: ${response.status}`);
+    }
+
+    // Stream the response
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder();
+    let fullText = '';
+    let buffer = '';
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+
+      buffer += decoder.decode(value, { stream: true });
+      const lines = buffer.split('\n');
+      buffer = lines.pop() || '';
+
+      for (const line of lines) {
+        if (line.startsWith('data: ')) {
+          const data = line.slice(6).trim();
+          if (data === '[DONE]') continue;
+
+          try {
+            const parsed = JSON.parse(data);
+            if (parsed.type === 'content_block_delta' && parsed.delta?.text) {
+              fullText += parsed.delta.text;
+              const contentEl = responseEl.querySelector('.ai-content');
+              if (contentEl) {
+                contentEl.innerHTML = renderMarkdown(fullText);
+                contentEl.classList.add('streaming-cursor');
+                // Auto-scroll
+                responseEl.scrollTop = responseEl.scrollHeight;
+              }
+            }
+          } catch(e) { /* skip non-JSON lines */ }
+        }
+      }
+    }
+
+    // Final render
+    const contentEl = responseEl.querySelector('.ai-content');
+    if (contentEl) {
+      contentEl.innerHTML = renderMarkdown(fullText);
+      contentEl.classList.remove('streaming-cursor');
+    }
+    responseEl.classList.remove('loading');
+
+  } catch(err) {
+    console.error('Analysis error:', err);
+    responseEl.innerHTML = `<div class="ai-content" style="color: var(--red);">
+      <strong>Error:</strong> ${escapeHtml(err.message)}<br><br>
+      <span style="color: var(--text-muted);">Check your API key and try again. If this persists, your key may be invalid or you may have hit rate limits.</span>
+    </div>`;
+    responseEl.classList.remove('loading');
+    showToast('Analysis failed: ' + err.message, 'error');
+  }
+
+  resetButton();
+}
+
+function resetButton() {
+  const btn = document.getElementById('btnAnalyze');
+  btn.disabled = !apiKey || portfolioData.positions.length === 0;
+  btn.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polygon points="5 3 19 12 5 21 5 3"/></svg> Analyze`;
+}
+
+function buildPortfolioSummary() {
+  const { positions, institutions, totalValue, totalBook } = portfolioData;
+
+  // Group positions by account
+  const byAccount = {};
+  positions.forEach(pos => {
+    const acct = pos._accountName || 'Unknown';
+    if (!byAccount[acct]) byAccount[acct] = [];
+    byAccount[acct].push({
+      symbol: pos.security?.symbol || pos.symbol || 'N/A',
+      name: pos.security?.name || '',
+      quantity: pos.quantity,
+      book_value: pos.book_value ? Math.round(pos.book_value * 100) / 100 : null,
+      market_value: Math.round((pos.market_value || pos.value || 0) * 100) / 100,
+      currency: pos.security?.currency || pos.currency || 'CAD',
+      type: pos.security?.type || '',
+    });
+  });
+
+  return {
+    total_market_value_cad: Math.round(totalValue * 100) / 100,
+    total_book_value_cad: Math.round(totalBook * 100) / 100,
+    unrealized_gain_loss: Math.round((totalValue - totalBook) * 100) / 100,
+    number_of_accounts: institutions.length,
+    number_of_positions: positions.length,
+    accounts: byAccount,
+  };
+}
+
+// ─── Markdown Renderer (simple) ─────────────────────────────────────────────
+function renderMarkdown(text) {
+  let html = escapeHtml(text);
+
+  // Headers
+  html = html.replace(/^### (.+)$/gm, '<h3>$1</h3>');
+  html = html.replace(/^## (.+)$/gm, '<h2>$1</h2>');
+  html = html.replace(/^# (.+)$/gm, '<h1>$1</h1>');
+
+  // Bold & italic
+  html = html.replace(/\*\*\*(.+?)\*\*\*/g, '<strong><em>$1</em></strong>');
+  html = html.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+  html = html.replace(/\*(.+?)\*/g, '<em>$1</em>');
+
+  // Inline code
+  html = html.replace(/`([^`]+)`/g, '<code>$1</code>');
+
+  // Horizontal rule
+  html = html.replace(/^---$/gm, '<hr>');
+
+  // Unordered lists
+  html = html.replace(/^[\-\*] (.+)$/gm, '<li>$1</li>');
+  html = html.replace(/(<li>.*<\/li>)/s, '<ul>$1</ul>');
+  // Fix multiple UL blocks
+  html = html.replace(/<\/ul>\s*<ul>/g, '');
+
+  // Ordered lists
+  html = html.replace(/^\d+\. (.+)$/gm, '<li>$1</li>');
+
+  // Paragraphs (double newline)
+  html = html.replace(/\n\n/g, '</p><p>');
+  html = '<p>' + html + '</p>';
+
+  // Single newlines to <br> inside paragraphs
+  html = html.replace(/\n/g, '<br>');
+
+  // Clean up empty paragraphs
+  html = html.replace(/<p>\s*<\/p>/g, '');
+  html = html.replace(/<p>\s*(<h[123]>)/g, '$1');
+  html = html.replace(/(<\/h[123]>)\s*<\/p>/g, '$1');
+  html = html.replace(/<p>\s*(<ul>)/g, '$1');
+  html = html.replace(/(<\/ul>)\s*<\/p>/g, '$1');
+  html = html.replace(/<p>\s*(<hr>)/g, '$1');
+  html = html.replace(/(<hr>)\s*<\/p>/g, '$1');
+
+  return html;
+}
+
+// ─── Settings ────────────────────────────────────────────────────────────────
+function toggleSettings() {
+  const panel = document.getElementById('settingsPanel');
+  panel.classList.toggle('visible');
+  if (panel.classList.contains('visible')) {
+    document.getElementById('apiKeyInput').focus();
+  }
+}
+
+function saveApiKey() {
+  const key = document.getElementById('apiKeyInput').value.trim();
+  if (!key) {
+    showToast('Please enter an API key', 'error');
+    return;
+  }
+
+  apiKey = key;
+
+  // Save to Wealthica preferences
+  if (addon) {
+    addon.saveData({ apiKey: key }).then(() => {
+      showToast('API key saved', 'success');
+      updateStatus('connected', 'API key saved');
+    }).catch(err => {
+      console.error('Failed to save data:', err);
+      showToast('Key set for this session (save failed)', 'error');
+    });
+  } else {
+    showToast('API key set for this session', 'success');
+    updateStatus('connected', 'API key set');
+  }
+
+  document.getElementById('settingsPanel').classList.remove('visible');
+  document.getElementById('btnAnalyze').disabled = portfolioData.positions.length === 0;
+}
+
+function onPromptChange() {
+  const val = document.getElementById('promptSelect').value;
+  const area = document.getElementById('customPromptArea');
+  area.classList.toggle('visible', val === 'custom');
+  if (val === 'custom') {
+    document.getElementById('customPrompt').focus();
+  }
+}
+
+// ─── Utilities ───────────────────────────────────────────────────────────────
+function updateStatus(status, title) {
+  const dot = document.getElementById('statusDot');
+  dot.className = 'status-dot ' + status;
+  dot.title = title || status;
+}
+
+function showToast(msg, type = '') {
+  const toast = document.getElementById('toast');
+  toast.textContent = msg;
+  toast.className = 'toast ' + type + ' visible';
+  setTimeout(() => { toast.classList.remove('visible'); }, 3000);
+}
+
+function escapeHtml(str) {
+  const div = document.createElement('div');
+  div.textContent = str;
+  return div.innerHTML;
+}
+
+// ─── Demo Data (for testing outside Wealthica) ──────────────────────────────
+function loadDemoData() {
+  portfolioData = {
+    positions: [
+      { security: { symbol: 'VFV.TO', name: 'Vanguard S&P 500 ETF', currency: 'CAD', type: 'etf' }, quantity: 500, book_value: 42500, market_value: 55200, _accountName: 'TFSA - Questrade' },
+      { security: { symbol: 'XQQ.TO', name: 'iShares NASDAQ 100 ETF', currency: 'CAD', type: 'etf' }, quantity: 200, book_value: 18000, market_value: 24800, _accountName: 'TFSA - Questrade' },
+      { security: { symbol: 'XEQT.TO', name: 'iShares Core Equity ETF', currency: 'CAD', type: 'etf' }, quantity: 800, book_value: 20000, market_value: 22400, _accountName: 'RRSP - RBC DI' },
+      { security: { symbol: 'CSH.UN.TO', name: 'Cornerstone Capital Resources', currency: 'CAD', type: 'equity' }, quantity: 15000, book_value: 3000, market_value: 18000, _accountName: 'Non-Reg - Questrade' },
+      { security: { symbol: 'BTC', name: 'Bitcoin', currency: 'USD', type: 'crypto' }, quantity: 0.75, book_value: 28000, market_value: 48500, _accountName: 'Shakepay' },
+      { security: { symbol: 'TD.TO', name: 'Toronto-Dominion Bank', currency: 'CAD', type: 'equity' }, quantity: 150, book_value: 12750, market_value: 12300, _accountName: 'RRSP - RBC DI' },
+    ],
+    institutions: [
+      { _id: '1', name: 'Questrade' },
+      { _id: '2', name: 'RBC Direct Investing' },
+      { _id: '3', name: 'Shakepay' },
+    ],
+    totalValue: 0,
+    totalBook: 0,
+  };
+
+  // Recalculate totals
+  let tv = 0, tb = 0;
+  portfolioData.positions.forEach(p => {
+    tv += p.market_value || 0;
+    tb += p.book_value || 0;
+  });
+  portfolioData.totalValue = tv;
+  portfolioData.totalBook = tb;
+
+  renderSummary();
+  renderAccounts();
+  renderHoldings();
+
+  // Enable analyze if key is set
+  document.getElementById('btnAnalyze').disabled = !apiKey;
+}
+
+// Allow Enter key in API input
+document.getElementById('apiKeyInput').addEventListener('keydown', function(e) {
+  if (e.key === 'Enter') saveApiKey();
+});
+
+// Allow Ctrl+Enter in custom prompt
+document.getElementById('customPrompt').addEventListener('keydown', function(e) {
+  if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') runAnalysis();
+});
+</script>
+
+</body>
+</html>
