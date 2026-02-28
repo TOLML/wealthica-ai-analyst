@@ -184,6 +184,30 @@
   .score-card .sc-bar { height: 4px; background: var(--bg-primary); border-radius: 2px; margin-top: 10px; overflow: hidden; }
   .score-card .sc-bar-fill { height: 100%; border-radius: 2px; transition: width 0.8s ease; }
 
+  /* Score Breakdown Section */
+  .score-breakdown { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 12px; margin-bottom: 20px; }
+  .score-breakdown-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 12px; padding: 18px; transition: border-color 0.2s; }
+  .score-breakdown-card:hover { border-color: var(--border-accent); }
+  .score-breakdown-card .sbc-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+  .score-breakdown-card .sbc-label { font-size: 13px; font-weight: 600; color: var(--text-primary); }
+  .score-breakdown-card .sbc-weight { font-size: 10px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; }
+  .score-breakdown-card .sbc-score { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+  .score-breakdown-card .sbc-value { font-family: 'JetBrains Mono', monospace; font-size: 28px; font-weight: 700; min-width: 48px; }
+  .score-breakdown-card .sbc-bar-wrap { flex: 1; }
+  .score-breakdown-card .sbc-bar { height: 8px; background: var(--bg-primary); border-radius: 4px; overflow: hidden; }
+  .score-breakdown-card .sbc-bar-fill { height: 100%; border-radius: 4px; transition: width 0.8s ease; }
+  .score-breakdown-card .sbc-grade { font-family: 'JetBrains Mono', monospace; font-size: 12px; font-weight: 600; padding: 2px 8px; border-radius: 4px; }
+  .score-breakdown-card .sbc-desc { font-size: 12px; color: var(--text-secondary); line-height: 1.5; }
+
+  /* Insights Panel */
+  .insights-panel { background: var(--bg-card); border: 1px solid var(--border); border-radius: 12px; padding: 20px; margin-bottom: 20px; }
+  .insights-panel h3 { font-size: 13px; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-muted); margin-bottom: 14px; font-weight: 500; }
+  .insight-item { display: flex; align-items: flex-start; gap: 10px; padding: 8px 0; border-bottom: 1px solid rgba(42,53,80,0.3); }
+  .insight-item:last-child { border-bottom: none; }
+  .insight-dot { width: 8px; height: 8px; border-radius: 50%; margin-top: 6px; flex-shrink: 0; }
+  .insight-text { font-size: 13px; color: var(--text-secondary); line-height: 1.5; }
+  .insight-text strong { color: var(--text-primary); }
+
   /* Risk Factors */
   .risk-factors { display: grid; gap: 10px; margin-top: 20px; }
   .risk-factor { background: var(--bg-card); border: 1px solid var(--border); border-radius: 10px; padding: 14px 18px; display: flex; align-items: center; gap: 12px; }
@@ -360,6 +384,15 @@
       <div class="summary-card"><div class="label">Positions</div><div class="value" id="totalPositions">--</div><div class="sub" id="positionsSub"></div></div>
       <div class="summary-card"><div class="label">Total Gain/Loss</div><div class="value" id="totalGainLoss">--</div><div class="sub" id="gainLossPct"></div></div>
       <div class="summary-card"><div class="label">Top Holding</div><div class="value" id="topHolding" style="font-size:16px">--</div><div class="sub" id="topHoldingPct"></div></div>
+    </div>
+
+    <!-- Score Breakdown Cards -->
+    <div class="score-breakdown" id="scoreBreakdown"></div>
+
+    <!-- Key Insights -->
+    <div class="insights-panel" id="insightsPanel" style="display:none">
+      <h3>Key Insights</h3>
+      <div id="insightsList"></div>
     </div>
 
     <div class="charts-row">
@@ -638,11 +671,22 @@ function processPortfolio() {
   const invMap = {};
   portfolioData.institutions.forEach(inst => {
     const iid = inst._id || inst.id;
-    instMap[iid] = inst;
+    if (iid) instMap[iid] = inst;
+    // Also index by name for fallback matching
+    if (inst.name) instMap['name:' + inst.name.toLowerCase()] = inst;
     if (inst.investments) {
       inst.investments.forEach(inv => {
         const vid = inv._id || inv.id;
-        invMap[vid] = { instName: inst.name, invName: inv.name || inv.type || '', fullName: (inv.name || inv.type || inst.name) + (inv.name && inst.name ? ' - ' + inst.name : '') };
+        const invLabel = inv.name || inv.type || '';
+        const instLabel = inst.name || '';
+        const fullLabel = invLabel && instLabel ? invLabel + ' - ' + instLabel : invLabel || instLabel;
+        if (vid) invMap[vid] = { instName: instLabel, invName: invLabel, fullName: fullLabel };
+        // Wealthica investment IDs are often {accountId}:{type}:{currency}
+        // Also index by the accountId portion for partial matching
+        if (vid && vid.includes(':')) {
+          const parts = vid.split(':');
+          invMap['partial:' + parts[0]] = invMap['partial:' + parts[0]] || { instName: instLabel, invName: invLabel, fullName: fullLabel };
+        }
       });
     }
   });
@@ -659,18 +703,44 @@ function processPortfolio() {
     const investId = typeof pos.investment === 'object' ? (pos.investment?._id || pos.investment?.id) : pos.investment;
     const instId = typeof pos.institution === 'object' ? (pos.institution?._id || pos.institution?.id) : pos.institution;
 
+    // 1. Direct investment ID match
     if (investId && invMap[investId]) {
       pos._accountName = invMap[investId].fullName;
-    } else if (investId && instMap[investId]) {
+    }
+    // 2. Partial investment ID match (match on accountId portion before ':')
+    else if (investId && investId.includes(':') && invMap['partial:' + investId.split(':')[0]]) {
+      pos._accountName = invMap['partial:' + investId.split(':')[0]].fullName;
+    }
+    // 3. Investment ID is actually an institution ID
+    else if (investId && instMap[investId]) {
       pos._accountName = instMap[investId].name;
-    } else if (instId && instMap[instId]) {
+    }
+    // 4. Direct institution ID match
+    else if (instId && instMap[instId]) {
       pos._accountName = instMap[instId].name;
-    } else if (pos.institution && typeof pos.institution === 'string') {
-      // If institution is a name string rather than an ID
-      pos._accountName = pos.institution;
-    } else {
-      // Last resort: try to extract from any available field
-      pos._accountName = pos.account_name || pos.accountName || pos.group || 'Unknown';
+    }
+    // 5. Institution string that might be a name
+    else if (pos.institution && typeof pos.institution === 'string') {
+      const byName = instMap['name:' + pos.institution.toLowerCase()];
+      pos._accountName = byName ? byName.name : pos.institution;
+    }
+    // 6. Try all available fields as fallback
+    else {
+      pos._accountName = pos.account_name || pos.accountName || pos.group || '';
+      // If still empty, try to build from investment ID structure
+      if (!pos._accountName && investId) {
+        // Investment ID format: {accountId}:{type}:{currency}
+        const parts = String(investId).split(':');
+        if (parts.length >= 2) {
+          const type = parts[1] || '';
+          // Make the type human-readable
+          const typeLabels = { 'tfsa': 'TFSA', 'rrsp': 'RRSP', 'rrif': 'RRIF', 'lira': 'LIRA', 'resp': 'RESP', 'margin': 'Non-Reg', 'cash': 'Cash', 'individual': 'Non-Reg', 'joint': 'Joint' };
+          pos._accountName = typeLabels[type.toLowerCase()] || type || 'Account';
+        } else {
+          pos._accountName = 'Account';
+        }
+      }
+      if (!pos._accountName) pos._accountName = 'Account';
     }
   });
   portfolioData.totalValue = totalValue;
@@ -680,14 +750,66 @@ function processPortfolio() {
 // ─── Account Filter ──────────────────────────────────────────────────────────
 function populateAccountFilter() {
   const sel = document.getElementById('accountFilter');
-  const accounts = [...new Set(portfolioData.positions.map(p => p._accountName || 'Unknown'))].sort();
-  sel.innerHTML = '<option value="all">All Accounts</option>';
-  accounts.forEach(a => { const o = document.createElement('option'); o.value = a; o.textContent = a; sel.appendChild(o); });
+  const accounts = [...new Set(portfolioData.positions.map(p => p._accountName || 'Account'))].sort();
+  sel.innerHTML = '<option value="all">All Accounts (' + portfolioData.positions.length + ' positions)</option>';
+
+  // Add account type groups (TFSA, RRSP, Non-Reg)
+  const groups = { 'TFSA': [], 'RRSP': [], 'Non-Registered': [], 'Other': [] };
+  accounts.forEach(a => {
+    if (/tfsa/i.test(a)) groups['TFSA'].push(a);
+    else if (/rrsp|lira|rrif/i.test(a)) groups['RRSP'].push(a);
+    else if (/non.reg|margin|taxable|individual|cash/i.test(a)) groups['Non-Registered'].push(a);
+    else groups['Other'].push(a);
+  });
+
+  // Add group filters if there are multiple account types
+  const activeGroups = Object.entries(groups).filter(([,v]) => v.length > 0);
+  if (activeGroups.length > 1) {
+    const groupOpt = document.createElement('optgroup');
+    groupOpt.label = 'Account Types';
+    activeGroups.forEach(([label, accts]) => {
+      const count = portfolioData.positions.filter(p => accts.includes(p._accountName)).length;
+      if (count > 0) {
+        const o = document.createElement('option');
+        o.value = 'group:' + label;
+        o.textContent = label + ' (' + count + ' positions)';
+        groupOpt.appendChild(o);
+      }
+    });
+    sel.appendChild(groupOpt);
+  }
+
+  // Add individual accounts
+  if (accounts.length > 0) {
+    const acctOpt = document.createElement('optgroup');
+    acctOpt.label = 'Individual Accounts';
+    accounts.forEach(a => {
+      const count = portfolioData.positions.filter(p => (p._accountName || 'Account') === a).length;
+      const o = document.createElement('option');
+      o.value = a;
+      o.textContent = a + ' (' + count + ')';
+      acctOpt.appendChild(o);
+    });
+    sel.appendChild(acctOpt);
+  }
 }
 
 function applyAccountFilter() {
   const val = document.getElementById('accountFilter').value;
-  filteredPositions = val === 'all' ? [...portfolioData.positions] : portfolioData.positions.filter(p => (p._accountName || 'Unknown') === val);
+  if (val === 'all') {
+    filteredPositions = [...portfolioData.positions];
+  } else if (val.startsWith('group:')) {
+    const groupName = val.replace('group:', '');
+    filteredPositions = portfolioData.positions.filter(p => {
+      const name = p._accountName || '';
+      if (groupName === 'TFSA') return /tfsa/i.test(name);
+      if (groupName === 'RRSP') return /rrsp|lira|rrif/i.test(name);
+      if (groupName === 'Non-Registered') return /non.reg|margin|taxable|individual|cash/i.test(name) || (!/tfsa|rrsp|lira|rrif/i.test(name) && !/shakepay|crypto|newton|ndax/i.test(name));
+      return true;
+    });
+  } else {
+    filteredPositions = portfolioData.positions.filter(p => (p._accountName || 'Account') === val);
+  }
   renderAllTabs();
 }
 
@@ -731,11 +853,11 @@ function inferAssetClass(pos) {
   const assetClass = (pos.class || pos.security?.asset_class || '').toLowerCase();
   const category = (pos.category || pos.security?.category || '').toLowerCase();
 
-  // 1. Use Wealthica's class / category if available
-  if (assetClass) {
+  // 1. Use Wealthica's class / category — short-circuit for non-equity types only
+  //    For equity, fall through to detailed ETF/stock pattern matching below
+  if (assetClass && !/equity|stock/i.test(assetClass)) {
     if (/crypto|digital/i.test(assetClass)) return 'Crypto';
     if (/fixed.income|bond|debt/i.test(assetClass)) return 'Fixed Income';
-    if (/equity|stock/i.test(assetClass)) return inferEquitySector(sym, name, category);
     if (/real.estate|reit/i.test(assetClass)) return 'Real Estate';
     if (/cash|money.market/i.test(assetClass)) return 'Cash';
     if (/commodity/i.test(assetClass)) return 'Commodities';
@@ -773,7 +895,7 @@ function inferAssetClass(pos) {
 }
 
 function inferEquitySector(sym, name, category) {
-  // Category from Wealthica if available
+  // Category from Wealthica if available — match specific sector categories
   if (category) {
     if (/tech/i.test(category)) return 'Technology';
     if (/financ|bank/i.test(category)) return 'Financials';
@@ -786,11 +908,14 @@ function inferEquitySector(sym, name, category) {
     if (/utilit/i.test(category)) return 'Utilities';
     if (/telecom|communicat/i.test(category)) return 'Communications';
     if (/real.estate|reit/i.test(category)) return 'Real Estate';
+    if (/international|emerging|eafe|europe|asia|japan|china|frontier|developing/i.test(category)) return 'International Equity';
+    if (/global|world|all.country/i.test(category)) return 'Diversified';
+    // Broad categories like "US Stocks", "Canadian Stocks" — don't match, let symbol/name matching decide
   }
 
   // Name-based keyword matching (broad)
   if (/\b(tech|software|semiconductor|chip|cloud|cyber|data|digital|ai |artificial|compute|intel|microsoft|apple|google|meta |nvidia|amd |adobe|salesforce|oracle|sap |ibm )\b/.test(name) || /nasdaq|information tech/i.test(name)) return 'Technology';
-  if (/^(XIT|ZQQ|TEC|XQQ)\.(TO|TSX)$/.test(sym) || ['QQQ','XLK','VGT','ARKK','SMH','SOXX','IGV'].includes(sym)) return 'Technology';
+  if (/^(XIT|ZQQ|TEC|XQQ|SHOP|OTEX|CSU|DCBO|KXS|LSPD)\.(TO|TSX)$/.test(sym) || ['QQQ','XLK','VGT','ARKK','SMH','SOXX','IGV','AAPL','MSFT','NVDA','GOOGL','GOOG','META','AMZN','CRM','ADBE','ORCL','INTC','AMD','AVGO','CSCO','TXN'].includes(sym)) return 'Technology';
 
   if (/\b(bank|financ|insurance|capital market|asset manage|wealth|brokerage|credit)\b/.test(name)) return 'Financials';
   if (/^(TD|RY|BMO|BNS|CM|NA|MFC|SLF|GWO|IFC|POW|IAG|EQB|CWB|LB)\.(TO|TSX)$/.test(sym) || /^(ZEB|ZWB|XFN)\.(TO|TSX)$/.test(sym) || ['JPM','BAC','GS','MS','WFC','C','BRK.B','V','MA','AXP','XLF','VFH','KRE'].includes(sym)) return 'Financials';
@@ -1050,24 +1175,73 @@ function renderSummary() {
   document.getElementById('healthScoreText').textContent = scores.health;
   document.getElementById('healthSummary').textContent = scores.healthDetail;
 
-  // Render sub-scores
+  // Render compact sub-scores in banner
   const subGrid = document.getElementById('subScores');
   subGrid.innerHTML = '';
   [
-    { label: 'Diversification', value: scores.diversification, tip: scores.diversificationDetail },
-    { label: 'Risk Mgmt', value: scores.riskManagement, tip: scores.riskDetail },
-    { label: 'Performance', value: scores.performance, tip: scores.performanceDetail },
-    { label: 'Tax Efficiency', value: scores.taxEfficiency, tip: scores.taxDetail },
-    { label: 'Income', value: scores.income, tip: scores.incomeDetail },
+    { label: 'Diversification', value: scores.diversification },
+    { label: 'Risk', value: scores.riskManagement },
+    { label: 'Performance', value: scores.performance },
+    { label: 'Tax', value: scores.taxEfficiency },
+    { label: 'Income', value: scores.income },
   ].forEach(sub => {
     const d = document.createElement('div');
-    d.style.cssText = 'background:var(--bg-primary);border-radius:6px;padding:6px 10px;cursor:help;';
-    d.title = sub.tip;
+    d.style.cssText = 'background:var(--bg-primary);border-radius:6px;padding:6px 10px;';
     d.innerHTML = '<div style="font-size:10px;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.3px">' + sub.label + '</div>' +
       '<div style="display:flex;align-items:center;gap:6px;margin-top:2px"><span style="font-family:JetBrains Mono,monospace;font-size:14px;font-weight:600;color:' + scoreColor(sub.value) + '">' + sub.value + '</span>' +
       '<div style="flex:1;height:3px;background:var(--border);border-radius:2px;overflow:hidden"><div style="height:100%;width:' + sub.value + '%;background:' + scoreColor(sub.value) + ';border-radius:2px"></div></div></div>';
     subGrid.appendChild(d);
   });
+
+  // Render detailed score breakdown cards
+  const breakdownGrid = document.getElementById('scoreBreakdown');
+  breakdownGrid.innerHTML = '';
+  [
+    { label: 'Diversification', weight: '25%', value: scores.diversification, desc: scores.diversificationDetail },
+    { label: 'Risk Management', weight: '25%', value: scores.riskManagement, desc: scores.riskDetail },
+    { label: 'Performance', weight: '20%', value: scores.performance, desc: scores.performanceDetail },
+    { label: 'Tax Efficiency', weight: '15%', value: scores.taxEfficiency, desc: scores.taxDetail },
+    { label: 'Income Potential', weight: '15%', value: scores.income, desc: scores.incomeDetail },
+  ].forEach(item => {
+    const color = scoreColor(item.value);
+    const grade = scoreLabel(item.value);
+    const gradeBg = item.value >= 70 ? 'var(--green-bg)' : item.value >= 40 ? 'var(--yellow-bg)' : 'var(--red-bg)';
+    const d = document.createElement('div');
+    d.className = 'score-breakdown-card';
+    d.innerHTML = '<div class="sbc-header"><span class="sbc-label">' + item.label + '</span><span class="sbc-weight">' + item.weight + ' weight</span></div>' +
+      '<div class="sbc-score"><span class="sbc-value" style="color:' + color + '">' + item.value + '</span>' +
+      '<div class="sbc-bar-wrap"><div class="sbc-bar"><div class="sbc-bar-fill" style="width:' + item.value + '%;background:' + color + '"></div></div></div>' +
+      '<span class="sbc-grade" style="color:' + color + ';background:' + gradeBg + '">' + grade + '</span></div>' +
+      '<div class="sbc-desc">' + escapeHtml(item.desc) + '</div>';
+    breakdownGrid.appendChild(d);
+  });
+
+  // Render key insights panel
+  const insights = [];
+  if (scores.maxConcentration > 20) insights.push({ color: 'var(--red)', text: '<strong>High concentration:</strong> Top position is ' + scores.maxConcentration.toFixed(1) + '% of portfolio. Consider trimming to below 15%.' });
+  if (scores.homeBias > 60) insights.push({ color: 'var(--yellow)', text: '<strong>Canadian home bias:</strong> ' + scores.homeBias.toFixed(0) + '% in Canada (only ~3% of global market cap). Add international diversification.' });
+  if (scores.cryptoWeight > 15) insights.push({ color: 'var(--yellow)', text: '<strong>High crypto exposure:</strong> ' + scores.cryptoWeight.toFixed(1) + '% in crypto adds significant volatility.' });
+  if (scores.totalReturn > 10) insights.push({ color: 'var(--green)', text: '<strong>Strong performance:</strong> Portfolio up ' + pct(scores.totalReturn) + ' overall with ' + scores.winRate.toFixed(0) + '% win rate.' });
+  if (scores.totalReturn < -5) insights.push({ color: 'var(--red)', text: '<strong>Underperforming:</strong> Portfolio down ' + pct(scores.totalReturn) + '. Review losers for tax-loss harvesting.' });
+  if (scores.taxIssues.length > 0) insights.push({ color: 'var(--yellow)', text: '<strong>' + scores.taxIssues.length + ' tax issue(s):</strong> ' + scores.taxIssues[0] });
+  if (scores.sectorCount < 4) insights.push({ color: 'var(--yellow)', text: '<strong>Limited sectors:</strong> Only ' + scores.sectorCount + ' sectors. Consider broad-market ETFs for more diversification.' });
+  if (scores.regionCount >= 3 && scores.homeBias <= 60) insights.push({ color: 'var(--green)', text: '<strong>Good geographic spread:</strong> ' + scores.regionCount + ' regions represented with no excessive home bias.' });
+  if (filteredPositions.length >= 10 && scores.diversification >= 60) insights.push({ color: 'var(--green)', text: '<strong>Well diversified:</strong> ' + scores.uniqueSecurities + ' unique securities across ' + scores.sectorCount + ' sectors.' });
+
+  const insightsPanel = document.getElementById('insightsPanel');
+  const insightsList = document.getElementById('insightsList');
+  if (insights.length > 0) {
+    insightsPanel.style.display = 'block';
+    insightsList.innerHTML = '';
+    insights.forEach(insight => {
+      const d = document.createElement('div');
+      d.className = 'insight-item';
+      d.innerHTML = '<div class="insight-dot" style="background:' + insight.color + '"></div><div class="insight-text">' + insight.text + '</div>';
+      insightsList.appendChild(d);
+    });
+  } else {
+    insightsPanel.style.display = 'none';
+  }
 }
 
 function renderOverview() {
