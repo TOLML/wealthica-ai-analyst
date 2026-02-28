@@ -699,8 +699,21 @@ function renderAllTabs() {
 }
 
 // ─── Inference Functions ─────────────────────────────────────────────────────
-function inferRegion(symbol) {
-  if (!symbol) return 'Unknown';
+function inferRegion(pos) {
+  // Accept both a position object and a plain symbol string
+  const symbol = typeof pos === 'string' ? pos : (pos?.security?.symbol || pos?.symbol || '');
+  const category = typeof pos === 'string' ? '' : (pos?.category || '').toLowerCase();
+  if (!symbol && !category) return 'Unknown';
+
+  // 1. Use Wealthica's position-level category (e.g. "US Stocks", "Canadian Stocks")
+  if (category) {
+    if (/canad/i.test(category)) return 'Canada';
+    if (/\bus\b|united states|american/i.test(category)) return 'United States';
+    if (/international|global|emerging|europe|asia|japan|china|india|latin|eafe|frontier|developing/i.test(category)) return 'International';
+    if (/crypto|digital/i.test(category)) return 'Crypto';
+  }
+
+  // 2. Fall back to symbol-based detection
   const s = symbol.toUpperCase();
   if (/\.(TO|TSX|V|VN|CN)$/i.test(s)) return 'Canada';
   if (['BTC','ETH','SOL','ADA','DOT','DOGE','XRP','LINK','AVAX','MATIC','USDT','USDC'].includes(s)) return 'Crypto';
@@ -714,10 +727,11 @@ function inferAssetClass(pos) {
   const sym = (pos.security?.symbol || pos.symbol || '').toUpperCase();
   const name = (pos.security?.name || pos.name || '').toLowerCase();
   const type = (pos.security?.type || pos.type || '').toLowerCase();
-  const assetClass = (pos.security?.asset_class || pos.asset_class || '').toLowerCase();
-  const category = (pos.security?.category || pos.category || '').toLowerCase();
+  // Wealthica API: class & category are at position level (pos.class, pos.category)
+  const assetClass = (pos.class || pos.security?.asset_class || '').toLowerCase();
+  const category = (pos.category || pos.security?.category || '').toLowerCase();
 
-  // 1. Use Wealthica's asset_class / category if available
+  // 1. Use Wealthica's class / category if available
   if (assetClass) {
     if (/crypto|digital/i.test(assetClass)) return 'Crypto';
     if (/fixed.income|bond|debt/i.test(assetClass)) return 'Fixed Income';
@@ -838,7 +852,7 @@ function computeScores() {
   const sectorScore = Math.min(100, sectorCount * 15);
 
   const regions = {};
-  positions.forEach(p => { const r = inferRegion(p.security?.symbol || p.symbol); regions[r] = (regions[r]||0) + (p.market_value||p.value||0); });
+  positions.forEach(p => { const r = inferRegion(p); regions[r] = (regions[r]||0) + (p.market_value||p.value||0); });
   const regionCount = Object.keys(regions).filter(r => r !== 'Unknown').length;
   const regionScore = Math.min(100, regionCount * 30);
 
@@ -1292,7 +1306,7 @@ function renderRisk() {
 
   const regionMap = {};
   filteredPositions.forEach(p => {
-    const r = inferRegion(p.security?.symbol || p.symbol);
+    const r = inferRegion(p);
     regionMap[r] = (regionMap[r]||0) + (p.market_value||p.value||0);
   });
   Object.entries(regionMap).forEach(([reg, val]) => {
@@ -1317,7 +1331,7 @@ function renderRegion() {
   const totalVal = filteredPositions.reduce((s,p) => s + (p.market_value || p.value || 0), 0);
   const regionMap = {}, currencyMap = {};
   filteredPositions.forEach(p => {
-    const r = inferRegion(p.security?.symbol || p.symbol);
+    const r = inferRegion(p);
     regionMap[r] = (regionMap[r]||0) + (p.market_value||p.value||0);
     const c = p.security?.currency || p.currency || 'CAD';
     currencyMap[c] = (currencyMap[c]||0) + (p.market_value||p.value||0);
@@ -1342,7 +1356,7 @@ function renderRegion() {
   regionDiv.innerHTML = '';
   regionEntries.forEach(([name, value]) => {
     const pctVal = totalVal > 0 ? (value/totalVal*100) : 0;
-    const posCount = filteredPositions.filter(p => inferRegion(p.security?.symbol||p.symbol) === name).length;
+    const posCount = filteredPositions.filter(p => inferRegion(p) === name).length;
     const d = document.createElement('div');
     d.className = 'region-card';
     d.innerHTML = '<div class="rc-name">' + escapeHtml(name) + '</div><div class="rc-pct">' + pctVal.toFixed(1) + '%</div><div class="rc-value">' + fmt(value) + ' · ' + posCount + ' position' + (posCount!==1?'s':'') + '</div><div class="rc-bar"><div class="rc-bar-fill" style="width:' + pctVal + '%;background:' + (regionColors[name]||'#6366f1') + '"></div></div>';
@@ -1598,7 +1612,7 @@ function generateMoves() {
   // Big moves
   const regionMap = {};
   filteredPositions.forEach(p => {
-    const r = inferRegion(p.security?.symbol || p.symbol);
+    const r = inferRegion(p);
     regionMap[r] = (regionMap[r]||0) + (p.market_value||p.value||0);
   });
   Object.entries(regionMap).forEach(([r, v]) => {
@@ -1892,21 +1906,21 @@ function loadDemoData() {
   portfolioData = {
     positions: [
       // TFSA — Growth + US Equity
-      { security: { symbol: 'VFV.TO', name: 'Vanguard S&P 500 Index ETF', currency: 'CAD', type: 'etf' }, quantity: 500, book_value: 42500, market_value: 55200, _accountName: 'TFSA - Questrade' },
-      { security: { symbol: 'XQQ.TO', name: 'iShares NASDAQ 100 Index ETF', currency: 'CAD', type: 'etf' }, quantity: 200, book_value: 18000, market_value: 24800, _accountName: 'TFSA - Questrade' },
-      { security: { symbol: 'BTC', name: 'Bitcoin', currency: 'USD', type: 'crypto' }, quantity: 0.75, book_value: 28000, market_value: 48500, _accountName: 'Shakepay' },
+      { class: 'equity', category: 'US Stocks', security: { symbol: 'VFV.TO', name: 'Vanguard S&P 500 Index ETF', currency: 'CAD', type: 'etf' }, quantity: 500, book_value: 42500, market_value: 55200, _accountName: 'TFSA - Questrade' },
+      { class: 'equity', category: 'US Stocks', security: { symbol: 'XQQ.TO', name: 'iShares NASDAQ 100 Index ETF', currency: 'CAD', type: 'etf' }, quantity: 200, book_value: 18000, market_value: 24800, _accountName: 'TFSA - Questrade' },
+      { class: 'crypto', category: 'Crypto', security: { symbol: 'BTC', name: 'Bitcoin', currency: 'USD', type: 'crypto' }, quantity: 0.75, book_value: 28000, market_value: 48500, _accountName: 'Shakepay' },
       // RRSP — Diversified + US dividend payers + Intl
-      { security: { symbol: 'XEQT.TO', name: 'iShares Core Equity ETF Portfolio', currency: 'CAD', type: 'etf' }, quantity: 800, book_value: 20000, market_value: 22400, _accountName: 'RRSP - RBC DI' },
-      { security: { symbol: 'TD.TO', name: 'Toronto-Dominion Bank', currency: 'CAD', type: 'equity' }, quantity: 150, book_value: 12750, market_value: 12300, _accountName: 'RRSP - RBC DI' },
-      { security: { symbol: 'XEF.TO', name: 'iShares Core MSCI EAFE IMI Index ETF', currency: 'CAD', type: 'etf' }, quantity: 300, book_value: 9600, market_value: 10500, _accountName: 'RRSP - RBC DI' },
-      { security: { symbol: 'ZAG.TO', name: 'BMO Aggregate Bond Index ETF', currency: 'CAD', type: 'etf', asset_class: 'fixed income' }, quantity: 400, book_value: 5800, market_value: 5600, _accountName: 'RRSP - RBC DI' },
+      { class: 'equity', category: 'Global Stocks', security: { symbol: 'XEQT.TO', name: 'iShares Core Equity ETF Portfolio', currency: 'CAD', type: 'etf' }, quantity: 800, book_value: 20000, market_value: 22400, _accountName: 'RRSP - RBC DI' },
+      { class: 'equity', category: 'Canadian Stocks', security: { symbol: 'TD.TO', name: 'Toronto-Dominion Bank', currency: 'CAD', type: 'equity' }, quantity: 150, book_value: 12750, market_value: 12300, _accountName: 'RRSP - RBC DI' },
+      { class: 'equity', category: 'International Stocks', security: { symbol: 'XEF.TO', name: 'iShares Core MSCI EAFE IMI Index ETF', currency: 'CAD', type: 'etf' }, quantity: 300, book_value: 9600, market_value: 10500, _accountName: 'RRSP - RBC DI' },
+      { class: 'fixed-income', category: 'Canadian Bonds', security: { symbol: 'ZAG.TO', name: 'BMO Aggregate Bond Index ETF', currency: 'CAD', type: 'etf' }, quantity: 400, book_value: 5800, market_value: 5600, _accountName: 'RRSP - RBC DI' },
       // Non-Reg — Dividend / Income / Tax-loss candidates
-      { security: { symbol: 'ENB.TO', name: 'Enbridge Inc', currency: 'CAD', type: 'equity' }, quantity: 200, book_value: 9800, market_value: 11200, _accountName: 'Non-Reg - Questrade' },
-      { security: { symbol: 'RY.TO', name: 'Royal Bank of Canada', currency: 'CAD', type: 'equity' }, quantity: 60, book_value: 8100, market_value: 9300, _accountName: 'Non-Reg - Questrade' },
-      { security: { symbol: 'FTS.TO', name: 'Fortis Inc', currency: 'CAD', type: 'equity' }, quantity: 100, book_value: 5600, market_value: 5900, _accountName: 'Non-Reg - Questrade' },
-      { security: { symbol: 'XRE.TO', name: 'iShares S&P/TSX Capped REIT Index ETF', currency: 'CAD', type: 'etf', asset_class: 'real estate' }, quantity: 250, book_value: 4200, market_value: 3800, _accountName: 'Non-Reg - Questrade' },
-      { security: { symbol: 'NTR.TO', name: 'Nutrien Ltd', currency: 'CAD', type: 'equity' }, quantity: 50, book_value: 4500, market_value: 3200, _accountName: 'Non-Reg - Questrade' },
-      { security: { symbol: 'SHOP.TO', name: 'Shopify Inc', currency: 'CAD', type: 'equity' }, quantity: 25, book_value: 2800, market_value: 2500, _accountName: 'TFSA - Questrade' },
+      { class: 'equity', category: 'Canadian Stocks', security: { symbol: 'ENB.TO', name: 'Enbridge Inc', currency: 'CAD', type: 'equity' }, quantity: 200, book_value: 9800, market_value: 11200, _accountName: 'Non-Reg - Questrade' },
+      { class: 'equity', category: 'Canadian Stocks', security: { symbol: 'RY.TO', name: 'Royal Bank of Canada', currency: 'CAD', type: 'equity' }, quantity: 60, book_value: 8100, market_value: 9300, _accountName: 'Non-Reg - Questrade' },
+      { class: 'equity', category: 'Canadian Stocks', security: { symbol: 'FTS.TO', name: 'Fortis Inc', currency: 'CAD', type: 'equity' }, quantity: 100, book_value: 5600, market_value: 5900, _accountName: 'Non-Reg - Questrade' },
+      { class: 'equity', category: 'Canadian REITs', security: { symbol: 'XRE.TO', name: 'iShares S&P/TSX Capped REIT Index ETF', currency: 'CAD', type: 'etf' }, quantity: 250, book_value: 4200, market_value: 3800, _accountName: 'Non-Reg - Questrade' },
+      { class: 'equity', category: 'Canadian Stocks', security: { symbol: 'NTR.TO', name: 'Nutrien Ltd', currency: 'CAD', type: 'equity' }, quantity: 50, book_value: 4500, market_value: 3200, _accountName: 'Non-Reg - Questrade' },
+      { class: 'equity', category: 'Canadian Stocks', security: { symbol: 'SHOP.TO', name: 'Shopify Inc', currency: 'CAD', type: 'equity' }, quantity: 25, book_value: 2800, market_value: 2500, _accountName: 'TFSA - Questrade' },
     ],
     institutions: [
       { _id: '1', name: 'Questrade' },
