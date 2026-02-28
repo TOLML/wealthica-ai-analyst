@@ -316,9 +316,12 @@
   <nav class="tab-nav" id="tabNav">
     <button class="tab-btn active" onclick="switchTab('overview')">Overview</button>
     <button class="tab-btn" onclick="switchTab('holdings')">Holdings</button>
+    <button class="tab-btn" onclick="switchTab('sectors')">Sectors</button>
     <button class="tab-btn" onclick="switchTab('performance')">Performance</button>
     <button class="tab-btn" onclick="switchTab('risk')">Risk</button>
     <button class="tab-btn" onclick="switchTab('region')">Region</button>
+    <button class="tab-btn" onclick="switchTab('dividends')">Dividends</button>
+    <button class="tab-btn" onclick="switchTab('tax')">Tax</button>
     <button class="tab-btn" onclick="switchTab('ai')">AI Analyst</button>
   </nav>
 
@@ -345,9 +348,10 @@
           <text class="score-text" id="healthScoreText" x="50" y="50">--</text>
         </svg>
       </div>
-      <div class="score-details">
+      <div class="score-details" style="flex:1">
         <h2>Portfolio Health Score</h2>
         <p id="healthSummary">Load your portfolio to see your health score and actionable insights.</p>
+        <div class="sub-scores" id="subScores" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:8px;margin-top:12px;"></div>
       </div>
     </div>
 
@@ -421,6 +425,45 @@
     <div class="region-cards" id="regionCards"></div>
   </section>
 
+  <!-- ==================== SECTORS TAB ==================== -->
+  <section class="tab-panel" id="panel-sectors">
+    <div class="charts-row">
+      <div class="chart-card"><h3>Sector Allocation</h3><canvas id="sectorDetailChart"></canvas></div>
+      <div class="chart-card"><h3>Sector Values</h3><canvas id="sectorBarChart"></canvas></div>
+    </div>
+    <div class="holdings-grid" id="sectorCards"></div>
+  </section>
+
+  <!-- ==================== DIVIDENDS TAB ==================== -->
+  <section class="tab-panel" id="panel-dividends">
+    <div class="summary-grid" id="divSummaryGrid"></div>
+    <div class="charts-row">
+      <div class="chart-card"><h3>Income-Generating Holdings</h3><canvas id="incomeChart"></canvas></div>
+      <div class="chart-card"><h3>Income by Account Type</h3><canvas id="incomeAccountChart"></canvas></div>
+    </div>
+    <div class="holdings-grid" id="incomeHoldingsGrid"></div>
+  </section>
+
+  <!-- ==================== TAX TAB ==================== -->
+  <section class="tab-panel" id="panel-tax">
+    <div class="score-banner" id="taxBanner">
+      <div class="score-ring">
+        <svg width="100" height="100" viewBox="0 0 100 100">
+          <circle class="ring-bg" cx="50" cy="50" r="42"/>
+          <circle class="ring-fill" id="taxRingFill" cx="50" cy="50" r="42" stroke="var(--accent)" stroke-dasharray="263.89" stroke-dashoffset="263.89" transform="rotate(-90 50 50)"/>
+          <text class="score-text" id="taxScoreText" x="50" y="50">--</text>
+        </svg>
+      </div>
+      <div class="score-details">
+        <h2>Tax Efficiency Score</h2>
+        <p id="taxSummary">Load your portfolio to see tax optimization opportunities.</p>
+      </div>
+    </div>
+    <div class="summary-grid" id="taxSummaryGrid"></div>
+    <div class="chart-card"><h3>Unrealized Gains/Losses by Account Type</h3><canvas id="taxGLChart"></canvas></div>
+    <div class="risk-factors" id="taxIssues" style="margin-top:16px"></div>
+  </section>
+
   <!-- ==================== AI ANALYST TAB ==================== -->
   <section class="tab-panel" id="panel-ai">
     <div class="analysis-header">
@@ -488,7 +531,7 @@ function switchTab(tab) {
   document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
   document.getElementById('panel-' + tab).classList.add('active');
   document.querySelectorAll('.tab-btn').forEach(b => {
-    if (b.textContent.toLowerCase().replace(/\s/g,'').includes(tab)) b.classList.add('active');
+    if (b.getAttribute('onclick') === "switchTab('" + tab + "')") b.classList.add('active');
   });
   renderActiveTab();
 }
@@ -498,9 +541,12 @@ function renderActiveTab() {
   switch(activeTab) {
     case 'overview': renderOverview(); break;
     case 'holdings': renderHoldingsTab(); break;
+    case 'sectors': renderSectors(); break;
     case 'performance': renderPerformance(); break;
     case 'risk': renderRisk(); break;
     case 'region': renderRegion(); break;
+    case 'dividends': renderDividends(); break;
+    case 'tax': renderTax(); break;
   }
 }
 
@@ -586,18 +632,46 @@ async function loadPortfolio() {
 
 function processPortfolio() {
   let totalValue = 0, totalBook = 0;
+
+  // Build institution/investment lookup — handle both string IDs and object refs
   const instMap = {};
+  const invMap = {};
   portfolioData.institutions.forEach(inst => {
-    instMap[inst._id] = inst;
-    if (inst.investments) inst.investments.forEach(inv => { instMap[inv._id] = { ...inst, accountName: inv.name || inst.name }; });
+    const iid = inst._id || inst.id;
+    instMap[iid] = inst;
+    if (inst.investments) {
+      inst.investments.forEach(inv => {
+        const vid = inv._id || inv.id;
+        invMap[vid] = { instName: inst.name, invName: inv.name || inv.type || '', fullName: (inv.name || inv.type || inst.name) + (inv.name && inst.name ? ' - ' + inst.name : '') };
+      });
+    }
   });
+
   portfolioData.positions.forEach(pos => {
     const mv = pos.market_value || pos.value || 0;
     const bv = pos.book_value || mv;
     totalValue += mv;
     totalBook += bv;
-    if (pos.investment && instMap[pos.investment]) pos._accountName = instMap[pos.investment].accountName || instMap[pos.investment].name;
-    else if (pos.institution && instMap[pos.institution]) pos._accountName = instMap[pos.institution].name;
+
+    // Resolve account name from investment > institution > fallback
+    if (pos._accountName) return; // already set (e.g., demo data)
+
+    const investId = typeof pos.investment === 'object' ? (pos.investment?._id || pos.investment?.id) : pos.investment;
+    const instId = typeof pos.institution === 'object' ? (pos.institution?._id || pos.institution?.id) : pos.institution;
+
+    if (investId && invMap[investId]) {
+      pos._accountName = invMap[investId].fullName;
+    } else if (investId && instMap[investId]) {
+      pos._accountName = instMap[investId].name;
+    } else if (instId && instMap[instId]) {
+      pos._accountName = instMap[instId].name;
+    } else if (pos.institution && typeof pos.institution === 'string') {
+      // If institution is a name string rather than an ID
+      pos._accountName = pos.institution;
+    } else {
+      // Last resort: try to extract from any available field
+      pos._accountName = pos.account_name || pos.accountName || pos.group || 'Unknown';
+    }
   });
   portfolioData.totalValue = totalValue;
   portfolioData.totalBook = totalBook;
@@ -625,8 +699,21 @@ function renderAllTabs() {
 }
 
 // ─── Inference Functions ─────────────────────────────────────────────────────
-function inferRegion(symbol) {
-  if (!symbol) return 'Unknown';
+function inferRegion(pos) {
+  // Accept both a position object and a plain symbol string
+  const symbol = typeof pos === 'string' ? pos : (pos?.security?.symbol || pos?.symbol || '');
+  const category = typeof pos === 'string' ? '' : (pos?.category || '').toLowerCase();
+  if (!symbol && !category) return 'Unknown';
+
+  // 1. Use Wealthica's position-level category (e.g. "US Stocks", "Canadian Stocks")
+  if (category) {
+    if (/canad/i.test(category)) return 'Canada';
+    if (/\bus\b|united states|american/i.test(category)) return 'United States';
+    if (/international|global|emerging|europe|asia|japan|china|india|latin|eafe|frontier|developing/i.test(category)) return 'International';
+    if (/crypto|digital/i.test(category)) return 'Crypto';
+  }
+
+  // 2. Fall back to symbol-based detection
   const s = symbol.toUpperCase();
   if (/\.(TO|TSX|V|VN|CN)$/i.test(s)) return 'Canada';
   if (['BTC','ETH','SOL','ADA','DOT','DOGE','XRP','LINK','AVAX','MATIC','USDT','USDC'].includes(s)) return 'Crypto';
@@ -636,53 +723,281 @@ function inferRegion(symbol) {
   return 'United States';
 }
 
-function inferSector(symbol, name, type) {
-  const s = (symbol || '').toUpperCase();
-  const n = (name || '').toLowerCase();
-  if (type === 'crypto' || ['BTC','ETH','SOL','ADA','DOT','DOGE','XRP'].includes(s)) return 'Crypto';
-  if (['XEQT.TO','VEQT.TO','XGRO.TO','VGRO.TO','XBAL.TO','VBAL.TO','VT','VTI'].includes(s)) return 'Diversified';
-  if (['VFV.TO','VSP.TO','SPY','VOO','IVV','ZSP.TO'].includes(s)) return 'US Equity';
-  if (['XQQ.TO','QQQ','ZQQ.TO','TEC.TO','ARKK','XIT.TO'].includes(s) || n.includes('nasdaq') || n.includes('technology')) return 'Technology';
-  if (['TD.TO','RY.TO','BMO.TO','BNS.TO','CM.TO','NA.TO','JPM','BAC','GS','ZEB.TO'].includes(s) || n.includes('bank') || n.includes('financial')) return 'Financials';
-  if (['ENB.TO','TRP.TO','SU.TO','CNQ.TO','CVE.TO','XEG.TO','XLE'].includes(s) || n.includes('energy')) return 'Energy';
-  if (n.includes('reit') || n.includes('real estate') || /\.UN\.TO$/.test(s)) return 'Real Estate';
-  if (n.includes('bond') || n.includes('fixed') || ['XBB.TO','ZAG.TO','VAB.TO','BND','AGG'].includes(s)) return 'Fixed Income';
-  if (n.includes('gold') || n.includes('mining') || ['GLD','IAU','XGD.TO','ABX.TO'].includes(s)) return 'Materials';
-  if (n.includes('health') || ['XLV','ZUH.TO'].includes(s)) return 'Healthcare';
-  return 'Other';
+function inferAssetClass(pos) {
+  const sym = (pos.security?.symbol || pos.symbol || '').toUpperCase();
+  const name = (pos.security?.name || pos.name || '').toLowerCase();
+  const type = (pos.security?.type || pos.type || '').toLowerCase();
+  // Wealthica API: class & category are at position level (pos.class, pos.category)
+  const assetClass = (pos.class || pos.security?.asset_class || '').toLowerCase();
+  const category = (pos.category || pos.security?.category || '').toLowerCase();
+
+  // 1. Use Wealthica's class / category if available
+  if (assetClass) {
+    if (/crypto|digital/i.test(assetClass)) return 'Crypto';
+    if (/fixed.income|bond|debt/i.test(assetClass)) return 'Fixed Income';
+    if (/equity|stock/i.test(assetClass)) return inferEquitySector(sym, name, category);
+    if (/real.estate|reit/i.test(assetClass)) return 'Real Estate';
+    if (/cash|money.market/i.test(assetClass)) return 'Cash';
+    if (/commodity/i.test(assetClass)) return 'Commodities';
+    if (/alternative/i.test(assetClass)) return 'Alternatives';
+  }
+
+  // 2. Use security type
+  if (type === 'crypto' || type === 'cryptocurrency') return 'Crypto';
+  if (type === 'bond' || type === 'fixed-income') return 'Fixed Income';
+  if (type === 'cash' || type === 'money-market') return 'Cash';
+  if (type === 'commodity') return 'Commodities';
+
+  // 3. Symbol-based crypto detection
+  const cryptos = ['BTC','ETH','SOL','ADA','DOT','DOGE','XRP','LINK','AVAX','MATIC','USDT','USDC','BNB','LTC','UNI','ATOM','NEAR','APT','ARB','OP','FTM','ALGO','XLM','VET','HBAR','FIL','ICP','SAND','MANA','AXS','CRO','SHIB','PEPE'];
+  if (cryptos.includes(sym) || /^(BTC|ETH|SOL|XRP)\.(X|USD|CAD)$/.test(sym)) return 'Crypto';
+
+  // 4. Broad diversified / all-in-one ETFs
+  if (/^(XEQT|VEQT|XGRO|VGRO|XBAL|VBAL|XCNS|VCNS|XINC|VRIF)\.(TO|TSX)$/.test(sym) || ['VT','VTI','ITOT','ACWI'].includes(sym)) return 'Diversified';
+  if (name.includes('all-in-one') || name.includes('all in one') || (name.includes('asset allocation') && name.includes('etf'))) return 'Diversified';
+
+  // 5. Index / broad market ETFs
+  if (/^(VFV|VSP|ZSP|HXS|XUS)\.(TO|TSX)$/.test(sym) || ['SPY','VOO','IVV','QQQ','DIA','IWM','RSP'].includes(sym)) return 'US Equity Index';
+  if (/^(XIU|XIC|VCN|ZCN|HXT)\.(TO|TSX)$/.test(sym)) return 'Canadian Equity Index';
+
+  // 6. Fixed income detection
+  if (name.includes('bond') || name.includes('fixed income') || name.includes('aggregate') || name.includes('treasury') || name.includes('income fund') || name.includes('money market') || name.includes('savings')) return 'Fixed Income';
+  if (/^(XBB|ZAG|VAB|ZDB|XSB|ZST|VSB|CLF|PSA|CSAV)\.(TO|TSX)$/.test(sym) || ['BND','AGG','TLT','HYG','LQD','SHY','IEF','VCIT','VCSH','BSV'].includes(sym)) return 'Fixed Income';
+
+  // 7. Real estate
+  if (name.includes('reit') || name.includes('real estate') || name.includes('property') || /\.UN\.(TO|TSX)$/.test(sym)) return 'Real Estate';
+  if (/^(XRE|ZRE|VRE)\.(TO|TSX)$/.test(sym) || ['VNQ','XLRE','IYR','SCHH','RWR'].includes(sym)) return 'Real Estate';
+
+  // 8. Equity sector inference from name/symbol
+  return inferEquitySector(sym, name, category);
 }
 
-// ─── Scoring ─────────────────────────────────────────────────────────────────
+function inferEquitySector(sym, name, category) {
+  // Category from Wealthica if available
+  if (category) {
+    if (/tech/i.test(category)) return 'Technology';
+    if (/financ|bank/i.test(category)) return 'Financials';
+    if (/energy|oil|gas/i.test(category)) return 'Energy';
+    if (/health|pharma|biotech/i.test(category)) return 'Healthcare';
+    if (/consumer.disc|retail/i.test(category)) return 'Consumer Discretionary';
+    if (/consumer.stap/i.test(category)) return 'Consumer Staples';
+    if (/industrial|aerospace|defense/i.test(category)) return 'Industrials';
+    if (/material|mining|metal|gold|silver/i.test(category)) return 'Materials';
+    if (/utilit/i.test(category)) return 'Utilities';
+    if (/telecom|communicat/i.test(category)) return 'Communications';
+    if (/real.estate|reit/i.test(category)) return 'Real Estate';
+  }
+
+  // Name-based keyword matching (broad)
+  if (/\b(tech|software|semiconductor|chip|cloud|cyber|data|digital|ai |artificial|compute|intel|microsoft|apple|google|meta |nvidia|amd |adobe|salesforce|oracle|sap |ibm )\b/.test(name) || /nasdaq|information tech/i.test(name)) return 'Technology';
+  if (/^(XIT|ZQQ|TEC|XQQ)\.(TO|TSX)$/.test(sym) || ['QQQ','XLK','VGT','ARKK','SMH','SOXX','IGV'].includes(sym)) return 'Technology';
+
+  if (/\b(bank|financ|insurance|capital market|asset manage|wealth|brokerage|credit)\b/.test(name)) return 'Financials';
+  if (/^(TD|RY|BMO|BNS|CM|NA|MFC|SLF|GWO|IFC|POW|IAG|EQB|CWB|LB)\.(TO|TSX)$/.test(sym) || /^(ZEB|ZWB|XFN)\.(TO|TSX)$/.test(sym) || ['JPM','BAC','GS','MS','WFC','C','BRK.B','V','MA','AXP','XLF','VFH','KRE'].includes(sym)) return 'Financials';
+
+  if (/\b(energy|oil|gas|petroleum|pipeline|natural gas|crude|drilling|upstream|midstream|downstream)\b/.test(name)) return 'Energy';
+  if (/^(ENB|TRP|SU|CNQ|CVE|IMO|HSE|PPL|KEY|IPL|MEG|WCP|ARX|TVE|BIR|PEY)\.(TO|TSX)$/.test(sym) || /^(XEG|ZEO)\.(TO|TSX)$/.test(sym) || ['XLE','VDE','OIH','XOP','FENY'].includes(sym)) return 'Energy';
+
+  if (/\b(health|pharma|biotech|medical|hospital|therapeut|drug|diagnostic|genomic)\b/.test(name)) return 'Healthcare';
+  if (['XLV','VHT','IBB','XBI','ARKG'].includes(sym) || /^(ZUH|XHC)\.(TO|TSX)$/.test(sym)) return 'Healthcare';
+
+  if (/\b(consumer discret|retail|auto|restaurant|hotel|leisure|apparel|luxury|e-commerce|amazon|tesla|home depot|nike)\b/.test(name)) return 'Consumer Discretionary';
+  if (['XLY','VCR','AMZN','TSLA','HD','NKE','MCD','SBUX','TJX','LOW'].includes(sym)) return 'Consumer Discretionary';
+
+  if (/\b(consumer staple|food|beverage|grocery|household|tobacco|personal care|procter|costco|walmart|coca|pepsi)\b/.test(name)) return 'Consumer Staples';
+  if (['XLP','VDC','PG','KO','PEP','COST','WMT'].includes(sym) || /^(ATD|L|MRU|SAP|EMP\.A)\.(TO|TSX)$/.test(sym)) return 'Consumer Staples';
+
+  if (/\b(industrial|aerospace|defense|railway|railroad|transport|logistics|machin|equipment|construction|waste|infrastructure)\b/.test(name)) return 'Industrials';
+  if (/^(CNR|CP|CAE|WSP|TFI|GFL|SNC|STN|RBA|ATA)\.(TO|TSX)$/.test(sym) || ['XLI','VIS','CAT','BA','HON','UPS','GE','MMM','LMT','RTX'].includes(sym)) return 'Industrials';
+
+  if (/\b(gold|silver|mining|metal|copper|lithium|iron|steel|chemical|fertilizer|lumber|timber|material|resource)\b/.test(name)) return 'Materials';
+  if (/^(ABX|NTR|FNV|AEM|K |WFG|CCL|LUN|FM |HBM|ERO|CS |TKO|AGI|WPM|PAAS|FR )\.(TO|TSX)$/.test(sym) || /^(XGD|XMA|ZGD)\.(TO|TSX)$/.test(sym) || ['GLD','IAU','SLV','GDX','GDXJ','XLB','XME','NEM'].includes(sym)) return 'Materials';
+
+  if (/\b(utilit|electric|power|water|gas distribution|renewable|solar|wind|hydro|nuclear)\b/.test(name)) return 'Utilities';
+  if (/^(FTS|EMA|H |AQN|CPX|BEP\.UN|NPI|INE|TA |ALA)\.(TO|TSX)$/.test(sym) || ['XLU','VPU','NEE','DUK','SO','AEP'].includes(sym)) return 'Utilities';
+
+  if (/\b(telecom|communicat|media|entertainment|streaming|wireless|cable|broadcast|disney|netflix|google|meta |alphabet|comcast)\b/.test(name)) return 'Communications';
+  if (/^(T|BCE|RCI\.B|QBR\.B|SJR\.B|CGO)\.(TO|TSX)$/.test(sym) || ['XLC','VOX','GOOGL','META','DIS','NFLX','CMCSA','TMUS','VZ','T'].includes(sym)) return 'Communications';
+
+  if (/\b(international|emerging|global|world|eafe|europe|asia|japan|china|india|latin|frontier)\b/.test(name)) return 'International Equity';
+  if (/^(XEF|VIU|XEC|VEE|ZEA|ZEM|XEM|VXC|ZDM)\.(TO|TSX)$/.test(sym) || ['VXUS','IXUS','EFA','EEM','VEA','VWO','IEMG','ACWX'].includes(sym)) return 'International Equity';
+
+  // Fallback: use security type
+  if (/etf|fund/i.test(name) && !name.includes('bond')) return 'Equity Fund';
+  if (/preferred|pref/i.test(name)) return 'Preferred Shares';
+
+  return 'Equity';
+}
+
+// ─── Scoring System ──────────────────────────────────────────────────────────
 function computeScores() {
   const positions = filteredPositions;
   const totalVal = positions.reduce((s,p) => s + (p.market_value || p.value || 0), 0);
-  if (!positions.length || !totalVal) return { health: 0, diversification: 0, risk: 50, performance: 50 };
+  if (!positions.length || !totalVal) return emptyScores();
 
   const weights = positions.map(p => (p.market_value || p.value || 0) / totalVal);
-  const hhi = weights.reduce((s,w) => s + w*w, 0);
   const n = positions.length;
-  const minHHI = n > 0 ? 1/n : 1;
-  const divScore = (n <= 1 || minHHI >= 1) ? 0 : Math.round(Math.min(100, Math.max(0, (1 - (hhi - minHHI) / (1 - minHHI)) * 100)));
-
-  const maxW = Math.max(...weights) * 100;
-  const top3W = [...weights].sort((a,b)=>b-a).slice(0,3).reduce((s,w)=>s+w,0) * 100;
-  const concRisk = Math.round(maxW * 0.5 + Math.max(0, top3W - 60) * 0.5);
-  const riskScore = Math.max(0, Math.min(100, 100 - concRisk));
-
+  const uniqueSecurities = new Set(positions.map(p => p.security?.symbol || p.symbol)).size;
   const totalBook = positions.reduce((s,p) => s + (p.book_value || p.market_value || p.value || 0), 0);
   const totalReturn = totalBook > 0 ? ((totalVal - totalBook) / totalBook) * 100 : 0;
-  const perfScore = Math.max(0, Math.min(100, 50 + totalReturn * 2));
 
-  const countScore = Math.min(100, new Set(positions.map(p => p.security?.symbol || p.symbol)).size * 12);
-  const health = Math.round(divScore * 0.3 + riskScore * 0.25 + perfScore * 0.25 + countScore * 0.2);
+  // ── 1. Diversification (0-100) ──
+  const hhi = weights.reduce((s,w) => s + w*w, 0);
+  const minHHI = n > 0 ? 1/n : 1;
+  const hhiScore = (n <= 1 || minHHI >= 1) ? 0 : Math.round((1 - (hhi - minHHI) / (1 - minHHI)) * 100);
 
-  return { health, diversification: divScore, risk: riskScore, performance: Math.round(perfScore), maxConcentration: maxW, top3Concentration: top3W, totalReturn, hhi };
+  const sectors = {};
+  positions.forEach(p => { const sec = inferAssetClass(p); sectors[sec] = (sectors[sec]||0) + (p.market_value||p.value||0); });
+  const sectorCount = Object.keys(sectors).length;
+  const sectorScore = Math.min(100, sectorCount * 15);
+
+  const regions = {};
+  positions.forEach(p => { const r = inferRegion(p); regions[r] = (regions[r]||0) + (p.market_value||p.value||0); });
+  const regionCount = Object.keys(regions).filter(r => r !== 'Unknown').length;
+  const regionScore = Math.min(100, regionCount * 30);
+
+  const posCountScore = Math.min(100, uniqueSecurities * 8);
+  const diversification = clamp(Math.round(hhiScore * 0.35 + sectorScore * 0.25 + regionScore * 0.2 + posCountScore * 0.2));
+  const diversificationDetail = hhiScore >= 70
+    ? uniqueSecurities + ' securities across ' + sectorCount + ' sectors and ' + regionCount + ' regions. Weight distribution is well-balanced.'
+    : hhiScore >= 40
+    ? 'Moderate spread across ' + sectorCount + ' sectors. Consider adding more variety in ' + (regionCount < 3 ? 'geographic regions' : 'asset classes') + '.'
+    : 'Heavily concentrated. Only ' + uniqueSecurities + ' unique securities in ' + sectorCount + ' sector(s). Add broad-market ETFs for instant diversification.';
+
+  // ── 2. Risk Management (0-100) ──
+  const maxW = Math.max(...weights) * 100;
+  const top3W = [...weights].sort((a,b)=>b-a).slice(0,3).reduce((s,w)=>s+w,0) * 100;
+  const top5W = [...weights].sort((a,b)=>b-a).slice(0,5).reduce((s,w)=>s+w,0) * 100;
+  const concScore = clamp(Math.round(100 - maxW * 1.5));
+  const top3Score = clamp(Math.round(100 - Math.max(0, top3W - 40)));
+  const homeBias = (regions['Canada']||0) / totalVal * 100;
+  const homeScore = homeBias > 80 ? 20 : homeBias > 60 ? 50 : homeBias > 40 ? 80 : 90;
+
+  // Volatility proxy: crypto + single stocks as % of portfolio
+  const cryptoWeight = Object.entries(sectors).filter(([k]) => k === 'Crypto').reduce((s,[,v]) => s + v, 0) / totalVal * 100;
+  const volPenalty = Math.min(40, cryptoWeight * 1.5);
+  const volScore = clamp(100 - Math.round(volPenalty));
+
+  const riskManagement = clamp(Math.round(concScore * 0.3 + top3Score * 0.25 + homeScore * 0.2 + volScore * 0.25));
+  const riskDetail = maxW > 30
+    ? 'High single-position risk: top holding is ' + maxW.toFixed(1) + '% of portfolio. Top 3 holdings = ' + top3W.toFixed(1) + '%. Trim overweight positions to reduce concentration.'
+    : maxW > 15
+    ? 'Moderate concentration with top holding at ' + maxW.toFixed(1) + '%. Top 5 = ' + top5W.toFixed(1) + '%. ' + (homeBias > 60 ? 'Canadian home bias at ' + homeBias.toFixed(0) + '% — add international exposure.' : 'Geographic mix looks reasonable.')
+    : 'Well-managed risk profile. No single position exceeds 15%. ' + (cryptoWeight > 10 ? 'Crypto allocation (' + cryptoWeight.toFixed(1) + '%) adds volatility — appropriate for aggressive profiles only.' : 'Volatility exposure is controlled.');
+
+  // ── 3. Performance (0-100) ──
+  const posReturns = positions.map(p => {
+    const mv = p.market_value || p.value || 0;
+    const bv = p.book_value || mv;
+    return bv > 0 ? ((mv - bv) / bv) * 100 : 0;
+  });
+  const avgReturn = posReturns.reduce((s,r) => s + r, 0) / posReturns.length;
+  const winners = posReturns.filter(r => r > 0).length;
+  const winRate = (winners / posReturns.length) * 100;
+  const returnScore = clamp(Math.round(50 + totalReturn * 2));
+  const winRateScore = clamp(Math.round(winRate));
+  const consistencyScore = clamp(Math.round(100 - Math.min(80, Math.abs(avgReturn - totalReturn) * 2)));
+  const performance = clamp(Math.round(returnScore * 0.5 + winRateScore * 0.3 + consistencyScore * 0.2));
+  const performanceDetail = totalReturn > 15
+    ? 'Strong returns of ' + pct(totalReturn) + ' overall. ' + winners + '/' + posReturns.length + ' positions profitable (' + winRate.toFixed(0) + '% win rate). Average position return: ' + pct(avgReturn) + '.'
+    : totalReturn > 0
+    ? 'Positive returns of ' + pct(totalReturn) + '. ' + winners + '/' + posReturns.length + ' positions in the green. Consider reviewing underperformers for tax-loss harvesting opportunities.'
+    : 'Negative returns of ' + pct(totalReturn) + '. ' + (posReturns.length - winners) + ' positions with unrealized losses. Review thesis for each loser — harvest tax losses or average down if conviction remains.';
+
+  // ── 4. Tax Efficiency (0-100) ──
+  const accounts = {};
+  positions.forEach(p => { const a = p._accountName || ''; accounts[a] = (accounts[a] || []).concat(p); });
+  let taxScore = 70; // base
+  const taxIssues = [];
+  Object.entries(accounts).forEach(([name, poss]) => {
+    const isRRSP = /rrsp|lira|rrif/i.test(name);
+    const isTFSA = /tfsa/i.test(name);
+    const isNonReg = !isRRSP && !isTFSA;
+    poss.forEach(p => {
+      const sym = (p.security?.symbol||p.symbol||'').toUpperCase();
+      const cur = p.security?.currency || p.currency || 'CAD';
+      const sector = inferAssetClass(p);
+      // US dividends in non-RRSP lose 15% withholding
+      if (cur === 'USD' && !isRRSP && (sector.includes('Equity') || sector === 'Financials' || sector === 'Technology' || sector === 'Healthcare')) {
+        taxScore -= 3;
+        taxIssues.push(sym + ' (USD dividend payer) in non-RRSP — loses 15% withholding tax');
+      }
+      // Growth stocks in RRSP instead of TFSA
+      if (isRRSP && sector === 'Crypto') { taxScore -= 5; taxIssues.push(sym + ' in RRSP — crypto growth is better sheltered in TFSA'); }
+      // Unrealized losses in registered accounts (can\'t harvest)
+      const gl = (p.market_value||p.value||0) - (p.book_value||0);
+      if (gl < -1000 && !isNonReg) { taxScore -= 2; taxIssues.push(sym + ' has ' + fmt(gl) + ' unrealized loss in registered account — cannot tax-loss harvest'); }
+    });
+  });
+  const taxEfficiency = clamp(Math.round(taxScore));
+  const taxDetail = taxIssues.length === 0
+    ? 'No major tax efficiency issues detected. Holdings appear well-placed across account types.'
+    : 'Found ' + taxIssues.length + ' tax efficiency issue(s): ' + taxIssues.slice(0, 3).join('; ') + (taxIssues.length > 3 ? '; and ' + (taxIssues.length - 3) + ' more.' : '.');
+
+  // ── 5. Income Potential (0-100) ──
+  const incomePositions = positions.filter(p => {
+    const sec = inferAssetClass(p);
+    return sec === 'Fixed Income' || sec === 'Real Estate' || sec === 'Utilities' || sec === 'Financials' || sec === 'Energy' || sec === 'Preferred Shares';
+  });
+  const incomeWeight = incomePositions.reduce((s,p) => s + (p.market_value||p.value||0), 0) / totalVal * 100;
+  const targetIncome = riskTolerance <= 3 ? 40 : riskTolerance <= 5 ? 25 : riskTolerance <= 7 ? 15 : 5;
+  const incomeGap = Math.abs(incomeWeight - targetIncome);
+  const incomeScore = clamp(Math.round(100 - incomeGap * 2));
+  const incomeDetail = incomeWeight > 5
+    ? incomeWeight.toFixed(1) + '% of portfolio in income-oriented holdings (target ~' + targetIncome + '% for your risk profile). ' + incomePositions.length + ' income-generating positions.'
+    : 'Very low income allocation (' + incomeWeight.toFixed(1) + '%). Portfolio is growth-oriented. ' + (riskTolerance <= 5 ? 'Consider adding dividend ETFs or bond allocation.' : 'Appropriate for aggressive growth strategy.');
+
+  // ── Overall Health Score ──
+  const health = clamp(Math.round(
+    diversification * 0.25 +
+    riskManagement * 0.25 +
+    performance * 0.20 +
+    taxEfficiency * 0.15 +
+    incomeScore * 0.15
+  ));
+
+  const healthDetail = health >= 80
+    ? 'Excellent portfolio health. Well-diversified, risk-managed, and tax-efficient.'
+    : health >= 60
+    ? 'Good portfolio health with room for improvement. Focus on: ' + (diversification < 60 ? 'diversification' : riskManagement < 60 ? 'risk management' : taxEfficiency < 60 ? 'tax efficiency' : 'income allocation') + '.'
+    : health >= 40
+    ? 'Fair portfolio health. Multiple areas need attention. Key issues: ' + [diversification < 50 ? 'low diversification' : '', riskManagement < 50 ? 'high concentration' : '', performance < 40 ? 'poor performance' : ''].filter(Boolean).join(', ') + '.'
+    : 'Portfolio needs significant restructuring. Consider consulting a financial advisor or moving to a balanced all-in-one ETF.';
+
+  return {
+    health, healthDetail,
+    diversification, diversificationDetail,
+    riskManagement, riskDetail,
+    performance, performanceDetail,
+    taxEfficiency, taxDetail,
+    income: incomeScore, incomeDetail,
+    // Raw data for other uses
+    maxConcentration: maxW, top3Concentration: top3W, top5Concentration: top5W,
+    totalReturn, hhi, homeBias, cryptoWeight,
+    sectorCount, regionCount, uniqueSecurities,
+    winRate, avgReturn, winners, losers: posReturns.length - winners,
+    incomeWeight, taxIssues,
+  };
 }
+
+function emptyScores() {
+  return { health: 0, healthDetail: 'No data loaded.', diversification: 0, diversificationDetail: '', riskManagement: 0, riskDetail: '', performance: 0, performanceDetail: '', taxEfficiency: 0, taxDetail: '', income: 0, incomeDetail: '', maxConcentration: 0, top3Concentration: 0, top5Concentration: 0, totalReturn: 0, hhi: 0, homeBias: 0, cryptoWeight: 0, sectorCount: 0, regionCount: 0, uniqueSecurities: 0, winRate: 0, avgReturn: 0, winners: 0, losers: 0, incomeWeight: 0, taxIssues: [] };
+}
+
+function clamp(v) { return Math.max(0, Math.min(100, v)); }
 
 function scoreColor(score) {
   if (score >= 70) return 'var(--green)';
   if (score >= 40) return 'var(--yellow)';
   return 'var(--red)';
+}
+
+function scoreLabel(score) {
+  if (score >= 80) return 'Excellent';
+  if (score >= 60) return 'Good';
+  if (score >= 40) return 'Fair';
+  if (score >= 20) return 'Needs Work';
+  return 'Critical';
 }
 
 // ─── Rendering Helpers ───────────────────────────────────────────────────────
@@ -733,15 +1048,26 @@ function renderSummary() {
   ring.style.strokeDashoffset = circ * (1 - scores.health / 100);
   ring.style.stroke = scoreColor(scores.health);
   document.getElementById('healthScoreText').textContent = scores.health;
-  const summaries = [];
-  if (scores.diversification >= 70) summaries.push('Well diversified');
-  else if (scores.diversification >= 40) summaries.push('Moderate diversification');
-  else summaries.push('Low diversification — consider spreading holdings');
-  if (scores.totalReturn > 10) summaries.push('Strong returns of ' + pct(scores.totalReturn));
-  else if (scores.totalReturn > 0) summaries.push('Positive returns of ' + pct(scores.totalReturn));
-  else if (scores.totalReturn < 0) summaries.push('Negative returns of ' + pct(scores.totalReturn));
-  if (scores.maxConcentration > 30) summaries.push('High concentration: top position is ' + scores.maxConcentration.toFixed(1) + '%');
-  document.getElementById('healthSummary').textContent = summaries.join('. ') + '.';
+  document.getElementById('healthSummary').textContent = scores.healthDetail;
+
+  // Render sub-scores
+  const subGrid = document.getElementById('subScores');
+  subGrid.innerHTML = '';
+  [
+    { label: 'Diversification', value: scores.diversification, tip: scores.diversificationDetail },
+    { label: 'Risk Mgmt', value: scores.riskManagement, tip: scores.riskDetail },
+    { label: 'Performance', value: scores.performance, tip: scores.performanceDetail },
+    { label: 'Tax Efficiency', value: scores.taxEfficiency, tip: scores.taxDetail },
+    { label: 'Income', value: scores.income, tip: scores.incomeDetail },
+  ].forEach(sub => {
+    const d = document.createElement('div');
+    d.style.cssText = 'background:var(--bg-primary);border-radius:6px;padding:6px 10px;cursor:help;';
+    d.title = sub.tip;
+    d.innerHTML = '<div style="font-size:10px;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.3px">' + sub.label + '</div>' +
+      '<div style="display:flex;align-items:center;gap:6px;margin-top:2px"><span style="font-family:JetBrains Mono,monospace;font-size:14px;font-weight:600;color:' + scoreColor(sub.value) + '">' + sub.value + '</span>' +
+      '<div style="flex:1;height:3px;background:var(--border);border-radius:2px;overflow:hidden"><div style="height:100%;width:' + sub.value + '%;background:' + scoreColor(sub.value) + ';border-radius:2px"></div></div></div>';
+    subGrid.appendChild(d);
+  });
 }
 
 function renderOverview() {
@@ -750,7 +1076,7 @@ function renderOverview() {
   // Allocation chart (by type/sector)
   const sectorMap = {};
   filteredPositions.forEach(p => {
-    const sector = inferSector(p.security?.symbol || p.symbol, p.security?.name, p.security?.type);
+    const sector = inferAssetClass(p);
     sectorMap[sector] = (sectorMap[sector] || 0) + (p.market_value || p.value || 0);
   });
   const sectorEntries = Object.entries(sectorMap).sort((a,b) => b[1] - a[1]);
@@ -924,8 +1250,10 @@ function renderRisk() {
   grid.innerHTML = '';
   [
     { label: 'Diversification', value: scores.diversification, color: scoreColor(scores.diversification) },
-    { label: 'Concentration Safety', value: scores.risk, color: scoreColor(scores.risk) },
+    { label: 'Risk Mgmt', value: scores.riskManagement, color: scoreColor(scores.riskManagement) },
     { label: 'Performance', value: scores.performance, color: scoreColor(scores.performance) },
+    { label: 'Tax Efficiency', value: scores.taxEfficiency, color: scoreColor(scores.taxEfficiency) },
+    { label: 'Income', value: scores.income, color: scoreColor(scores.income) },
     { label: 'Overall Health', value: scores.health, color: scoreColor(scores.health) },
   ].forEach(s => {
     const d = document.createElement('div');
@@ -967,7 +1295,7 @@ function renderRisk() {
 
   const sectorMap = {};
   filteredPositions.forEach(p => {
-    const sec = inferSector(p.security?.symbol||p.symbol, p.security?.name, p.security?.type);
+    const sec = inferAssetClass(p);
     sectorMap[sec] = (sectorMap[sec]||0) + (p.market_value||p.value||0);
   });
   Object.entries(sectorMap).forEach(([sec, val]) => {
@@ -978,7 +1306,7 @@ function renderRisk() {
 
   const regionMap = {};
   filteredPositions.forEach(p => {
-    const r = inferRegion(p.security?.symbol || p.symbol);
+    const r = inferRegion(p);
     regionMap[r] = (regionMap[r]||0) + (p.market_value||p.value||0);
   });
   Object.entries(regionMap).forEach(([reg, val]) => {
@@ -1003,7 +1331,7 @@ function renderRegion() {
   const totalVal = filteredPositions.reduce((s,p) => s + (p.market_value || p.value || 0), 0);
   const regionMap = {}, currencyMap = {};
   filteredPositions.forEach(p => {
-    const r = inferRegion(p.security?.symbol || p.symbol);
+    const r = inferRegion(p);
     regionMap[r] = (regionMap[r]||0) + (p.market_value||p.value||0);
     const c = p.security?.currency || p.currency || 'CAD';
     currencyMap[c] = (currencyMap[c]||0) + (p.market_value||p.value||0);
@@ -1028,12 +1356,231 @@ function renderRegion() {
   regionDiv.innerHTML = '';
   regionEntries.forEach(([name, value]) => {
     const pctVal = totalVal > 0 ? (value/totalVal*100) : 0;
-    const posCount = filteredPositions.filter(p => inferRegion(p.security?.symbol||p.symbol) === name).length;
+    const posCount = filteredPositions.filter(p => inferRegion(p) === name).length;
     const d = document.createElement('div');
     d.className = 'region-card';
     d.innerHTML = '<div class="rc-name">' + escapeHtml(name) + '</div><div class="rc-pct">' + pctVal.toFixed(1) + '%</div><div class="rc-value">' + fmt(value) + ' · ' + posCount + ' position' + (posCount!==1?'s':'') + '</div><div class="rc-bar"><div class="rc-bar-fill" style="width:' + pctVal + '%;background:' + (regionColors[name]||'#6366f1') + '"></div></div>';
     regionDiv.appendChild(d);
   });
+}
+
+// ─── Sectors Tab ─────────────────────────────────────────────────────────────
+function renderSectors() {
+  const totalVal = filteredPositions.reduce((s,p) => s + (p.market_value || p.value || 0), 0);
+  const sectorMap = {};
+  filteredPositions.forEach(p => {
+    const sec = inferAssetClass(p);
+    if (!sectorMap[sec]) sectorMap[sec] = { value: 0, count: 0, positions: [] };
+    sectorMap[sec].value += (p.market_value || p.value || 0);
+    sectorMap[sec].count++;
+    sectorMap[sec].positions.push(p);
+  });
+  const sectorEntries = Object.entries(sectorMap).sort((a,b) => b[1].value - a[1].value);
+
+  // Doughnut chart
+  makeChart('sectorDetail', document.getElementById('sectorDetailChart'), {
+    type: 'doughnut',
+    data: { labels: sectorEntries.map(e=>e[0]), datasets: [{ data: sectorEntries.map(e=>e[1].value), backgroundColor: CHART_COLORS.slice(0, sectorEntries.length), borderWidth: 0 }] },
+    options: { responsive: true, cutout: '55%', plugins: { legend: { position: 'bottom', labels: { padding: 8, usePointStyle: true, pointStyleWidth: 8, font: { size: 11 } } } } }
+  });
+
+  // Bar chart
+  makeChart('sectorBar', document.getElementById('sectorBarChart'), {
+    type: 'bar',
+    data: { labels: sectorEntries.map(e=>e[0]), datasets: [{ data: sectorEntries.map(e=>e[1].value), backgroundColor: CHART_COLORS.slice(0, sectorEntries.length), borderRadius: 4 }] },
+    options: { indexAxis: 'y', responsive: true, plugins: { legend: { display: false } }, scales: { x: { grid: { color: 'rgba(42,53,80,0.3)' }, ticks: { callback: v => '$' + (v/1000).toFixed(0) + 'k' } }, y: { grid: { display: false } } } }
+  });
+
+  // Sector cards
+  const grid = document.getElementById('sectorCards');
+  grid.innerHTML = '';
+  sectorEntries.forEach(([name, data], i) => {
+    const pctVal = totalVal > 0 ? (data.value/totalVal*100) : 0;
+    const gl = data.positions.reduce((s,p) => s + ((p.market_value||p.value||0) - (p.book_value||(p.market_value||p.value||0))), 0);
+    const topSymbols = data.positions.sort((a,b) => (b.market_value||b.value||0) - (a.market_value||a.value||0)).slice(0,3).map(p => p.security?.symbol || p.symbol || '?').join(', ');
+    const d = document.createElement('div');
+    d.className = 'position-card';
+    d.innerHTML = '<div class="pos-header"><div><div class="pos-symbol" style="color:' + CHART_COLORS[i % CHART_COLORS.length] + '">' + escapeHtml(name) + '</div>' +
+      '<div class="pos-name">' + data.count + ' position' + (data.count!==1?'s':'') + ' · ' + topSymbols + '</div></div>' +
+      '<div style="text-align:right"><div style="font-family:JetBrains Mono,monospace;font-size:18px;font-weight:700">' + pctVal.toFixed(1) + '%</div></div></div>' +
+      '<div class="pos-values"><div class="pos-metric"><div class="pm-label">Value</div><div class="pm-value">' + fmt(data.value) + '</div></div>' +
+      '<div class="pos-metric"><div class="pm-label">Gain/Loss</div><div class="pm-value ' + (gl>=0?'positive':'negative') + '">' + fmt(gl) + '</div></div></div>' +
+      '<div class="pos-weight-bar"><div class="pos-weight-fill" style="width:' + Math.min(100,pctVal) + '%;background:' + CHART_COLORS[i % CHART_COLORS.length] + '"></div></div>';
+    grid.appendChild(d);
+  });
+}
+
+// ─── Dividends Tab ───────────────────────────────────────────────────────────
+function renderDividends() {
+  const totalVal = filteredPositions.reduce((s,p) => s + (p.market_value || p.value || 0), 0);
+  const scores = computeScores();
+
+  // Classify positions as income or growth
+  const incomeTypes = ['Fixed Income','Real Estate','Utilities','Preferred Shares','Energy','Financials'];
+  const incomePositions = [], growthPositions = [];
+  filteredPositions.forEach(p => {
+    const sec = inferAssetClass(p);
+    if (incomeTypes.includes(sec)) incomePositions.push({ ...p, _sector: sec });
+    else growthPositions.push({ ...p, _sector: sec });
+  });
+  const incomeVal = incomePositions.reduce((s,p) => s + (p.market_value||p.value||0), 0);
+  const growthVal = growthPositions.reduce((s,p) => s + (p.market_value||p.value||0), 0);
+
+  // Summary cards
+  const grid = document.getElementById('divSummaryGrid');
+  grid.innerHTML = '';
+  [
+    { label: 'Income Holdings', value: incomePositions.length + ' positions', sub: fmt(incomeVal) + ' (' + (totalVal>0?(incomeVal/totalVal*100).toFixed(1):'0') + '%)' },
+    { label: 'Growth Holdings', value: growthPositions.length + ' positions', sub: fmt(growthVal) + ' (' + (totalVal>0?(growthVal/totalVal*100).toFixed(1):'0') + '%)' },
+    { label: 'Income Score', value: scores.income + '/100', sub: scoreLabel(scores.income) },
+    { label: 'Est. Yield', value: scores.incomeWeight > 20 ? '~2-4%' : scores.incomeWeight > 5 ? '~1-2%' : '<1%', sub: 'Based on income allocation' },
+  ].forEach(c => {
+    const d = document.createElement('div');
+    d.className = 'summary-card';
+    d.innerHTML = '<div class="label">' + c.label + '</div><div class="value" style="font-size:16px">' + c.value + '</div><div class="sub">' + c.sub + '</div>';
+    grid.appendChild(d);
+  });
+
+  // Income vs growth chart
+  makeChart('income', document.getElementById('incomeChart'), {
+    type: 'doughnut',
+    data: { labels: ['Income-Oriented','Growth-Oriented'], datasets: [{ data: [incomeVal, growthVal], backgroundColor: ['#22c55e','#3b82f6'], borderWidth: 0 }] },
+    options: { responsive: true, cutout: '60%', plugins: { legend: { position: 'bottom', labels: { padding: 10, usePointStyle: true, pointStyleWidth: 8 } } } }
+  });
+
+  // Income by account type
+  const acctIncome = {};
+  incomePositions.forEach(p => {
+    const a = p._accountName || 'Unknown';
+    acctIncome[a] = (acctIncome[a]||0) + (p.market_value||p.value||0);
+  });
+  const acctEntries = Object.entries(acctIncome).sort((a,b) => b[1]-a[1]);
+  if (acctEntries.length > 0) {
+    makeChart('incomeAccount', document.getElementById('incomeAccountChart'), {
+      type: 'bar',
+      data: { labels: acctEntries.map(e=>e[0]), datasets: [{ data: acctEntries.map(e=>e[1]), backgroundColor: '#22c55e', borderRadius: 4 }] },
+      options: { responsive: true, plugins: { legend: { display: false } }, scales: { y: { grid: { color: 'rgba(42,53,80,0.3)' }, ticks: { callback: v => '$' + (v/1000).toFixed(0) + 'k' } }, x: { grid: { display: false } } } }
+    });
+  }
+
+  // Income holdings list
+  const holdGrid = document.getElementById('incomeHoldingsGrid');
+  holdGrid.innerHTML = '';
+  incomePositions.sort((a,b) => (b.market_value||b.value||0) - (a.market_value||a.value||0)).forEach(pos => {
+    const sym = pos.security?.symbol || pos.symbol || '--';
+    const mv = pos.market_value || pos.value || 0;
+    const weight = totalVal > 0 ? (mv/totalVal*100) : 0;
+    const d = document.createElement('div');
+    d.className = 'position-card';
+    d.innerHTML = '<div class="pos-header"><div><div class="pos-symbol">' + escapeHtml(sym) + '</div><div class="pos-name">' + escapeHtml(pos.security?.name||'') + '</div></div>' +
+      '<div style="text-align:right"><span style="background:var(--green-bg);color:var(--green);padding:2px 8px;border-radius:4px;font-size:10px;font-weight:600">' + escapeHtml(pos._sector) + '</span></div></div>' +
+      '<div class="pos-values"><div class="pos-metric"><div class="pm-label">Value</div><div class="pm-value">' + fmt(mv) + '</div></div>' +
+      '<div class="pos-metric"><div class="pm-label">Weight</div><div class="pm-value">' + weight.toFixed(1) + '%</div></div></div>' +
+      '<div class="pos-weight-bar"><div class="pos-weight-fill" style="width:' + Math.min(100,weight) + '%;background:var(--green)"></div></div>';
+    holdGrid.appendChild(d);
+  });
+  if (incomePositions.length === 0) {
+    holdGrid.innerHTML = '<div class="position-card" style="text-align:center;padding:40px;color:var(--text-muted)">No income-oriented positions detected. Consider adding dividend ETFs, REITs, or bond funds.</div>';
+  }
+}
+
+// ─── Tax Tab ─────────────────────────────────────────────────────────────────
+function renderTax() {
+  const scores = computeScores();
+  const totalVal = filteredPositions.reduce((s,p) => s + (p.market_value || p.value || 0), 0);
+
+  // Tax score ring
+  const circ = 2 * Math.PI * 42;
+  const taxRing = document.getElementById('taxRingFill');
+  taxRing.style.strokeDasharray = circ;
+  taxRing.style.strokeDashoffset = circ * (1 - scores.taxEfficiency / 100);
+  taxRing.style.stroke = scoreColor(scores.taxEfficiency);
+  document.getElementById('taxScoreText').textContent = scores.taxEfficiency;
+  document.getElementById('taxSummary').textContent = scores.taxDetail;
+
+  // Summary cards: gains/losses by account type
+  const acctTypes = { 'RRSP': { gains: 0, losses: 0, value: 0 }, 'TFSA': { gains: 0, losses: 0, value: 0 }, 'Non-Registered': { gains: 0, losses: 0, value: 0 } };
+  filteredPositions.forEach(p => {
+    const name = p._accountName || '';
+    const type = /rrsp|lira|rrif/i.test(name) ? 'RRSP' : /tfsa/i.test(name) ? 'TFSA' : 'Non-Registered';
+    const gl = (p.market_value || p.value || 0) - (p.book_value || (p.market_value || p.value || 0));
+    acctTypes[type].value += (p.market_value || p.value || 0);
+    if (gl >= 0) acctTypes[type].gains += gl;
+    else acctTypes[type].losses += gl;
+  });
+
+  const sumGrid = document.getElementById('taxSummaryGrid');
+  sumGrid.innerHTML = '';
+  Object.entries(acctTypes).forEach(([type, data]) => {
+    if (data.value === 0 && data.gains === 0 && data.losses === 0) return;
+    const d = document.createElement('div');
+    d.className = 'summary-card';
+    d.innerHTML = '<div class="label">' + type + '</div><div class="value" style="font-size:16px">' + fmt(data.value) + '</div>' +
+      '<div class="sub"><span class="positive">' + fmt(data.gains) + ' gains</span> · <span class="negative">' + fmt(data.losses) + ' losses</span></div>';
+    sumGrid.appendChild(d);
+  });
+
+  // Gains/losses bar chart by account
+  const acctGL = {};
+  filteredPositions.forEach(p => {
+    const a = p._accountName || 'Unknown';
+    if (!acctGL[a]) acctGL[a] = { gains: 0, losses: 0 };
+    const gl = (p.market_value || p.value || 0) - (p.book_value || (p.market_value || p.value || 0));
+    if (gl >= 0) acctGL[a].gains += gl;
+    else acctGL[a].losses += gl;
+  });
+  const glEntries = Object.entries(acctGL).sort((a,b) => (b[1].gains + b[1].losses) - (a[1].gains + a[1].losses));
+  makeChart('taxGL', document.getElementById('taxGLChart'), {
+    type: 'bar',
+    data: {
+      labels: glEntries.map(e => e[0]),
+      datasets: [
+        { label: 'Unrealized Gains', data: glEntries.map(e => e[1].gains), backgroundColor: '#22c55e', borderRadius: 4 },
+        { label: 'Unrealized Losses', data: glEntries.map(e => e[1].losses), backgroundColor: '#ef4444', borderRadius: 4 },
+      ]
+    },
+    options: { responsive: true, plugins: { legend: { position: 'bottom', labels: { usePointStyle: true, pointStyleWidth: 8 } } }, scales: { y: { grid: { color: 'rgba(42,53,80,0.3)' }, ticks: { callback: v => '$' + (v/1000).toFixed(1) + 'k' } }, x: { grid: { display: false } } } }
+  });
+
+  // Tax issues list
+  const issueDiv = document.getElementById('taxIssues');
+  issueDiv.innerHTML = '';
+  if (scores.taxIssues.length > 0) {
+    scores.taxIssues.forEach(issue => {
+      const d = document.createElement('div');
+      d.className = 'risk-factor';
+      d.innerHTML = '<div class="severity medium"></div><div><div class="rf-title">Tax Optimization Opportunity</div><div class="rf-desc">' + escapeHtml(issue) + '</div></div>';
+      issueDiv.appendChild(d);
+    });
+  } else {
+    const d = document.createElement('div');
+    d.className = 'risk-factor';
+    d.innerHTML = '<div class="severity low"></div><div><div class="rf-title">No Tax Issues Detected</div><div class="rf-desc">Holdings appear well-placed across account types for tax efficiency.</div></div>';
+    issueDiv.appendChild(d);
+  }
+
+  // Harvestable losses in non-reg
+  const harvestable = filteredPositions.filter(p => {
+    const name = p._accountName || '';
+    const isNonReg = !/rrsp|lira|rrif|tfsa/i.test(name);
+    const gl = (p.market_value || p.value || 0) - (p.book_value || 0);
+    return isNonReg && gl < -100;
+  }).sort((a,b) => ((a.market_value||a.value||0) - (a.book_value||0)) - ((b.market_value||b.value||0) - (b.book_value||0)));
+
+  if (harvestable.length > 0) {
+    const section = document.createElement('div');
+    section.style.marginTop = '20px';
+    section.innerHTML = '<h3 style="font-size:14px;font-weight:600;margin-bottom:12px;color:var(--green)">Tax-Loss Harvesting Candidates</h3>';
+    harvestable.forEach(p => {
+      const sym = p.security?.symbol || p.symbol || '--';
+      const gl = (p.market_value || p.value || 0) - (p.book_value || 0);
+      const d = document.createElement('div');
+      d.className = 'risk-factor';
+      d.innerHTML = '<div class="severity high"></div><div><div class="rf-title">' + escapeHtml(sym) + ' — ' + fmt(gl) + ' unrealized loss</div><div class="rf-desc">In non-registered account. Sell to crystallize loss (potential tax savings ~' + fmt(Math.abs(gl) * 0.25) + '). Wait 30 days before re-buying to avoid superficial loss rules.</div></div>';
+      section.appendChild(d);
+    });
+    issueDiv.appendChild(section);
+  }
 }
 
 // ─── Small & Big Moves Generator ─────────────────────────────────────────────
@@ -1065,7 +1612,7 @@ function generateMoves() {
   // Big moves
   const regionMap = {};
   filteredPositions.forEach(p => {
-    const r = inferRegion(p.security?.symbol || p.symbol);
+    const r = inferRegion(p);
     regionMap[r] = (regionMap[r]||0) + (p.market_value||p.value||0);
   });
   Object.entries(regionMap).forEach(([r, v]) => {
@@ -1077,7 +1624,7 @@ function generateMoves() {
   if (filteredPositions.length < 8 && riskTolerance <= 5) bigMoves.push({ title: 'Increase diversification', desc: 'Only ' + filteredPositions.length + ' positions. Consider all-in-one ETFs like XEQT or VGRO for instant diversification.', impact: 'Reduces single-stock risk significantly' });
 
   const sectorMap = {};
-  filteredPositions.forEach(p => { const s = inferSector(p.security?.symbol||p.symbol, p.security?.name, p.security?.type); sectorMap[s] = (sectorMap[s]||0) + (p.market_value||p.value||0); });
+  filteredPositions.forEach(p => { const s = inferAssetClass(p); sectorMap[s] = (sectorMap[s]||0) + (p.market_value||p.value||0); });
   const hasBonds = sectorMap['Fixed Income'] || 0;
   if (riskTolerance <= 4 && hasBonds/totalVal < 0.1) bigMoves.push({ title: 'Add fixed income allocation', desc: 'Conservative risk profile but less than 10% in bonds. Consider bond ETFs like XBB.TO or ZAG.TO.', impact: 'Reduces portfolio volatility' });
   if (riskTolerance >= 7 && hasBonds/totalVal > 0.3) bigMoves.push({ title: 'Reduce bond allocation', desc: 'Aggressive risk profile but ' + ((hasBonds/totalVal)*100).toFixed(0) + '% in bonds. May be limiting growth potential.', impact: 'Higher expected returns' });
@@ -1358,14 +1905,22 @@ function showToast(msg, type) {
 function loadDemoData() {
   portfolioData = {
     positions: [
-      { security: { symbol: 'VFV.TO', name: 'Vanguard S&P 500 ETF', currency: 'CAD', type: 'etf' }, quantity: 500, book_value: 42500, market_value: 55200, _accountName: 'TFSA - Questrade' },
-      { security: { symbol: 'XQQ.TO', name: 'iShares NASDAQ 100 ETF', currency: 'CAD', type: 'etf' }, quantity: 200, book_value: 18000, market_value: 24800, _accountName: 'TFSA - Questrade' },
-      { security: { symbol: 'XEQT.TO', name: 'iShares Core Equity ETF', currency: 'CAD', type: 'etf' }, quantity: 800, book_value: 20000, market_value: 22400, _accountName: 'RRSP - RBC DI' },
-      { security: { symbol: 'CSH.UN.TO', name: 'Cornerstone Capital Resources', currency: 'CAD', type: 'equity' }, quantity: 15000, book_value: 3000, market_value: 18000, _accountName: 'Non-Reg - Questrade' },
-      { security: { symbol: 'BTC', name: 'Bitcoin', currency: 'USD', type: 'crypto' }, quantity: 0.75, book_value: 28000, market_value: 48500, _accountName: 'Shakepay' },
-      { security: { symbol: 'TD.TO', name: 'Toronto-Dominion Bank', currency: 'CAD', type: 'equity' }, quantity: 150, book_value: 12750, market_value: 12300, _accountName: 'RRSP - RBC DI' },
-      { security: { symbol: 'ENB.TO', name: 'Enbridge Inc', currency: 'CAD', type: 'equity' }, quantity: 200, book_value: 9800, market_value: 11200, _accountName: 'Non-Reg - Questrade' },
-      { security: { symbol: 'XEF.TO', name: 'iShares MSCI EAFE ETF', currency: 'CAD', type: 'etf' }, quantity: 300, book_value: 9600, market_value: 10500, _accountName: 'RRSP - RBC DI' },
+      // TFSA — Growth + US Equity
+      { class: 'equity', category: 'US Stocks', security: { symbol: 'VFV.TO', name: 'Vanguard S&P 500 Index ETF', currency: 'CAD', type: 'etf' }, quantity: 500, book_value: 42500, market_value: 55200, _accountName: 'TFSA - Questrade' },
+      { class: 'equity', category: 'US Stocks', security: { symbol: 'XQQ.TO', name: 'iShares NASDAQ 100 Index ETF', currency: 'CAD', type: 'etf' }, quantity: 200, book_value: 18000, market_value: 24800, _accountName: 'TFSA - Questrade' },
+      { class: 'crypto', category: 'Crypto', security: { symbol: 'BTC', name: 'Bitcoin', currency: 'USD', type: 'crypto' }, quantity: 0.75, book_value: 28000, market_value: 48500, _accountName: 'Shakepay' },
+      // RRSP — Diversified + US dividend payers + Intl
+      { class: 'equity', category: 'Global Stocks', security: { symbol: 'XEQT.TO', name: 'iShares Core Equity ETF Portfolio', currency: 'CAD', type: 'etf' }, quantity: 800, book_value: 20000, market_value: 22400, _accountName: 'RRSP - RBC DI' },
+      { class: 'equity', category: 'Canadian Stocks', security: { symbol: 'TD.TO', name: 'Toronto-Dominion Bank', currency: 'CAD', type: 'equity' }, quantity: 150, book_value: 12750, market_value: 12300, _accountName: 'RRSP - RBC DI' },
+      { class: 'equity', category: 'International Stocks', security: { symbol: 'XEF.TO', name: 'iShares Core MSCI EAFE IMI Index ETF', currency: 'CAD', type: 'etf' }, quantity: 300, book_value: 9600, market_value: 10500, _accountName: 'RRSP - RBC DI' },
+      { class: 'fixed-income', category: 'Canadian Bonds', security: { symbol: 'ZAG.TO', name: 'BMO Aggregate Bond Index ETF', currency: 'CAD', type: 'etf' }, quantity: 400, book_value: 5800, market_value: 5600, _accountName: 'RRSP - RBC DI' },
+      // Non-Reg — Dividend / Income / Tax-loss candidates
+      { class: 'equity', category: 'Canadian Stocks', security: { symbol: 'ENB.TO', name: 'Enbridge Inc', currency: 'CAD', type: 'equity' }, quantity: 200, book_value: 9800, market_value: 11200, _accountName: 'Non-Reg - Questrade' },
+      { class: 'equity', category: 'Canadian Stocks', security: { symbol: 'RY.TO', name: 'Royal Bank of Canada', currency: 'CAD', type: 'equity' }, quantity: 60, book_value: 8100, market_value: 9300, _accountName: 'Non-Reg - Questrade' },
+      { class: 'equity', category: 'Canadian Stocks', security: { symbol: 'FTS.TO', name: 'Fortis Inc', currency: 'CAD', type: 'equity' }, quantity: 100, book_value: 5600, market_value: 5900, _accountName: 'Non-Reg - Questrade' },
+      { class: 'equity', category: 'Canadian REITs', security: { symbol: 'XRE.TO', name: 'iShares S&P/TSX Capped REIT Index ETF', currency: 'CAD', type: 'etf' }, quantity: 250, book_value: 4200, market_value: 3800, _accountName: 'Non-Reg - Questrade' },
+      { class: 'equity', category: 'Canadian Stocks', security: { symbol: 'NTR.TO', name: 'Nutrien Ltd', currency: 'CAD', type: 'equity' }, quantity: 50, book_value: 4500, market_value: 3200, _accountName: 'Non-Reg - Questrade' },
+      { class: 'equity', category: 'Canadian Stocks', security: { symbol: 'SHOP.TO', name: 'Shopify Inc', currency: 'CAD', type: 'equity' }, quantity: 25, book_value: 2800, market_value: 2500, _accountName: 'TFSA - Questrade' },
     ],
     institutions: [
       { _id: '1', name: 'Questrade' },
