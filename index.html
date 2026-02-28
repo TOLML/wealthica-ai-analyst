@@ -351,6 +351,10 @@
 
   <!-- Filter Bar -->
   <div class="filter-bar" id="filterBar">
+    <label>Group</label>
+    <select id="groupFilter" onchange="applyGroupFilter()" style="min-width:140px;font-weight:500;">
+      <option value="all">All Groups</option>
+    </select>
     <label>Account</label>
     <select id="accountFilter" onchange="applyAccountFilter()">
       <option value="all">All Accounts</option>
@@ -544,6 +548,8 @@ let currentOptions = {};
 let positionRatings = {};
 let riskTolerance = 5;
 let activeTab = 'overview';
+let availableGroups = [];
+let selectedGroup = 'all';
 const charts = {};
 
 const CHART_COLORS = ['#3b82f6','#a855f7','#22c55e','#f59e0b','#ef4444','#06b6d4','#ec4899','#f97316','#14b8a6','#6366f1','#84cc16','#f43f5e'];
@@ -619,15 +625,136 @@ if (typeof Addon === 'undefined') {
         document.getElementById('apiKeyInput').value = apiKey;
         updateStatus('connected', 'API key loaded');
       }
+      // Sync group filter if Wealthica has one active
+      if (options.groupsFilter) {
+        selectedGroup = options.groupsFilter;
+      }
+      fetchGroups();
       loadPortfolio();
     });
-    addon.on('reload', function() { loadPortfolio(); });
-    addon.on('update', function(options) { currentOptions = { ...currentOptions, ...options }; loadPortfolio(); });
+    addon.on('reload', function() { fetchGroups(); loadPortfolio(); });
+    addon.on('update', function(options) {
+      currentOptions = { ...currentOptions, ...options };
+      // Sync if Wealthica changed the group
+      if (options.groupsFilter !== undefined) {
+        selectedGroup = options.groupsFilter || 'all';
+        const sel = document.getElementById('groupFilter');
+        if (sel) sel.value = selectedGroup;
+      }
+      loadPortfolio();
+    });
   } catch(e) {
     console.log('Not running inside Wealthica.', e);
     showToast('Demo mode — not inside Wealthica', 'error');
     loadDemoData();
   }
+}
+
+// ─── Groups ──────────────────────────────────────────────────────────────────
+async function fetchGroups() {
+  if (!addon) return;
+  try {
+    // Try fetching groups from the Wealthica API
+    const groups = await addon.request({ method: 'GET', endpoint: 'groups' });
+    if (Array.isArray(groups) && groups.length > 0) {
+      availableGroups = groups;
+      populateGroupFilter();
+      return;
+    }
+  } catch(e) {
+    console.log('Groups endpoint not available, trying alternatives:', e);
+  }
+  // Fallback: try to get groups from user profile
+  try {
+    const user = await addon.api.getUser();
+    if (user && user.groups && Array.isArray(user.groups) && user.groups.length > 0) {
+      availableGroups = user.groups;
+      populateGroupFilter();
+      return;
+    }
+  } catch(e) {
+    console.log('User groups not available:', e);
+  }
+  // Final fallback: try without any query params
+  try {
+    const groups = await addon.request({ method: 'GET', endpoint: 'groups', query: {} });
+    if (Array.isArray(groups) && groups.length > 0) {
+      availableGroups = groups;
+      populateGroupFilter();
+    }
+  } catch(e) {
+    console.log('No groups available:', e);
+  }
+}
+
+function populateGroupFilter() {
+  const sel = document.getElementById('groupFilter');
+  sel.innerHTML = '<option value="all">All Groups</option>';
+  availableGroups.forEach(g => {
+    const gid = g._id || g.id || '';
+    const name = g.name || gid;
+    const o = document.createElement('option');
+    o.value = gid;
+    o.textContent = name;
+    sel.appendChild(o);
+  });
+  // Sync with current selection
+  if (selectedGroup && selectedGroup !== 'all') {
+    sel.value = selectedGroup;
+  }
+}
+
+async function applyGroupFilter() {
+  const val = document.getElementById('groupFilter').value;
+  selectedGroup = val;
+  if (val === 'all') {
+    delete currentOptions.groupsFilter;
+  } else {
+    currentOptions.groupsFilter = val;
+  }
+  // For demo mode: filter locally
+  if (!addon) {
+    applyDemoGroupFilter();
+    return;
+  }
+  // For Wealthica: reload data from API with group filter
+  await loadPortfolio();
+}
+
+function applyDemoGroupFilter() {
+  if (selectedGroup === 'all') {
+    filteredPositions = [...portfolioData.positions];
+  } else {
+    // Find the group and its institutions
+    const group = availableGroups.find(g => (g._id || g.id) === selectedGroup);
+    if (group && group.institutions) {
+      // Filter positions by matching institution IDs or account names
+      const instIds = new Set(group.institutions.map(i => typeof i === 'string' ? i : (i._id || i.id)));
+      const instNames = new Set();
+      portfolioData.institutions.forEach(inst => {
+        if (instIds.has(inst._id) || instIds.has(inst.id)) {
+          instNames.add(inst.name);
+        }
+      });
+      filteredPositions = portfolioData.positions.filter(p => {
+        const acct = p._accountName || '';
+        // Check if any institution name appears in the account name
+        for (const name of instNames) {
+          if (acct.toLowerCase().includes(name.toLowerCase())) return true;
+        }
+        // Also check _group field if set
+        if (p._group === selectedGroup) return true;
+        return false;
+      });
+    } else {
+      // Fallback: filter by _group field
+      filteredPositions = portfolioData.positions.filter(p => p._group === selectedGroup);
+    }
+  }
+  // Reset account filter
+  document.getElementById('accountFilter').value = 'all';
+  populateAccountFilter();
+  renderAllTabs();
 }
 
 // ─── Portfolio Loading ───────────────────────────────────────────────────────
@@ -2079,22 +2206,26 @@ function showToast(msg, type) {
 function loadDemoData() {
   portfolioData = {
     positions: [
-      // TFSA — Growth + US Equity
-      { class: 'equity', category: 'US Stocks', security: { symbol: 'VFV.TO', name: 'Vanguard S&P 500 Index ETF', currency: 'CAD', type: 'etf' }, quantity: 500, book_value: 42500, market_value: 55200, _accountName: 'TFSA - Questrade' },
-      { class: 'equity', category: 'US Stocks', security: { symbol: 'XQQ.TO', name: 'iShares NASDAQ 100 Index ETF', currency: 'CAD', type: 'etf' }, quantity: 200, book_value: 18000, market_value: 24800, _accountName: 'TFSA - Questrade' },
-      { class: 'crypto', category: 'Crypto', security: { symbol: 'BTC', name: 'Bitcoin', currency: 'USD', type: 'crypto' }, quantity: 0.75, book_value: 28000, market_value: 48500, _accountName: 'Shakepay' },
-      // RRSP — Diversified + US dividend payers + Intl
-      { class: 'equity', category: 'Global Stocks', security: { symbol: 'XEQT.TO', name: 'iShares Core Equity ETF Portfolio', currency: 'CAD', type: 'etf' }, quantity: 800, book_value: 20000, market_value: 22400, _accountName: 'RRSP - RBC DI' },
-      { class: 'equity', category: 'Canadian Stocks', security: { symbol: 'TD.TO', name: 'Toronto-Dominion Bank', currency: 'CAD', type: 'equity' }, quantity: 150, book_value: 12750, market_value: 12300, _accountName: 'RRSP - RBC DI' },
-      { class: 'equity', category: 'International Stocks', security: { symbol: 'XEF.TO', name: 'iShares Core MSCI EAFE IMI Index ETF', currency: 'CAD', type: 'etf' }, quantity: 300, book_value: 9600, market_value: 10500, _accountName: 'RRSP - RBC DI' },
-      { class: 'fixed-income', category: 'Canadian Bonds', security: { symbol: 'ZAG.TO', name: 'BMO Aggregate Bond Index ETF', currency: 'CAD', type: 'etf' }, quantity: 400, book_value: 5800, market_value: 5600, _accountName: 'RRSP - RBC DI' },
-      // Non-Reg — Dividend / Income / Tax-loss candidates
-      { class: 'equity', category: 'Canadian Stocks', security: { symbol: 'ENB.TO', name: 'Enbridge Inc', currency: 'CAD', type: 'equity' }, quantity: 200, book_value: 9800, market_value: 11200, _accountName: 'Non-Reg - Questrade' },
-      { class: 'equity', category: 'Canadian Stocks', security: { symbol: 'RY.TO', name: 'Royal Bank of Canada', currency: 'CAD', type: 'equity' }, quantity: 60, book_value: 8100, market_value: 9300, _accountName: 'Non-Reg - Questrade' },
-      { class: 'equity', category: 'Canadian Stocks', security: { symbol: 'FTS.TO', name: 'Fortis Inc', currency: 'CAD', type: 'equity' }, quantity: 100, book_value: 5600, market_value: 5900, _accountName: 'Non-Reg - Questrade' },
-      { class: 'equity', category: 'Canadian REITs', security: { symbol: 'XRE.TO', name: 'iShares S&P/TSX Capped REIT Index ETF', currency: 'CAD', type: 'etf' }, quantity: 250, book_value: 4200, market_value: 3800, _accountName: 'Non-Reg - Questrade' },
-      { class: 'equity', category: 'Canadian Stocks', security: { symbol: 'NTR.TO', name: 'Nutrien Ltd', currency: 'CAD', type: 'equity' }, quantity: 50, book_value: 4500, market_value: 3200, _accountName: 'Non-Reg - Questrade' },
-      { class: 'equity', category: 'Canadian Stocks', security: { symbol: 'SHOP.TO', name: 'Shopify Inc', currency: 'CAD', type: 'equity' }, quantity: 25, book_value: 2800, market_value: 2500, _accountName: 'TFSA - Questrade' },
+      // Lihan — TFSA + RRSP at Questrade
+      { class: 'equity', category: 'US Stocks', security: { symbol: 'VFV.TO', name: 'Vanguard S&P 500 Index ETF', currency: 'CAD', type: 'etf' }, quantity: 500, book_value: 42500, market_value: 55200, _accountName: 'TFSA - Questrade', _group: 'lihan' },
+      { class: 'equity', category: 'US Stocks', security: { symbol: 'XQQ.TO', name: 'iShares NASDAQ 100 Index ETF', currency: 'CAD', type: 'etf' }, quantity: 200, book_value: 18000, market_value: 24800, _accountName: 'TFSA - Questrade', _group: 'lihan' },
+      { class: 'equity', category: 'Global Stocks', security: { symbol: 'XEQT.TO', name: 'iShares Core Equity ETF Portfolio', currency: 'CAD', type: 'etf' }, quantity: 800, book_value: 20000, market_value: 22400, _accountName: 'RRSP - Questrade', _group: 'lihan' },
+      { class: 'equity', category: 'Canadian Stocks', security: { symbol: 'ENB.TO', name: 'Enbridge Inc', currency: 'CAD', type: 'equity' }, quantity: 200, book_value: 9800, market_value: 11200, _accountName: 'Non-Reg - Questrade', _group: 'lihan' },
+      // Johan — TFSA + RRSP at RBC
+      { class: 'equity', category: 'Canadian Stocks', security: { symbol: 'TD.TO', name: 'Toronto-Dominion Bank', currency: 'CAD', type: 'equity' }, quantity: 150, book_value: 12750, market_value: 12300, _accountName: 'RRSP - RBC DI', _group: 'johan' },
+      { class: 'equity', category: 'International Stocks', security: { symbol: 'XEF.TO', name: 'iShares Core MSCI EAFE IMI Index ETF', currency: 'CAD', type: 'etf' }, quantity: 300, book_value: 9600, market_value: 10500, _accountName: 'RRSP - RBC DI', _group: 'johan' },
+      { class: 'equity', category: 'Canadian Stocks', security: { symbol: 'RY.TO', name: 'Royal Bank of Canada', currency: 'CAD', type: 'equity' }, quantity: 60, book_value: 8100, market_value: 9300, _accountName: 'TFSA - RBC DI', _group: 'johan' },
+      { class: 'equity', category: 'Canadian Stocks', security: { symbol: 'SHOP.TO', name: 'Shopify Inc', currency: 'CAD', type: 'equity' }, quantity: 25, book_value: 2800, market_value: 2500, _accountName: 'TFSA - RBC DI', _group: 'johan' },
+      // Lara — RESP at Questrade
+      { class: 'fixed-income', category: 'Canadian Bonds', security: { symbol: 'ZAG.TO', name: 'BMO Aggregate Bond Index ETF', currency: 'CAD', type: 'etf' }, quantity: 400, book_value: 5800, market_value: 5600, _accountName: 'RESP - Questrade', _group: 'lara' },
+      { class: 'equity', category: 'Global Stocks', security: { symbol: 'VGRO.TO', name: 'Vanguard Growth ETF Portfolio', currency: 'CAD', type: 'etf' }, quantity: 300, book_value: 8400, market_value: 9100, _accountName: 'RESP - Questrade', _group: 'lara' },
+      // Lindie — RESP at Questrade
+      { class: 'equity', category: 'Global Stocks', security: { symbol: 'XGRO.TO', name: 'iShares Core Growth ETF Portfolio', currency: 'CAD', type: 'etf' }, quantity: 250, book_value: 6200, market_value: 6800, _accountName: 'RESP - Questrade', _group: 'lindie' },
+      { class: 'equity', category: 'Canadian REITs', security: { symbol: 'XRE.TO', name: 'iShares S&P/TSX Capped REIT Index ETF', currency: 'CAD', type: 'etf' }, quantity: 250, book_value: 4200, market_value: 3800, _accountName: 'RESP - Questrade', _group: 'lindie' },
+      // Shared — Crypto + Non-Reg
+      { class: 'crypto', category: 'Crypto', security: { symbol: 'BTC', name: 'Bitcoin', currency: 'USD', type: 'crypto' }, quantity: 0.75, book_value: 28000, market_value: 48500, _accountName: 'Shakepay', _group: 'lihan' },
+      { class: 'equity', category: 'Canadian Stocks', security: { symbol: 'FTS.TO', name: 'Fortis Inc', currency: 'CAD', type: 'equity' }, quantity: 100, book_value: 5600, market_value: 5900, _accountName: 'Non-Reg - Questrade', _group: 'lihan' },
+      { class: 'equity', category: 'Canadian Stocks', security: { symbol: 'NTR.TO', name: 'Nutrien Ltd', currency: 'CAD', type: 'equity' }, quantity: 50, book_value: 4500, market_value: 3200, _accountName: 'Non-Reg - Questrade', _group: 'johan' },
     ],
     institutions: [
       { _id: '1', name: 'Questrade' },
@@ -2103,6 +2234,16 @@ function loadDemoData() {
     ],
     totalValue: 0, totalBook: 0,
   };
+
+  // Set up demo groups
+  availableGroups = [
+    { _id: 'lihan', name: 'Lihan', institutions: ['1', '3'] },
+    { _id: 'johan', name: 'Johan', institutions: ['2', '1'] },
+    { _id: 'lara', name: 'Lara', institutions: ['1'] },
+    { _id: 'lindie', name: 'Lindie', institutions: ['1'] },
+  ];
+  populateGroupFilter();
+
   let tv = 0, tb = 0;
   portfolioData.positions.forEach(p => { tv += p.market_value || 0; tb += p.book_value || 0; });
   portfolioData.totalValue = tv;
