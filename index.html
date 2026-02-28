@@ -245,6 +245,7 @@
   .ai-content strong { color: var(--text-primary); font-weight: 600; }
   .ai-content em { color: var(--text-muted); }
   .ai-content ul, .ai-content ol { margin: 8px 0 16px 20px; }
+  .ai-content ol { list-style: decimal; }
   .ai-content li { margin-bottom: 6px; padding-left: 4px; }
   .ai-content li::marker { color: var(--accent); }
   .ai-content code { background: var(--bg-primary); padding: 2px 6px; border-radius: 4px; font-family: 'JetBrains Mono', monospace; font-size: 12px; color: var(--purple); }
@@ -514,6 +515,13 @@ function onRiskChange() {
   generateMoves();
 }
 
+// ─── Chart.js Defaults ──────────────────────────────────────────────────────
+if (typeof Chart !== 'undefined') {
+  Chart.defaults.color = '#94a3b8';
+  Chart.defaults.borderColor = 'rgba(42, 53, 80, 0.5)';
+  Chart.defaults.font.family = "'DM Sans', sans-serif";
+}
+
 // ─── Initialize Add-on ──────────────────────────────────────────────────────
 if (typeof Addon === 'undefined') {
   console.error('wealthica.js failed to load');
@@ -523,7 +531,7 @@ if (typeof Addon === 'undefined') {
   try {
     addon = new Addon();
     let initReceived = false;
-    setTimeout(function() { if (!initReceived) showToast('Waiting for Wealthica...', 'error'); }, 10000);
+    setTimeout(function() { if (!initReceived) { showToast('Wealthica not detected — loading demo data', 'error'); addon = null; loadDemoData(); } }, 10000);
     addon.on('init', function(options) {
       initReceived = true;
       currentOptions = options;
@@ -654,7 +662,7 @@ function computeScores() {
   const hhi = weights.reduce((s,w) => s + w*w, 0);
   const n = positions.length;
   const minHHI = n > 0 ? 1/n : 1;
-  const divScore = Math.round(Math.min(100, Math.max(0, (1 - (hhi - minHHI) / (1 - minHHI)) * 100)));
+  const divScore = (n <= 1 || minHHI >= 1) ? 0 : Math.round(Math.min(100, Math.max(0, (1 - (hhi - minHHI) / (1 - minHHI)) * 100)));
 
   const maxW = Math.max(...weights) * 100;
   const top3W = [...weights].sort((a,b)=>b-a).slice(0,3).reduce((s,w)=>s+w,0) * 100;
@@ -683,7 +691,7 @@ function fmt(n, decimals) {
   if (n === undefined || n === null || isNaN(n)) return '--';
   return new Intl.NumberFormat('en-CA', { style: 'currency', currency: 'CAD', minimumFractionDigits: decimals, maximumFractionDigits: decimals }).format(n);
 }
-function pct(n) { if (!n || isNaN(n)) return ''; return (n >= 0 ? '+' : '') + n.toFixed(2) + '%'; }
+function pct(n) { if (n === undefined || n === null || isNaN(n)) return ''; return (n >= 0 ? '+' : '') + n.toFixed(2) + '%'; }
 function escapeHtml(str) { const d = document.createElement('div'); d.textContent = str; return d.innerHTML; }
 
 function makeChart(key, ctx, config) {
@@ -1285,10 +1293,14 @@ function renderMarkdown(text) {
   html = html.replace(/\*(.+?)\*/g, '<em>$1</em>');
   html = html.replace(/`([^`]+)`/g, '<code>$1</code>');
   html = html.replace(/^---$/gm, '<hr>');
-  html = html.replace(/^[\-\*] (.+)$/gm, '<li>$1</li>');
-  html = html.replace(/(<li>[\s\S]*?<\/li>)/g, function(match) { if (!match.startsWith('<ul>')) return '<ul>' + match + '</ul>'; return match; });
+  html = html.replace(/^[\-\*] (.+)$/gm, '<ul-li>$1</ul-li>');
+  html = html.replace(/^\d+\. (.+)$/gm, '<ol-li>$1</ol-li>');
+  html = html.replace(/(<ul-li>[\s\S]*?<\/ul-li>)/g, function(match) { return '<ul>' + match + '</ul>'; });
   html = html.replace(/<\/ul>\s*<ul>/g, '');
-  html = html.replace(/^\d+\. (.+)$/gm, '<li>$1</li>');
+  html = html.replace(/<ul-li>/g, '<li>').replace(/<\/ul-li>/g, '</li>');
+  html = html.replace(/(<ol-li>[\s\S]*?<\/ol-li>)/g, function(match) { return '<ol>' + match + '</ol>'; });
+  html = html.replace(/<\/ol>\s*<ol>/g, '');
+  html = html.replace(/<ol-li>/g, '<li>').replace(/<\/ol-li>/g, '</li>');
   html = html.replace(/\n\n/g, '</p><p>');
   html = '<p>' + html + '</p>';
   html = html.replace(/\n/g, '<br>');
@@ -1297,6 +1309,8 @@ function renderMarkdown(text) {
   html = html.replace(/(<\/h[123]>)\s*<\/p>/g, '$1');
   html = html.replace(/<p>\s*(<ul>)/g, '$1');
   html = html.replace(/(<\/ul>)\s*<\/p>/g, '$1');
+  html = html.replace(/<p>\s*(<ol>)/g, '$1');
+  html = html.replace(/(<\/ol>)\s*<\/p>/g, '$1');
   html = html.replace(/<p>\s*(<hr>)/g, '$1');
   html = html.replace(/(<hr>)\s*<\/p>/g, '$1');
   return html;
@@ -1368,13 +1382,6 @@ function loadDemoData() {
   populateAccountFilter();
   renderAllTabs();
   document.getElementById('btnAnalyze').disabled = !apiKey;
-}
-
-// ─── Chart.js Defaults ──────────────────────────────────────────────────────
-if (typeof Chart !== 'undefined') {
-  Chart.defaults.color = '#94a3b8';
-  Chart.defaults.borderColor = 'rgba(42, 53, 80, 0.5)';
-  Chart.defaults.font.family = "'DM Sans', sans-serif";
 }
 
 // ─── Event Listeners ─────────────────────────────────────────────────────────
