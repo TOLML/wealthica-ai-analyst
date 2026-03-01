@@ -3,14 +3,43 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>AI Portfolio Analyst</title>
+<title>Wealthica Portfolio Intelligence</title>
 <script src="https://wealthica.github.io/wealthica.js/dist/addon.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
-  :root {
+  :root, [data-theme="light"] {
+    --bg-primary: #f8fafc;
+    --bg-secondary: #f1f5f9;
+    --bg-card: #ffffff;
+    --bg-card-hover: #f8fafc;
+    --border: #e2e8f0;
+    --border-accent: #3b82f6;
+    --text-primary: #0f172a;
+    --text-secondary: #475569;
+    --text-muted: #94a3b8;
+    --accent: #3b82f6;
+    --accent-glow: rgba(59, 130, 246, 0.1);
+    --green: #16a34a;
+    --green-bg: rgba(22, 163, 74, 0.08);
+    --red: #dc2626;
+    --red-bg: rgba(220, 38, 38, 0.06);
+    --yellow: #d97706;
+    --yellow-bg: rgba(217, 119, 6, 0.06);
+    --purple: #9333ea;
+    --purple-bg: rgba(147, 51, 234, 0.06);
+    --cyan: #0891b2;
+    --pink: #db2777;
+    --orange: #ea580c;
+    --teal: #0d9488;
+    --chart-grid: rgba(148, 163, 184, 0.15);
+    --chart-text: #475569;
+    --datalabel-color: #0f172a;
+    --shadow: 0 1px 3px rgba(0,0,0,0.08);
+  }
+  [data-theme="dark"] {
     --bg-primary: #0a0e17;
     --bg-secondary: #111827;
     --bg-card: #1a2234;
@@ -34,6 +63,10 @@
     --pink: #ec4899;
     --orange: #f97316;
     --teal: #14b8a6;
+    --chart-grid: rgba(42, 53, 80, 0.3);
+    --chart-text: #94a3b8;
+    --datalabel-color: #f1f5f9;
+    --shadow: 0 1px 3px rgba(0,0,0,0.3);
   }
   * { margin: 0; padding: 0; box-sizing: border-box; }
   html, body { height: 100%; width: 100%; }
@@ -45,14 +78,15 @@
     min-height: 100vh;
     overflow-x: hidden;
   }
-  body::before {
+  [data-theme="dark"] body::before, body::before {
     content: '';
     position: fixed;
     top: -200px; right: -200px;
     width: 600px; height: 600px;
-    background: radial-gradient(circle, rgba(59,130,246,0.06) 0%, transparent 70%);
+    background: radial-gradient(circle, rgba(59,130,246,0.04) 0%, transparent 70%);
     pointer-events: none; z-index: 0;
   }
+  .summary-card, .position-card, .chart-card, .region-card, .benchmark-card, .score-card, .score-breakdown-card, .account-chip, .scenario-card, .model-result-card, .metric-gauge, .rec-card, .risk-factor, .action-card { box-shadow: var(--shadow); }
   .container { max-width: 1100px; margin: 0 auto; padding: 24px 20px; position: relative; z-index: 1; }
 
   /* Header */
@@ -91,6 +125,34 @@
   .filter-bar label { font-size: 12px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; }
   .filter-bar select { background: var(--bg-card); border: 1px solid var(--border); color: var(--text-primary); padding: 6px 12px; border-radius: 6px; font-family: inherit; font-size: 12px; cursor: pointer; outline: none; }
   .filter-bar select:focus { border-color: var(--accent); }
+
+  /* Date Filter */
+  .date-filter { display: flex; align-items: center; gap: 4px; }
+  .date-btn { background: var(--bg-card); border: 1px solid var(--border); color: var(--text-muted); padding: 4px 10px; border-radius: 6px; font-family: inherit; font-size: 11px; font-weight: 500; cursor: pointer; transition: all 0.2s; white-space: nowrap; }
+  .date-btn:hover { color: var(--text-primary); border-color: var(--text-secondary); }
+  .date-btn.active { background: var(--accent); color: white; border-color: var(--accent); }
+
+  /* Tab AI Button */
+  .tab-ai-btn { background: linear-gradient(135deg, var(--accent), var(--purple)); color: white; border: none; padding: 6px 14px; border-radius: 6px; font-family: inherit; font-size: 12px; font-weight: 500; cursor: pointer; transition: all 0.2s; display: inline-flex; align-items: center; gap: 6px; float: right; margin-top: -4px; }
+  .tab-ai-btn:hover { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(59,130,246,0.25); }
+  .tab-ai-btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+  .tab-ai-response { background: var(--bg-card); border: 1px solid var(--border); border-radius: 10px; padding: 16px; margin-top: 16px; font-size: 13px; line-height: 1.6; color: var(--text-secondary); display: none; max-height: 400px; overflow-y: auto; }
+  .tab-ai-response.visible { display: block; }
+  .tab-ai-response h1, .tab-ai-response h2, .tab-ai-response h3 { color: var(--text-primary); margin: 12px 0 6px; }
+  .tab-ai-response strong { color: var(--text-primary); }
+  .tab-ai-response ul, .tab-ai-response ol { padding-left: 20px; margin: 6px 0; }
+  .tab-ai-response li { margin: 3px 0; }
+
+  /* Model Conclusion */
+  .model-conclusion { background: var(--bg-card); border: 1px solid var(--accent); border-radius: 12px; padding: 20px; margin-top: 20px; }
+  .model-conclusion h3 { color: var(--accent); font-size: 14px; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 12px; font-weight: 600; }
+  .model-conclusion .mc-grade { display: flex; align-items: center; gap: 16px; margin-bottom: 16px; }
+  .model-conclusion .mc-grade-badge { font-family: 'JetBrains Mono', monospace; font-size: 28px; font-weight: 700; padding: 8px 16px; border-radius: 10px; min-width: 60px; text-align: center; }
+  .model-conclusion .mc-grade-text { font-size: 15px; font-weight: 600; color: var(--text-primary); }
+  .model-conclusion .mc-grade-sub { font-size: 12px; color: var(--text-secondary); margin-top: 2px; }
+  .model-conclusion .mc-points { display: grid; gap: 8px; }
+  .model-conclusion .mc-point { display: flex; align-items: flex-start; gap: 10px; font-size: 13px; color: var(--text-secondary); line-height: 1.5; }
+  .model-conclusion .mc-bullet { width: 6px; height: 6px; border-radius: 50%; margin-top: 7px; flex-shrink: 0; }
 
   /* Risk Slider */
   .risk-slider-wrap { display: flex; align-items: center; gap: 12px; margin-left: auto; }
@@ -203,7 +265,7 @@
   /* Insights Panel */
   .insights-panel { background: var(--bg-card); border: 1px solid var(--border); border-radius: 12px; padding: 20px; margin-bottom: 20px; }
   .insights-panel h3 { font-size: 13px; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-muted); margin-bottom: 14px; font-weight: 500; }
-  .insight-item { display: flex; align-items: flex-start; gap: 10px; padding: 8px 0; border-bottom: 1px solid rgba(42,53,80,0.3); }
+  .insight-item { display: flex; align-items: flex-start; gap: 10px; padding: 8px 0; border-bottom: 1px solid var(--border); }
   .insight-item:last-child { border-bottom: none; }
   .insight-dot { width: 8px; height: 8px; border-radius: 50%; margin-top: 6px; flex-shrink: 0; }
   .insight-text { font-size: 13px; color: var(--text-secondary); line-height: 1.5; }
@@ -381,8 +443,8 @@
   <!-- Header -->
   <div class="header">
     <div class="header-left">
-      <div class="logo-mark">AI</div>
-      <h1>Portfolio <span>Analyst</span></h1>
+      <div class="logo-mark">W</div>
+      <h1>Portfolio <span>Intelligence</span></h1>
     </div>
     <div class="header-right">
       <div class="status-dot" id="statusDot" title="Not connected"></div>
@@ -432,6 +494,13 @@
     <select id="accountFilter" onchange="applyAccountFilter()">
       <option value="all">All Accounts</option>
     </select>
+    <div class="date-filter">
+      <label style="margin-right:4px">Period</label>
+      <button class="date-btn active" onclick="setDateRange('all')">All Time</button>
+      <button class="date-btn" onclick="setDateRange('ytd')">YTD</button>
+      <button class="date-btn" onclick="setDateRange('1y')">1Y</button>
+      <button class="date-btn" onclick="setDateRange('5y')">5Y</button>
+    </div>
     <div class="risk-slider-wrap">
       <label>Risk Tolerance</label>
       <input type="range" class="risk-slider" id="riskSlider" min="1" max="10" value="5" oninput="onRiskChange()">
@@ -488,6 +557,13 @@
       <h3><span style="color:var(--purple)">Strategic Moves</span> — Bigger changes for long-term improvement</h3>
       <div class="action-cards" id="bigMoves"></div>
     </div>
+    <div style="margin-top:20px">
+      <button class="tab-ai-btn" id="aiBtn-overview" onclick="runTabAI('overview')">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+        AI Deep Dive
+      </button>
+      <div class="tab-ai-response" id="aiRes-overview"></div>
+    </div>
   </section>
 
   <!-- ==================== HOLDINGS TAB ==================== -->
@@ -523,7 +599,14 @@
     <div class="benchmark-grid" id="benchmarkGrid"></div>
     <div class="chart-card"><h3>Gain/Loss by Position</h3><canvas id="gainLossChart"></canvas></div>
     <div class="chart-card" style="margin-top:20px"><h3>Performance by Account</h3><canvas id="accountPerfChart"></canvas></div>
-    <div class="chart-card" style="margin-top:20px"><h3>Portfolio vs Benchmarks</h3><canvas id="benchmarkChart"></canvas></div>
+    <div class="chart-card" style="margin-top:20px"><h3>Return by Position</h3><canvas id="benchmarkChart"></canvas></div>
+    <div style="margin-top:20px">
+      <button class="tab-ai-btn" id="aiBtn-performance" onclick="runTabAI('performance')">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+        AI Performance Review
+      </button>
+      <div class="tab-ai-response" id="aiRes-performance"></div>
+    </div>
   </section>
 
   <!-- ==================== RISK TAB ==================== -->
@@ -538,6 +621,13 @@
       <div class="chart-card"><h3>Position Weight Distribution</h3><canvas id="riskWeightsChart"></canvas></div>
     </div>
     <div class="risk-factors" id="riskFactors"></div>
+    <div style="margin-top:20px">
+      <button class="tab-ai-btn" id="aiBtn-risk" onclick="runTabAI('risk')">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+        AI Risk Assessment
+      </button>
+      <div class="tab-ai-response" id="aiRes-risk"></div>
+    </div>
   </section>
 
   <!-- ==================== REGION TAB ==================== -->
@@ -551,6 +641,13 @@
       <div class="chart-card"><h3>Currency Exposure</h3><canvas id="currencyChart"></canvas></div>
     </div>
     <div class="region-cards" id="regionCards"></div>
+    <div style="margin-top:20px">
+      <button class="tab-ai-btn" id="aiBtn-region" onclick="runTabAI('region')">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+        AI Geographic Analysis
+      </button>
+      <div class="tab-ai-response" id="aiRes-region"></div>
+    </div>
   </section>
 
   <!-- ==================== SECTORS TAB ==================== -->
@@ -564,6 +661,13 @@
       <div class="chart-card"><h3>Sector Values</h3><canvas id="sectorBarChart"></canvas></div>
     </div>
     <div class="holdings-grid" id="sectorCards"></div>
+    <div style="margin-top:20px">
+      <button class="tab-ai-btn" id="aiBtn-sectors" onclick="runTabAI('sectors')">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+        AI Sector Analysis
+      </button>
+      <div class="tab-ai-response" id="aiRes-sectors"></div>
+    </div>
   </section>
 
   <!-- ==================== DIVIDENDS TAB ==================== -->
@@ -579,6 +683,13 @@
     </div>
     <div class="chart-card" style="margin-top:20px"><h3>Income vs Growth Allocation</h3><canvas id="incomeGrowthChart"></canvas></div>
     <div class="holdings-grid" id="incomeHoldingsGrid" style="margin-top:20px"></div>
+    <div style="margin-top:20px">
+      <button class="tab-ai-btn" id="aiBtn-dividends" onclick="runTabAI('dividends')">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+        AI Income Analysis
+      </button>
+      <div class="tab-ai-response" id="aiRes-dividends"></div>
+    </div>
   </section>
 
   <!-- ==================== TAX TAB ==================== -->
@@ -603,6 +714,13 @@
     <div class="summary-grid" id="taxSummaryGrid"></div>
     <div class="chart-card"><h3>Unrealized Gains/Losses by Account Type</h3><canvas id="taxGLChart"></canvas></div>
     <div class="risk-factors" id="taxIssues" style="margin-top:16px"></div>
+    <div style="margin-top:20px">
+      <button class="tab-ai-btn" id="aiBtn-tax" onclick="runTabAI('tax')">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+        AI Tax Optimization
+      </button>
+      <div class="tab-ai-response" id="aiRes-tax"></div>
+    </div>
   </section>
 
   <!-- ==================== MODELS TAB ==================== -->
@@ -619,6 +737,7 @@
       <div class="chart-card"><h3>Factor Exposure</h3><canvas id="factorChart"></canvas></div>
     </div>
     <div id="factorSection" class="model-section"></div>
+    <div class="model-conclusion" id="modelConclusion"></div>
   </section>
 
   <!-- ==================== STRESS TEST TAB ==================== -->
@@ -686,6 +805,7 @@ let riskTolerance = 5;
 let activeTab = 'overview';
 let availableGroups = [];
 let selectedGroup = 'all';
+let activeDateRange = 'all';
 const charts = {};
 
 const CHART_COLORS = ['#3b82f6','#a855f7','#22c55e','#f59e0b','#ef4444','#06b6d4','#ec4899','#f97316','#14b8a6','#6366f1','#84cc16','#f43f5e'];
@@ -738,10 +858,23 @@ function onRiskChange() {
   generateMoves();
 }
 
+// ─── Theme Detection ─────────────────────────────────────────────────────────
+function applyTheme(theme) {
+  const t = theme === 'dark' ? 'dark' : 'light';
+  document.documentElement.setAttribute('data-theme', t);
+  if (typeof Chart !== 'undefined') {
+    const isDark = t === 'dark';
+    Chart.defaults.color = isDark ? '#94a3b8' : '#475569';
+    Chart.defaults.borderColor = isDark ? 'rgba(42,53,80,0.5)' : 'rgba(148,163,184,0.2)';
+  }
+}
+// Default to light (matches Wealthica)
+applyTheme('light');
+
 // ─── Chart.js Defaults ──────────────────────────────────────────────────────
 if (typeof Chart !== 'undefined') {
-  Chart.defaults.color = '#94a3b8';
-  Chart.defaults.borderColor = 'rgba(42, 53, 80, 0.5)';
+  Chart.defaults.color = '#475569';
+  Chart.defaults.borderColor = 'rgba(148,163,184,0.2)';
   Chart.defaults.font.family = "'DM Sans', sans-serif";
   // Register datalabels plugin
   if (typeof ChartDataLabels !== 'undefined') {
@@ -751,14 +884,41 @@ if (typeof Chart !== 'undefined') {
   }
 }
 
+// ─── Date Range Filter ───────────────────────────────────────────────────────
+function setDateRange(range) {
+  activeDateRange = range;
+  document.querySelectorAll('.date-btn').forEach(b => b.classList.remove('active'));
+  document.querySelector('.date-btn[onclick="setDateRange(\'' + range + '\')"]').classList.add('active');
+  if (addon) {
+    loadPortfolio();
+  } else {
+    renderAllTabs();
+  }
+}
+
+function getDateFrom(range) {
+  if (range === 'all') return null;
+  const now = new Date();
+  if (range === 'ytd') return new Date(now.getFullYear(), 0, 1).toISOString().split('T')[0];
+  if (range === '1y') { now.setFullYear(now.getFullYear() - 1); return now.toISOString().split('T')[0]; }
+  if (range === '5y') { now.setFullYear(now.getFullYear() - 5); return now.toISOString().split('T')[0]; }
+  return null;
+}
+
 // ─── Datalabel Helpers ───────────────────────────────────────────────────────
+function getThemeColor(type) {
+  const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+  if (type === 'label') return isDark ? '#f1f5f9' : '#0f172a';
+  if (type === 'muted') return isDark ? '#94a3b8' : '#64748b';
+  return isDark ? '#94a3b8' : '#475569';
+}
 function doughnutLabels(totalVal) {
   return {
     display: function(ctx) {
       const v = ctx.dataset.data[ctx.dataIndex];
-      return totalVal > 0 && (v / totalVal * 100) >= 5; // show label if >= 5%
+      return totalVal > 0 && (v / totalVal * 100) >= 5;
     },
-    color: '#f1f5f9',
+    color: function() { return getThemeColor('label'); },
     font: { family: "'JetBrains Mono', monospace", size: 10, weight: 600 },
     formatter: function(value) {
       const pctStr = totalVal > 0 ? (value / totalVal * 100).toFixed(1) + '%' : '';
@@ -772,7 +932,7 @@ function doughnutLabels(totalVal) {
 function barLabels(prefix, suffix) {
   return {
     display: function(ctx) { return Math.abs(ctx.dataset.data[ctx.dataIndex]) > 0; },
-    color: '#94a3b8',
+    color: function() { return getThemeColor('muted'); },
     font: { family: "'JetBrains Mono', monospace", size: 9, weight: 500 },
     anchor: 'end',
     align: 'end',
@@ -787,7 +947,7 @@ function barLabels(prefix, suffix) {
 function hBarLabels() {
   return {
     display: function(ctx) { return Math.abs(ctx.dataset.data[ctx.dataIndex]) > 0; },
-    color: '#94a3b8',
+    color: function() { return getThemeColor('muted'); },
     font: { family: "'JetBrains Mono', monospace", size: 9, weight: 500 },
     anchor: 'end',
     align: 'right',
@@ -839,6 +999,9 @@ if (typeof Addon === 'undefined') {
     addon.on('init', function(options) {
       initReceived = true;
       currentOptions = options;
+      // Detect Wealthica theme
+      if (options.theme) applyTheme(options.theme);
+      else if (options.data && options.data.theme) applyTheme(options.data.theme);
       if (options.data && options.data.apiKey) {
         apiKey = options.data.apiKey;
         document.getElementById('apiKeyInput').value = apiKey;
@@ -978,8 +1141,9 @@ function applyDemoGroupFilter() {
 
 // ─── Portfolio Loading ───────────────────────────────────────────────────────
 function buildQuery(options) {
+  const customFrom = getDateFrom(activeDateRange);
   return {
-    from: options.dateRangeFilter && options.dateRangeFilter[0],
+    from: customFrom || (options.dateRangeFilter && options.dateRangeFilter[0]),
     to: options.dateRangeFilter && options.dateRangeFilter[1],
     groups: options.groupsFilter,
     institutions: options.institutionsFilter,
@@ -1167,10 +1331,33 @@ function renderAllTabs() {
 }
 
 // ─── Inference Functions ─────────────────────────────────────────────────────
+// Map correlated assets to the same key (e.g., BTCC.B.TO → BTC, ETHY.TO → ETH)
+function normalizeAsset(sym) {
+  const s = sym.toUpperCase().replace(/\.(TO|TSX|V|VN|CN)$/i, '');
+  // Bitcoin ETFs / wrappers → BTC
+  if (/^(BTCC|BTCX|BTCQ|FBTC|IBIT|GBTC|BITO|BTCZ|BTCY|QBTC)(\.B)?$/.test(s) || s === 'BTC' || /^BTC\b/.test(s)) return 'BTC';
+  // Ethereum ETFs → ETH
+  if (/^(ETHX|ETHY|ETHQ|ETHA|FETH)(\.B)?$/.test(s) || s === 'ETH' || /^ETH\b/.test(s)) return 'ETH';
+  // S&P 500 ETFs → SP500
+  if (/^(VFV|VSP|ZSP|HXS|XUS)(\.B)?$/.test(s) || ['SPY','VOO','IVV','SPLG'].includes(s)) return 'SP500';
+  // TSX index ETFs → TSX
+  if (/^(XIU|XIC|VCN|ZCN|HXT)(\.B)?$/.test(s)) return 'TSX_INDEX';
+  // NASDAQ 100 ETFs → QQQ
+  if (/^(XQQ|ZQQ|QQC|HXQ)(\.B)?$/.test(s) || ['QQQ','QQQM','TQQQ'].includes(s)) return 'QQQ';
+  // International ETFs → INTL
+  if (/^(XEF|VIU|ZEA)(\.B)?$/.test(s) || ['EFA','VEA','IEFA','VXUS','IXUS'].includes(s)) return 'INTL_DEV';
+  // Emerging market ETFs → EM
+  if (/^(XEC|VEE|ZEM)(\.B)?$/.test(s) || ['EEM','VWO','IEMG'].includes(s)) return 'EM';
+  return s;
+}
+
 function inferRegion(pos) {
   // Accept both a position object and a plain symbol string
   const symbol = typeof pos === 'string' ? pos : (pos?.security?.symbol || pos?.symbol || '');
   const category = typeof pos === 'string' ? '' : (pos?.category || '').toLowerCase();
+  const currency = typeof pos === 'string' ? '' : (pos?.security?.currency || pos?.currency || '').toUpperCase();
+  const exchange = typeof pos === 'string' ? '' : (pos?.security?.exchange || pos?.security?.stock_exchange || '').toUpperCase();
+  const secType = typeof pos === 'string' ? '' : (pos?.security?.type || pos?.type || '').toLowerCase();
   if (!symbol && !category) return 'Unknown';
 
   // 1. Use Wealthica's position-level category (e.g. "US Stocks", "Canadian Stocks")
@@ -1181,14 +1368,30 @@ function inferRegion(pos) {
     if (/crypto|digital/i.test(category)) return 'Crypto';
   }
 
-  // 2. Fall back to symbol-based detection
+  // 2. Symbol-based detection
   const s = symbol.toUpperCase();
   if (/\.(TO|TSX|V|VN|CN)$/i.test(s)) return 'Canada';
-  if (['BTC','ETH','SOL','ADA','DOT','DOGE','XRP','LINK','AVAX','MATIC','USDT','USDC'].includes(s)) return 'Crypto';
-  const intlETFs = ['XEF.TO','VIU.TO','XEC.TO','VEE.TO','ZEA.TO','VXUS','IXUS','EFA','EEM'];
+  const cryptos = ['BTC','ETH','SOL','ADA','DOT','DOGE','XRP','LINK','AVAX','MATIC','USDT','USDC','BNB','LTC','UNI','ATOM','NEAR','APT','ARB','SHIB','PEPE'];
+  if (cryptos.includes(s) || /^(BTC|ETH|SOL|XRP)\.(X|USD|CAD)$/.test(s)) return 'Crypto';
+  if (secType === 'crypto' || secType === 'cryptocurrency') return 'Crypto';
+  const intlETFs = ['XEF.TO','VIU.TO','XEC.TO','VEE.TO','ZEA.TO','VXUS','IXUS','EFA','EEM','VEA','VWO','IEFA','IEMG'];
   if (intlETFs.includes(s)) return 'International';
   if (/\.(L|LSE|PA|DE|AS|MI|MC|SW|HK|SS|SZ|T|AX)$/i.test(s)) return 'International';
-  return 'United States';
+
+  // 3. Exchange-based detection (Wealthica may provide exchange info)
+  if (exchange) {
+    if (/TSX|TSE|CVE|NEO|CSE|XTSE|XCNQ|CNSX|TSXV/i.test(exchange)) return 'Canada';
+    if (/NYSE|NASDAQ|NYSEARCA|NYSEMKT|BATS|XNYS|XNAS|ARCX/i.test(exchange)) return 'United States';
+    if (/LSE|FRA|EPA|TYO|HKG|ASX|AMS|STO|HEL|BIT|BME/i.test(exchange)) return 'International';
+  }
+
+  // 4. Currency-based fallback (most reliable signal from Wealthica)
+  if (currency === 'CAD') return 'Canada';
+  if (currency === 'USD') return 'United States';
+  if (currency === 'EUR' || currency === 'GBP' || currency === 'JPY' || currency === 'AUD' || currency === 'CHF' || currency === 'HKD' || currency === 'CNY') return 'International';
+  if (currency && currency !== 'CAD' && currency !== 'USD') return 'International';
+
+  return 'Unknown';
 }
 
 function inferAssetClass(pos) {
@@ -1308,14 +1511,26 @@ function computeScores() {
 
   const weights = positions.map(p => (p.market_value || p.value || 0) / totalVal);
   const n = positions.length;
-  const uniqueSecurities = new Set(positions.map(p => p.security?.symbol || p.symbol)).size;
   const totalBook = positions.reduce((s,p) => s + (p.book_value || p.market_value || p.value || 0), 0);
   const totalReturn = totalBook > 0 ? ((totalVal - totalBook) / totalBook) * 100 : 0;
 
+  // Group correlated assets (e.g., BTCC.B.TO and BTC are the same underlying)
+  const effectiveGroups = {};
+  positions.forEach(p => {
+    const sym = (p.security?.symbol || p.symbol || '').toUpperCase();
+    const key = normalizeAsset(sym);
+    if (!effectiveGroups[key]) effectiveGroups[key] = 0;
+    effectiveGroups[key] += (p.market_value || p.value || 0) / totalVal;
+  });
+  const uniqueSecurities = Object.keys(effectiveGroups).length;
+
   // ── 1. Diversification (0-100) ──
-  const hhi = weights.reduce((s,w) => s + w*w, 0);
-  const minHHI = n > 0 ? 1/n : 1;
-  const hhiScore = (n <= 1 || minHHI >= 1) ? 0 : Math.round((1 - (hhi - minHHI) / (1 - minHHI)) * 100);
+  // Use effective group weights for HHI to penalize correlated holdings
+  const groupWeights = Object.values(effectiveGroups);
+  const effectiveN = groupWeights.length;
+  const hhi = groupWeights.reduce((s,w) => s + w*w, 0);
+  const minHHI = effectiveN > 0 ? 1/effectiveN : 1;
+  const hhiScore = (effectiveN <= 1 || minHHI >= 1) ? 0 : Math.round((1 - (hhi - minHHI) / (1 - minHHI)) * 100);
 
   const sectors = {};
   positions.forEach(p => { const sec = inferAssetClass(p); sectors[sec] = (sectors[sec]||0) + (p.market_value||p.value||0); });
@@ -1614,7 +1829,7 @@ function renderOverview() {
       labels: sorted.map(p => p.security?.symbol || p.symbol || '?'),
       datasets: [{ data: sorted.map(p => p.market_value || p.value || 0), backgroundColor: '#3b82f6', borderRadius: 4 }]
     },
-    options: { indexAxis: 'y', responsive: true, maintainAspectRatio: true, plugins: { datalabels: hBarLabels(), legend: { display: false } }, scales: { x: { grid: { color: 'rgba(42,53,80,0.3)' }, ticks: { callback: v => '$' + (v/1000).toFixed(0) + 'k' } }, y: { grid: { display: false } } } }
+    options: { indexAxis: 'y', responsive: true, maintainAspectRatio: true, plugins: { datalabels: hBarLabels(), legend: { display: false } }, scales: { x: { grid: { color: 'var(--chart-grid, rgba(148,163,184,0.15))' }, ticks: { callback: v => '$' + (v/1000).toFixed(0) + 'k' } }, y: { grid: { display: false } } } }
   });
 }
 
@@ -1695,7 +1910,7 @@ function renderHoldingsTab() {
       labels: topN.map(p => p.security?.symbol || p.symbol || '?'),
       datasets: [{ label: 'Weight %', data: topN.map(p => totalVal > 0 ? ((p.market_value||p.value||0)/totalVal*100) : 0), backgroundColor: CHART_COLORS.slice(0, topN.length), borderRadius: 4 }]
     },
-    options: { responsive: true, plugins: { datalabels: barLabels('', '%'), legend: { display: false } }, scales: { y: { grid: { color: 'rgba(42,53,80,0.3)' }, ticks: { callback: v => v + '%' } }, x: { grid: { display: false } } } }
+    options: { responsive: true, plugins: { datalabels: barLabels('', '%'), legend: { display: false } }, scales: { y: { grid: { color: 'var(--chart-grid, rgba(148,163,184,0.15))' }, ticks: { callback: v => v + '%' } }, x: { grid: { display: false } } } }
   });
 }
 
@@ -1738,7 +1953,7 @@ function renderPerformance() {
       labels: glSorted.map(p => p.security?.symbol || p.symbol || '?'),
       datasets: [{ data: glSorted.map(p => p.gl), backgroundColor: glSorted.map(p => p.gl >= 0 ? '#22c55e' : '#ef4444'), borderRadius: 4 }]
     },
-    options: { responsive: true, plugins: { datalabels: barLabels('', '$'), legend: { display: false } }, scales: { y: { grid: { color: 'rgba(42,53,80,0.3)' }, ticks: { callback: v => '$' + (v/1000).toFixed(1) + 'k' } }, x: { grid: { display: false } } } }
+    options: { responsive: true, plugins: { datalabels: barLabels('', '$'), legend: { display: false } }, scales: { y: { grid: { color: 'var(--chart-grid, rgba(148,163,184,0.15))' }, ticks: { callback: v => '$' + (v/1000).toFixed(1) + 'k' } }, x: { grid: { display: false } } } }
   });
 
   // By account
@@ -1759,7 +1974,7 @@ function renderPerformance() {
         { label: 'Market Value', data: acctEntries.map(e => e[1].mv), backgroundColor: '#3b82f6', borderRadius: 4 },
       ]
     },
-    options: { responsive: true, plugins: { datalabels: barLabels('', '$'), legend: { position: 'bottom', labels: { usePointStyle: true, pointStyleWidth: 8 } } }, scales: { y: { grid: { color: 'rgba(42,53,80,0.3)' }, ticks: { callback: v => '$' + (v/1000).toFixed(0) + 'k' } }, x: { grid: { display: false } } } }
+    options: { responsive: true, plugins: { datalabels: barLabels('', '$'), legend: { position: 'bottom', labels: { usePointStyle: true, pointStyleWidth: 8 } } }, scales: { y: { grid: { color: 'var(--chart-grid, rgba(148,163,184,0.15))' }, ticks: { callback: v => '$' + (v/1000).toFixed(0) + 'k' } }, x: { grid: { display: false } } } }
   });
 
   // Benchmark comparison
@@ -1768,42 +1983,56 @@ function renderPerformance() {
 
 // ─── Benchmark Comparison ────────────────────────────────────────────────────
 function renderBenchmarkComparison(portfolioReturn) {
-  // Estimated benchmark annual returns (trailing 1Y approximation)
-  const benchmarks = [
-    { key: 'portfolio', label: 'Your Portfolio', ret: portfolioReturn, cls: 'portfolio', desc: 'Actual return based on book vs market value' },
-    { key: 'sp500', label: 'S&P 500', ret: 12.5, cls: 'sp500', desc: 'US large-cap benchmark (SPY/VOO)' },
-    { key: 'tsx', label: 'TSX Composite', ret: 8.2, cls: 'tsx', desc: 'Canadian broad market (XIU.TO)' },
-    { key: 'nasdaq', label: 'NASDAQ 100', ret: 18.7, cls: 'nasdaq', desc: 'US tech-heavy benchmark (QQQ)' },
-  ];
+  // Show portfolio return summary only — benchmark comparisons require
+  // matching time periods which we don't have from Wealthica position data.
+  const totalVal = filteredPositions.reduce((s,p) => s + (p.market_value || p.value || 0), 0);
+  const totalBook = filteredPositions.reduce((s,p) => s + (p.book_value || p.market_value || p.value || 0), 0);
+  const totalGL = totalVal - totalBook;
+
+  // Group by account for per-account performance
+  const acctPerf = {};
+  filteredPositions.forEach(p => {
+    const a = p._accountName || 'Unknown';
+    if (!acctPerf[a]) acctPerf[a] = { mv: 0, bv: 0 };
+    acctPerf[a].mv += (p.market_value || p.value || 0);
+    acctPerf[a].bv += (p.book_value || p.market_value || p.value || 0);
+  });
+
+  const winners = filteredPositions.filter(p => (p.market_value||p.value||0) > (p.book_value||(p.market_value||p.value||0))).length;
+  const losers = filteredPositions.length - winners;
 
   const grid = document.getElementById('benchmarkGrid');
   grid.innerHTML = '';
-  benchmarks.forEach(b => {
-    const diff = b.ret - portfolioReturn;
+  const cards = [
+    { cls: 'portfolio', label: 'Total Return', value: pct(portfolioReturn), desc: fmt(totalGL) + ' gain/loss', vs: '' },
+    { cls: 'sp500', label: 'Portfolio Value', value: fmt(totalVal), desc: 'Book value: ' + fmt(totalBook), vs: '' },
+    { cls: 'tsx', label: 'Win Rate', value: (filteredPositions.length > 0 ? (winners/filteredPositions.length*100).toFixed(0) : 0) + '%', desc: winners + ' winners / ' + losers + ' losers', vs: '' },
+    { cls: 'nasdaq', label: 'Best Account', value: Object.entries(acctPerf).sort((a,b) => (b[1].mv-b[1].bv)/(b[1].bv||1) - (a[1].mv-a[1].bv)/(a[1].bv||1))[0]?.[0] || '--', desc: Object.entries(acctPerf).length > 0 ? pct(((Object.entries(acctPerf).sort((a,b) => (b[1].mv-b[1].bv)/(b[1].bv||1) - (a[1].mv-a[1].bv)/(a[1].bv||1))[0][1].mv - Object.entries(acctPerf).sort((a,b) => (b[1].mv-b[1].bv)/(b[1].bv||1) - (a[1].mv-a[1].bv)/(a[1].bv||1))[0][1].bv) / (Object.entries(acctPerf).sort((a,b) => (b[1].mv-b[1].bv)/(b[1].bv||1) - (a[1].mv-a[1].bv)/(a[1].bv||1))[0][1].bv || 1)) * 100) + ' return' : '', vs: '' },
+  ];
+  cards.forEach(c => {
     const d = document.createElement('div');
-    d.className = 'benchmark-card ' + b.cls;
-    let vsHtml = '';
-    if (b.key !== 'portfolio') {
-      const diffStr = diff > 0 ? '+' + diff.toFixed(2) + '%' : diff.toFixed(2) + '%';
-      const diffColor = diff > 0 ? 'var(--red)' : 'var(--green)';
-      vsHtml = '<div class="bm-vs" style="color:' + diffColor + '">' + (diff > 0 ? 'Underperforming by ' : 'Outperforming by ') + Math.abs(diff).toFixed(2) + '%</div>';
-    }
-    d.innerHTML = '<div class="bm-label">' + b.label + '</div>' +
-      '<div class="bm-value ' + (b.ret >= 0 ? 'positive' : 'negative') + '">' + pct(b.ret) + '</div>' +
-      '<div class="bm-sub">' + b.desc + '</div>' + vsHtml;
+    d.className = 'benchmark-card ' + c.cls;
+    d.innerHTML = '<div class="bm-label">' + c.label + '</div>' +
+      '<div class="bm-value">' + c.value + '</div>' +
+      '<div class="bm-sub">' + c.desc + '</div>';
     grid.appendChild(d);
   });
 
-  // Benchmark comparison bar chart
+  // Return by position bar chart
+  const returnData = filteredPositions.map(p => {
+    const mv = p.market_value || p.value || 0;
+    const bv = p.book_value || mv;
+    return { sym: p.security?.symbol || p.symbol || '?', ret: bv > 0 ? ((mv-bv)/bv)*100 : 0 };
+  }).sort((a,b) => b.ret - a.ret).slice(0, 12);
+
   makeChart('benchmark', document.getElementById('benchmarkChart'), {
     type: 'bar',
     data: {
-      labels: benchmarks.map(b => b.label),
+      labels: returnData.map(d => d.sym),
       datasets: [{
-        data: benchmarks.map(b => b.ret),
-        backgroundColor: ['#3b82f6', '#22c55e', '#ef4444', '#a855f7'],
-        borderRadius: 6,
-        barPercentage: 0.6,
+        data: returnData.map(d => d.ret),
+        backgroundColor: returnData.map(d => d.ret >= 0 ? '#22c55e' : '#ef4444'),
+        borderRadius: 4,
       }]
     },
     options: {
@@ -1811,15 +2040,15 @@ function renderBenchmarkComparison(portfolioReturn) {
       plugins: {
         datalabels: {
           display: true,
-          color: '#f1f5f9',
-          font: { family: "'JetBrains Mono', monospace", size: 11, weight: 600 },
-          anchor: 'end', align: 'end', offset: 4,
-          formatter: v => (v >= 0 ? '+' : '') + v.toFixed(2) + '%',
+          color: 'var(--datalabel-color, #0f172a)',
+          font: { family: "'JetBrains Mono', monospace", size: 10, weight: 600 },
+          anchor: 'end', align: 'end', offset: 2,
+          formatter: v => (v >= 0 ? '+' : '') + v.toFixed(1) + '%',
         },
         legend: { display: false }
       },
       scales: {
-        y: { grid: { color: 'rgba(42,53,80,0.3)' }, ticks: { callback: v => v + '%' } },
+        y: { grid: { color: 'var(--chart-grid, rgba(148,163,184,0.15))' }, ticks: { callback: v => v + '%' } },
         x: { grid: { display: false } }
       }
     }
@@ -1865,7 +2094,7 @@ function renderRisk() {
   makeChart('riskWeights', document.getElementById('riskWeightsChart'), {
     type: 'bar',
     data: { labels: weights.map(w=>w.sym), datasets: [{ data: weights.map(w=>w.w), backgroundColor: weights.map(w => w.w > 20 ? '#ef4444' : w.w > 10 ? '#f59e0b' : '#3b82f6'), borderRadius: 4 }] },
-    options: { responsive: true, plugins: { datalabels: barLabels('', '%'), legend: { display: false } }, scales: { y: { grid: { color: 'rgba(42,53,80,0.3)' }, ticks: { callback: v => v + '%' } }, x: { grid: { display: false } } } }
+    options: { responsive: true, plugins: { datalabels: barLabels('', '%'), legend: { display: false } }, scales: { y: { grid: { color: 'var(--chart-grid, rgba(148,163,184,0.15))' }, ticks: { callback: v => v + '%' } }, x: { grid: { display: false } } } }
   });
 
   // Risk factors
@@ -1974,7 +2203,7 @@ function renderSectors() {
   makeChart('sectorBar', document.getElementById('sectorBarChart'), {
     type: 'bar',
     data: { labels: sectorEntries.map(e=>e[0]), datasets: [{ data: sectorEntries.map(e=>e[1].value), backgroundColor: CHART_COLORS.slice(0, sectorEntries.length), borderRadius: 4 }] },
-    options: { indexAxis: 'y', responsive: true, plugins: { datalabels: hBarLabels(), legend: { display: false } }, scales: { x: { grid: { color: 'rgba(42,53,80,0.3)' }, ticks: { callback: v => '$' + (v/1000).toFixed(0) + 'k' } }, y: { grid: { display: false } } } }
+    options: { indexAxis: 'y', responsive: true, plugins: { datalabels: hBarLabels(), legend: { display: false } }, scales: { x: { grid: { color: 'var(--chart-grid, rgba(148,163,184,0.15))' }, ticks: { callback: v => '$' + (v/1000).toFixed(0) + 'k' } }, y: { grid: { display: false } } } }
   });
 
   // Sector cards
@@ -2068,7 +2297,7 @@ function renderDividends() {
     makeChart('incomeAccount', document.getElementById('incomeAccountChart'), {
       type: 'bar',
       data: { labels: acctEntries.map(e=>e[0]), datasets: [{ label: 'Est. Annual Income', data: acctEntries.map(e=>e[1]), backgroundColor: '#22c55e', borderRadius: 4 }] },
-      options: { responsive: true, plugins: { datalabels: barLabels('', '$'), legend: { display: false } }, scales: { y: { grid: { color: 'rgba(42,53,80,0.3)' }, ticks: { callback: v => '$' + (v >= 1000 ? (v/1000).toFixed(1)+'k' : v.toFixed(0)) } }, x: { grid: { display: false } } } }
+      options: { responsive: true, plugins: { datalabels: barLabels('', '$'), legend: { display: false } }, scales: { y: { grid: { color: 'var(--chart-grid, rgba(148,163,184,0.15))' }, ticks: { callback: v => '$' + (v >= 1000 ? (v/1000).toFixed(1)+'k' : v.toFixed(0)) } }, x: { grid: { display: false } } } }
     });
   }
 
@@ -2082,7 +2311,7 @@ function renderDividends() {
         { label: 'Growth-Oriented (' + (totalVal>0?(growthVal/totalVal*100).toFixed(1):'0') + '%)', data: [growthVal], backgroundColor: '#3b82f6', borderRadius: 4 },
       ]
     },
-    options: { indexAxis: 'y', responsive: true, plugins: { datalabels: { display: true, color: '#f1f5f9', font: { family: "'JetBrains Mono', monospace", size: 10, weight: 600 }, formatter: (v) => v >= 1000 ? '$'+(v/1000).toFixed(1)+'k' : '$'+Math.round(v) }, legend: { position: 'bottom', labels: { usePointStyle: true, pointStyleWidth: 8, font: { size: 11 } } } }, scales: { x: { stacked: true, grid: { color: 'rgba(42,53,80,0.3)' }, ticks: { callback: v => '$'+(v/1000).toFixed(0)+'k' } }, y: { stacked: true, display: false } } }
+    options: { indexAxis: 'y', responsive: true, plugins: { datalabels: { display: true, color: function() { return getThemeColor('label'); }, font: { family: "'JetBrains Mono', monospace", size: 10, weight: 600 }, formatter: (v) => v >= 1000 ? '$'+(v/1000).toFixed(1)+'k' : '$'+Math.round(v) }, legend: { position: 'bottom', labels: { usePointStyle: true, pointStyleWidth: 8, font: { size: 11 } } } }, scales: { x: { stacked: true, grid: { color: 'var(--chart-grid, rgba(148,163,184,0.15))' }, ticks: { callback: v => '$'+(v/1000).toFixed(0)+'k' } }, y: { stacked: true, display: false } } }
   });
 
   // Income holdings list — show all dividend-paying positions with estimated yield
@@ -2170,7 +2399,7 @@ function renderTax() {
         { label: 'Unrealized Losses', data: glEntries.map(e => e[1].losses), backgroundColor: '#ef4444', borderRadius: 4 },
       ]
     },
-    options: { responsive: true, plugins: { datalabels: barLabels('', '$'), legend: { position: 'bottom', labels: { usePointStyle: true, pointStyleWidth: 8 } } }, scales: { y: { grid: { color: 'rgba(42,53,80,0.3)' }, ticks: { callback: v => '$' + (v/1000).toFixed(1) + 'k' } }, x: { grid: { display: false } } } }
+    options: { responsive: true, plugins: { datalabels: barLabels('', '$'), legend: { position: 'bottom', labels: { usePointStyle: true, pointStyleWidth: 8 } } }, scales: { y: { grid: { color: 'var(--chart-grid, rgba(148,163,184,0.15))' }, ticks: { callback: v => '$' + (v/1000).toFixed(1) + 'k' } }, x: { grid: { display: false } } } }
   });
 
   // Tax issues list
@@ -2410,7 +2639,7 @@ function renderModels() {
   makeChart('monteCarlo', document.getElementById('monteCarloChart'), {
     type: 'bar',
     data: { labels: binLabels, datasets: [{ data: histogram, backgroundColor: binColors, borderRadius: 2 }] },
-    options: { responsive: true, plugins: { datalabels: { display: false }, legend: { display: false } }, scales: { y: { grid: { color: 'rgba(42,53,80,0.3)' }, title: { display: true, text: 'Frequency', color: '#64748b', font: { size: 11 } } }, x: { grid: { display: false }, ticks: { maxTicksLimit: 8, font: { size: 9 } } } } }
+    options: { responsive: true, plugins: { datalabels: { display: false }, legend: { display: false } }, scales: { y: { grid: { color: 'var(--chart-grid, rgba(148,163,184,0.15))' }, title: { display: true, text: 'Frequency', color: 'var(--text-muted, #94a3b8)', font: { size: 11 } } }, x: { grid: { display: false }, ticks: { maxTicksLimit: 8, font: { size: 9 } } } } }
   });
 
   // Factor Exposure chart
@@ -2429,7 +2658,7 @@ function renderModels() {
         pointRadius: 4,
       }]
     },
-    options: { responsive: true, plugins: { datalabels: { display: false }, legend: { display: false } }, scales: { r: { beginAtZero: true, max: 1, ticks: { display: false }, grid: { color: 'rgba(42,53,80,0.3)' }, pointLabels: { color: '#94a3b8', font: { size: 11 } } } } }
+    options: { responsive: true, plugins: { datalabels: { display: false }, legend: { display: false } }, scales: { r: { beginAtZero: true, max: 1, ticks: { display: false }, grid: { color: 'var(--chart-grid, rgba(148,163,184,0.15))' }, pointLabels: { color: 'var(--text-secondary, #475569)', font: { size: 11 } } } } }
   });
 
   // Factor analysis text
@@ -2454,6 +2683,61 @@ function renderModels() {
     factorGrid.appendChild(d);
   });
   factorSection.appendChild(factorGrid);
+
+  // Render conclusion
+  renderModelConclusion(stats);
+}
+
+// ─── Model Conclusion ────────────────────────────────────────────────────────
+function renderModelConclusion(stats) {
+  const el = document.getElementById('modelConclusion');
+  if (!el) return;
+
+  // Determine overall risk grade
+  let grade, gradeColor, gradeLabel;
+  const riskScore = Math.round(
+    (stats.stdDev < 0.15 ? 30 : stats.stdDev < 0.20 ? 20 : stats.stdDev < 0.30 ? 10 : 0) +
+    (stats.sharpe > 1 ? 30 : stats.sharpe > 0.5 ? 20 : stats.sharpe > 0 ? 10 : 0) +
+    (stats.portfolioBeta < 1.0 ? 20 : stats.portfolioBeta < 1.3 ? 15 : 5) +
+    (stats.trackingError < 0.08 ? 20 : stats.trackingError < 0.15 ? 15 : 5)
+  );
+
+  if (riskScore >= 80) { grade = 'A'; gradeColor = 'var(--green)'; gradeLabel = 'Well-Managed Risk Profile'; }
+  else if (riskScore >= 60) { grade = 'B'; gradeColor = 'var(--accent)'; gradeLabel = 'Moderate Risk Profile'; }
+  else if (riskScore >= 40) { grade = 'C'; gradeColor = 'var(--yellow)'; gradeLabel = 'Elevated Risk — Monitor Closely'; }
+  else { grade = 'D'; gradeColor = 'var(--red)'; gradeLabel = 'High Risk — Action Recommended'; }
+
+  // Build actionable conclusions
+  const points = [];
+
+  // Volatility conclusion
+  if (stats.stdDev < 0.12) points.push({ color: 'var(--green)', text: '<strong>Low volatility (' + (stats.stdDev*100).toFixed(1) + '%)</strong> — Your portfolio is stable with limited price swings. Good for capital preservation, but may limit upside potential if you have a growth-oriented goal.' });
+  else if (stats.stdDev < 0.20) points.push({ color: 'var(--green)', text: '<strong>Moderate volatility (' + (stats.stdDev*100).toFixed(1) + '%)</strong> — Within the typical range for a balanced portfolio. You can expect normal market fluctuations without excessive drawdowns.' });
+  else if (stats.stdDev < 0.30) points.push({ color: 'var(--yellow)', text: '<strong>Elevated volatility (' + (stats.stdDev*100).toFixed(1) + '%)</strong> — Higher than average swings. Consider whether you can tolerate seeing 15-20% drops during corrections. If not, add bonds (ZAG.TO) or low-vol ETFs (ZLB.TO).' });
+  else points.push({ color: 'var(--red)', text: '<strong>High volatility (' + (stats.stdDev*100).toFixed(1) + '%)</strong> — Expect significant value swings. This is only appropriate for aggressive, long-term investors. Reduce concentrated single-stock or crypto positions to lower volatility.' });
+
+  // Monte Carlo conclusion
+  const mcWorst = ((stats.mc5th / stats.totalVal - 1) * 100);
+  const mcBest = ((stats.mc95th / stats.totalVal - 1) * 100);
+  points.push({ color: mcWorst < -25 ? 'var(--red)' : 'var(--yellow)', text: '<strong>1-Year outlook:</strong> In a bad year (5th percentile), your portfolio could fall to ' + fmt(stats.mc5th) + ' (' + mcWorst.toFixed(0) + '%). In a good year (95th percentile), it could grow to ' + fmt(stats.mc95th) + ' (+' + mcBest.toFixed(0) + '%). The median outcome is ' + fmt(stats.mcMedian) + '.' });
+
+  // Sharpe conclusion
+  if (stats.sharpe > 1) points.push({ color: 'var(--green)', text: '<strong>Excellent risk-adjusted returns</strong> (Sharpe ' + stats.sharpe.toFixed(2) + ') — You\'re being well-compensated for the risk you\'re taking. Maintain your current allocation strategy.' });
+  else if (stats.sharpe > 0.3) points.push({ color: 'var(--accent)', text: '<strong>Adequate risk-adjusted returns</strong> (Sharpe ' + stats.sharpe.toFixed(2) + ') — Reasonable balance of risk and reward. Look for opportunities to improve returns without adding more risk.' });
+  else points.push({ color: 'var(--red)', text: '<strong>Poor risk-adjusted returns</strong> (Sharpe ' + stats.sharpe.toFixed(2) + ') — You\'re taking on risk without sufficient reward. Consider replacing underperformers with broad-market index funds for better risk/return efficiency.' });
+
+  // VaR actionable summary
+  points.push({ color: 'var(--yellow)', text: '<strong>Downside risk:</strong> On a bad day, expect to lose up to ' + fmt(Math.abs(stats.var95_1d)) + ' (95% confidence). In a bad month, up to ' + fmt(Math.abs(stats.var95_1m)) + '. Make sure you have an emergency fund outside your investments to avoid selling during dips.' });
+
+  // Yield summary
+  if (stats.portfolioYield > 0.03) points.push({ color: 'var(--green)', text: '<strong>Good income generation</strong> — Estimated ' + (stats.portfolioYield*100).toFixed(2) + '% yield provides ' + fmt(stats.totalVal * stats.portfolioYield) + '/year in estimated dividends, providing a buffer during market downturns.' });
+  else if (stats.portfolioYield > 0.01) points.push({ color: 'var(--accent)', text: '<strong>Modest income</strong> — Estimated ' + (stats.portfolioYield*100).toFixed(2) + '% yield (' + fmt(stats.totalVal * stats.portfolioYield) + '/year). If income is a goal, consider adding dividend ETFs like VDY.TO or XEI.TO.' });
+
+  el.innerHTML = '<h3>What This Means for You</h3>' +
+    '<div class="mc-grade"><div class="mc-grade-badge" style="background:' + gradeColor + '20;color:' + gradeColor + '">' + grade + '</div>' +
+    '<div><div class="mc-grade-text" style="color:' + gradeColor + '">' + gradeLabel + '</div>' +
+    '<div class="mc-grade-sub">Based on volatility, risk-adjusted returns, market sensitivity, and diversification</div></div></div>' +
+    '<div class="mc-points">' + points.map(p => '<div class="mc-point"><div class="mc-bullet" style="background:' + p.color + '"></div><div>' + p.text + '</div></div>').join('') + '</div>';
 }
 
 // ─── Stress Test Tab ─────────────────────────────────────────────────────────
@@ -2563,14 +2847,14 @@ function renderStressTest() {
       indexAxis: 'y', responsive: true,
       plugins: {
         datalabels: {
-          display: true, color: '#f1f5f9',
+          display: true, color: 'var(--datalabel-color, #0f172a)',
           font: { family: "'JetBrains Mono', monospace", size: 10, weight: 600 },
           anchor: 'center', align: 'center',
           formatter: (v) => v.toFixed(1) + '%',
         },
         legend: { display: false }
       },
-      scales: { x: { grid: { color: 'rgba(42,53,80,0.3)' }, ticks: { callback: v => v + '%' } }, y: { grid: { display: false } } }
+      scales: { x: { grid: { color: 'var(--chart-grid, rgba(148,163,184,0.15))' }, ticks: { callback: v => v + '%' } }, y: { grid: { display: false } } }
     }
   });
 
@@ -2942,6 +3226,79 @@ function onPromptChange() {
   const val = document.getElementById('promptSelect').value;
   document.getElementById('customPromptArea').classList.toggle('visible', val === 'custom');
   if (val === 'custom') document.getElementById('customPrompt').focus();
+}
+
+// ─── Tab-Level AI Analysis ───────────────────────────────────────────────────
+const TAB_AI_PROMPTS = {
+  overview: 'Give a concise executive summary of this portfolio. What are the 3 most important things the investor should know right now? Include specific numbers.',
+  performance: 'Analyze the portfolio returns. Which positions are driving performance? Are there underperformers that should be reviewed? Compare the win/loss ratio and suggest improvements.',
+  risk: 'Provide a detailed risk assessment. What is the biggest single risk in this portfolio? How concentrated is it? What specific changes would reduce risk while maintaining returns?',
+  region: 'Analyze the geographic allocation. Is there home bias? Is the international exposure adequate? What specific ETFs should be added or removed for better geographic balance?',
+  sectors: 'Review the sector allocation. Which sectors are overweight/underweight vs the broad market? Are there any sector-specific risks? Suggest specific rebalancing trades.',
+  dividends: 'Analyze the dividend and income characteristics. Estimate the annual income. Which positions contribute most to income? How can income be improved while maintaining growth?',
+  tax: 'Review the tax efficiency. Are US dividend payers in RRSP? Are growth assets in TFSA? Identify specific tax-loss harvesting opportunities and account placement improvements.',
+};
+
+async function runTabAI(tab) {
+  if (!apiKey) { showToast('Set your API key first', 'error'); toggleSettings(); return; }
+  if (filteredPositions.length === 0) { showToast('No portfolio data', 'error'); return; }
+
+  const btn = document.getElementById('aiBtn-' + tab);
+  const resEl = document.getElementById('aiRes-' + tab);
+  if (!btn || !resEl) return;
+
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span> Analyzing...';
+  resEl.classList.add('visible');
+  resEl.innerHTML = '<div class="ai-content streaming-cursor"></div>';
+
+  const summary = buildPortfolioSummary();
+  const riskLabel = riskTolerance <= 3 ? 'conservative' : riskTolerance <= 5 ? 'moderate' : riskTolerance <= 7 ? 'growth' : 'aggressive';
+  const systemPrompt = 'You are a senior portfolio analyst helping a Canadian investor with a ' + riskLabel + ' risk profile (tolerance ' + riskTolerance + '/10). Be specific with numbers, percentages, and actionable advice. Use CAD. Format with markdown. Keep response focused and under 400 words.';
+  const userMsg = 'Portfolio:\n' + JSON.stringify(summary, null, 2) + '\n\n' + (TAB_AI_PROMPTS[tab] || 'Analyze this portfolio.');
+
+  try {
+    const response = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-api-key': apiKey, 'anthropic-version': '2023-06-01', 'anthropic-dangerous-direct-browser-access': 'true' },
+      body: JSON.stringify({ model: 'claude-sonnet-4-20250514', max_tokens: 2048, system: systemPrompt, messages: [{ role: 'user', content: userMsg }], stream: true }),
+    });
+
+    if (!response.ok) { const err = await response.json().catch(()=>({})); throw new Error(err.error?.message || 'API error: ' + response.status); }
+
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder();
+    let fullText = '', buffer = '';
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+      const lines = buffer.split('\n');
+      buffer = lines.pop() || '';
+      for (const line of lines) {
+        if (line.startsWith('data: ')) {
+          const d = line.slice(6).trim();
+          if (d === '[DONE]') continue;
+          try {
+            const parsed = JSON.parse(d);
+            if (parsed.type === 'content_block_delta' && parsed.delta?.text) {
+              fullText += parsed.delta.text;
+              const contentEl = resEl.querySelector('.ai-content');
+              if (contentEl) { contentEl.innerHTML = renderMarkdown(fullText); contentEl.classList.add('streaming-cursor'); resEl.scrollTop = resEl.scrollHeight; }
+            }
+          } catch(e) {}
+        }
+      }
+    }
+    const contentEl = resEl.querySelector('.ai-content');
+    if (contentEl) { contentEl.innerHTML = renderMarkdown(fullText); contentEl.classList.remove('streaming-cursor'); }
+  } catch(err) {
+    resEl.innerHTML = '<div style="color:var(--red)"><strong>Error:</strong> ' + escapeHtml(err.message) + '</div>';
+    showToast('AI analysis failed: ' + err.message, 'error');
+  }
+
+  btn.disabled = false;
+  btn.innerHTML = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polygon points="5 3 19 12 5 21 5 3"/></svg> Re-analyze';
 }
 
 // ─── Utilities ───────────────────────────────────────────────────────────────
