@@ -412,6 +412,67 @@
   .metric-gauge .mg-bar-fill { height: 100%; border-radius: 3px; transition: width 0.5s; }
   .metric-gauge .mg-desc { font-size: 11px; color: var(--text-muted); line-height: 1.4; }
 
+  /* Holdings Table View */
+  .view-toggle { display: flex; gap: 4px; }
+  .view-toggle-btn { background: var(--bg-card); border: 1px solid var(--border); color: var(--text-muted); padding: 6px 10px; border-radius: 6px; cursor: pointer; font-size: 12px; display: flex; align-items: center; gap: 4px; transition: all 0.2s; }
+  .view-toggle-btn.active { background: var(--accent); color: white; border-color: var(--accent); }
+  .holdings-table { width: 100%; border-collapse: collapse; margin-top: 12px; }
+  .holdings-table th { text-align: left; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-muted); padding: 8px 12px; border-bottom: 2px solid var(--border); cursor: pointer; white-space: nowrap; user-select: none; }
+  .holdings-table th:hover { color: var(--accent); }
+  .holdings-table th.sorted { color: var(--accent); }
+  .holdings-table th .sort-arrow { font-size: 10px; margin-left: 4px; }
+  .holdings-table td { padding: 10px 12px; border-bottom: 1px solid var(--border); font-size: 13px; white-space: nowrap; }
+  .holdings-table tr:hover td { background: var(--bg-card-hover); }
+  .holdings-table .mono { font-family: 'JetBrains Mono', monospace; font-size: 12px; }
+
+  /* Loading Skeleton */
+  .skeleton { background: linear-gradient(90deg, var(--bg-card) 25%, var(--bg-card-hover) 50%, var(--bg-card) 75%); background-size: 200% 100%; animation: shimmer 1.5s infinite; border-radius: 8px; }
+  @keyframes shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
+  .skeleton-card { height: 120px; margin-bottom: 12px; }
+  .skeleton-chart { height: 200px; margin-bottom: 12px; }
+  .skeleton-row { height: 20px; margin-bottom: 8px; width: 80%; }
+  .skeleton-row.short { width: 40%; }
+
+  /* Rebalancing Calculator */
+  .rebalance-section { background: var(--bg-card); border: 1px solid var(--border); border-radius: 12px; padding: 20px; margin-bottom: 20px; }
+  .rebalance-section h3 { font-size: 14px; font-weight: 600; margin-bottom: 16px; color: var(--accent); }
+  .alloc-slider-row { display: flex; align-items: center; gap: 12px; margin-bottom: 10px; }
+  .alloc-slider-row label { font-size: 13px; min-width: 140px; color: var(--text-secondary); }
+  .alloc-slider-row input[type="range"] { flex: 1; -webkit-appearance: none; appearance: none; height: 6px; border-radius: 3px; background: var(--bg-primary); outline: none; }
+  .alloc-slider-row input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none; width: 16px; height: 16px; border-radius: 50%; background: var(--accent); cursor: pointer; }
+  .alloc-slider-row .alloc-pct { font-family: 'JetBrains Mono', monospace; font-size: 13px; font-weight: 600; min-width: 40px; text-align: right; color: var(--accent); }
+  .rebalance-trades { display: grid; gap: 8px; margin-top: 16px; }
+  .rebalance-trade { display: flex; align-items: center; gap: 12px; padding: 10px 14px; background: var(--bg-primary); border-radius: 8px; font-size: 13px; }
+  .rebalance-trade .rt-action { font-family: 'JetBrains Mono', monospace; font-size: 12px; font-weight: 600; padding: 2px 8px; border-radius: 4px; }
+  .rebalance-trade .rt-buy { background: var(--green-bg); color: var(--green); }
+  .rebalance-trade .rt-sell { background: var(--red-bg); color: var(--red); }
+
+  /* Correlation Heatmap */
+  .corr-table { border-collapse: collapse; font-size: 10px; width: 100%; }
+  .corr-table th { padding: 6px 4px; font-weight: 500; color: var(--text-muted); text-align: center; max-width: 60px; overflow: hidden; text-overflow: ellipsis; }
+  .corr-table td { padding: 6px 4px; text-align: center; font-family: 'JetBrains Mono', monospace; font-size: 10px; font-weight: 600; border: 1px solid var(--bg-primary); }
+  .corr-table .row-label { text-align: right; font-weight: 500; color: var(--text-muted); border: none; max-width: 60px; overflow: hidden; text-overflow: ellipsis; }
+
+  /* Dividend Calendar */
+  .div-calendar { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-top: 16px; }
+  .div-month { background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; padding: 12px; }
+  .div-month .dm-name { font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-muted); margin-bottom: 6px; }
+  .div-month .dm-amount { font-family: 'JetBrains Mono', monospace; font-size: 16px; font-weight: 700; color: var(--green); }
+  .div-month .dm-count { font-size: 11px; color: var(--text-secondary); margin-top: 2px; }
+
+  /* MER Fee Table */
+  .fee-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 12px; }
+  .fee-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 10px; padding: 14px; }
+  .fee-card .fc-sym { font-family: 'JetBrains Mono', monospace; font-size: 13px; font-weight: 600; }
+  .fee-card .fc-name { font-size: 11px; color: var(--text-muted); margin-top: 2px; }
+  .fee-card .fc-row { display: flex; justify-content: space-between; margin-top: 8px; font-size: 12px; }
+  .fee-card .fc-label { color: var(--text-secondary); }
+  .fee-card .fc-value { font-family: 'JetBrains Mono', monospace; font-weight: 600; }
+
+  /* Export Button */
+  .btn-export { background: var(--bg-card); border: 1px solid var(--border); color: var(--text-secondary); padding: 6px 14px; border-radius: 6px; font-family: inherit; font-size: 12px; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; transition: all 0.2s; }
+  .btn-export:hover { border-color: var(--accent); color: var(--text-primary); }
+
   /* Responsive */
   @media (max-width: 768px) {
     .charts-row { grid-template-columns: 1fr; }
@@ -427,6 +488,12 @@
     .model-results { grid-template-columns: 1fr 1fr; }
     .metric-gauge-row { grid-template-columns: 1fr 1fr; }
     .rec-card { flex-direction: column; }
+    .div-calendar { grid-template-columns: repeat(2, 1fr); }
+    .fee-grid { grid-template-columns: 1fr; }
+    .holdings-table { font-size: 11px; }
+    .holdings-table th, .holdings-table td { padding: 6px 8px; }
+    .corr-table { font-size: 8px; }
+    .corr-table th, .corr-table td { padding: 3px 2px; }
   }
   @media (max-width: 480px) {
     .summary-grid { grid-template-columns: 1fr 1fr; }
@@ -435,6 +502,7 @@
     .benchmark-grid { grid-template-columns: 1fr; }
     .model-results { grid-template-columns: 1fr; }
     .metric-gauge-row { grid-template-columns: 1fr; }
+    .div-calendar { grid-template-columns: 1fr 1fr; }
   }
 </style>
 </head>
@@ -557,6 +625,16 @@
       <h3><span style="color:var(--purple)">Strategic Moves</span> — Bigger changes for long-term improvement</h3>
       <div class="action-cards" id="bigMoves"></div>
     </div>
+    <div class="rebalance-section" id="rebalanceSection" style="margin-top:20px">
+      <h3>Rebalancing Calculator</h3>
+      <div class="alloc-slider-row"><label>Canadian Equity</label><input type="range" min="0" max="100" value="30" oninput="updateRebalance()"><span class="alloc-pct" id="allocCA">30%</span></div>
+      <div class="alloc-slider-row"><label>US Equity</label><input type="range" min="0" max="100" value="35" oninput="updateRebalance()"><span class="alloc-pct" id="allocUS">35%</span></div>
+      <div class="alloc-slider-row"><label>International</label><input type="range" min="0" max="100" value="15" oninput="updateRebalance()"><span class="alloc-pct" id="allocIntl">15%</span></div>
+      <div class="alloc-slider-row"><label>Fixed Income</label><input type="range" min="0" max="100" value="15" oninput="updateRebalance()"><span class="alloc-pct" id="allocBond">15%</span></div>
+      <div class="alloc-slider-row"><label>Other (Crypto etc.)</label><input type="range" min="0" max="100" value="5" oninput="updateRebalance()"><span class="alloc-pct" id="allocOther">5%</span></div>
+      <div style="font-size:12px;color:var(--text-muted);margin:8px 0" id="allocTotal">Total: 100%</div>
+      <div class="rebalance-trades" id="rebalanceTrades"></div>
+    </div>
     <div style="margin-top:20px">
       <button class="tab-ai-btn" id="aiBtn-overview" onclick="runTabAI('overview')">
         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polygon points="5 3 19 12 5 21 5 3"/></svg>
@@ -581,11 +659,20 @@
         <option value="name">Sort by Name</option>
         <option value="rating">Sort by AI Rating</option>
       </select>
+      <div class="view-toggle">
+        <button class="view-toggle-btn active" id="viewCards" onclick="setHoldingsView('cards')">Cards</button>
+        <button class="view-toggle-btn" id="viewTable" onclick="setHoldingsView('table')">Table</button>
+      </div>
+      <button class="btn-export" onclick="exportReport()">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
+        Export
+      </button>
       <button class="btn-accent" id="btnRatePositions" onclick="ratePositions()">
         Get AI Position Ratings
       </button>
     </div>
     <div class="holdings-grid" id="holdingsGrid"></div>
+    <div id="holdingsTableWrap" style="display:none;overflow-x:auto"></div>
     <div class="chart-card" style="margin-top:20px"><h3>Portfolio Weights</h3><canvas id="holdingsWeightChart"></canvas></div>
   </section>
 
@@ -593,8 +680,9 @@
   <section class="tab-panel" id="panel-performance">
     <div class="tab-description">
       <h2>Performance Analysis</h2>
-      <p>Track your portfolio's returns against major market benchmarks. Compare total gain/loss, identify your best and worst performers, and analyze performance across accounts. Benchmark data uses estimated annualized returns for the S&P 500, TSX Composite, and NASDAQ 100.</p>
+      <p>Track your portfolio's returns, view historical portfolio value over time, and identify your best and worst performers. The history chart uses data from your Wealthica account when available.</p>
     </div>
+    <div class="chart-card" id="historyChartWrap" style="margin-bottom:20px"><h3>Portfolio Value Over Time</h3><canvas id="historyChart"></canvas><div id="historyChartEmpty" style="display:none;text-align:center;padding:30px 0;color:var(--text-muted);font-size:13px">History data not available. Connect to Wealthica to see portfolio value over time.</div></div>
     <div class="summary-grid" id="perfSummaryGrid"></div>
     <div class="benchmark-grid" id="benchmarkGrid"></div>
     <div class="chart-card"><h3>Gain/Loss by Position</h3><canvas id="gainLossChart"></canvas></div>
@@ -621,6 +709,7 @@
       <div class="chart-card"><h3>Position Weight Distribution</h3><canvas id="riskWeightsChart"></canvas></div>
     </div>
     <div class="risk-factors" id="riskFactors"></div>
+    <div class="chart-card" style="margin-top:20px"><h3>Position Correlation Matrix</h3><div id="corrMatrixWrap" style="overflow-x:auto"></div></div>
     <div style="margin-top:20px">
       <button class="tab-ai-btn" id="aiBtn-risk" onclick="runTabAI('risk')">
         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polygon points="5 3 19 12 5 21 5 3"/></svg>
@@ -683,6 +772,15 @@
     </div>
     <div class="chart-card" style="margin-top:20px"><h3>Income vs Growth Allocation</h3><canvas id="incomeGrowthChart"></canvas></div>
     <div class="holdings-grid" id="incomeHoldingsGrid" style="margin-top:20px"></div>
+    <div style="margin-top:20px">
+      <h3 style="font-size:14px;font-weight:600;margin-bottom:12px;color:var(--accent)">Estimated Dividend Calendar</h3>
+      <div class="div-calendar" id="divCalendar"></div>
+    </div>
+    <div style="margin-top:20px">
+      <h3 style="font-size:14px;font-weight:600;margin-bottom:12px;color:var(--accent)">ETF Fee Analysis (MER)</h3>
+      <div class="summary-grid" id="feesSummary"></div>
+      <div class="fee-grid" id="feesGrid"></div>
+    </div>
     <div style="margin-top:20px">
       <button class="tab-ai-btn" id="aiBtn-dividends" onclick="runTabAI('dividends')">
         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polygon points="5 3 19 12 5 21 5 3"/></svg>
@@ -806,6 +904,9 @@ let activeTab = 'overview';
 let availableGroups = [];
 let selectedGroup = 'all';
 let activeDateRange = 'all';
+let holdingsView = 'cards';
+let portfolioHistory = [];
+let aiResponseCache = {};
 const charts = {};
 
 const CHART_COLORS = ['#3b82f6','#a855f7','#22c55e','#f59e0b','#ef4444','#06b6d4','#ec4899','#f97316','#14b8a6','#6366f1','#84cc16','#f43f5e'];
@@ -834,13 +935,13 @@ function switchTab(tab) {
 function renderActiveTab() {
   if (filteredPositions.length === 0) return;
   switch(activeTab) {
-    case 'overview': renderOverview(); break;
-    case 'holdings': renderHoldingsTab(); break;
+    case 'overview': renderOverview(); updateRebalance(); break;
+    case 'holdings': renderHoldingsTab(); if (holdingsView === 'table') renderHoldingsTable(); break;
     case 'sectors': renderSectors(); break;
-    case 'performance': renderPerformance(); break;
-    case 'risk': renderRisk(); break;
+    case 'performance': renderPerformance(); renderHistoryChart(); break;
+    case 'risk': renderRisk(); renderCorrelationMatrix(); break;
     case 'region': renderRegion(); break;
-    case 'dividends': renderDividends(); break;
+    case 'dividends': renderDividends(); renderDivCalendar(); renderFeeAnalysis(); break;
     case 'tax': renderTax(); break;
     case 'models': renderModels(); break;
     case 'stresstest': renderStressTest(); break;
@@ -1153,6 +1254,7 @@ function buildQuery(options) {
 
 async function loadPortfolio() {
   if (!addon) return;
+  showLoadingSkeletons();
   try {
     const query = buildQuery(currentOptions);
     const [positions, institutions] = await Promise.all([
@@ -1167,9 +1269,25 @@ async function loadPortfolio() {
     renderAllTabs();
     document.getElementById('btnAnalyze').disabled = !apiKey;
     if (portfolioData.positions.length > 0) showToast('Loaded ' + portfolioData.positions.length + ' positions', 'success');
+    // Fetch portfolio history in background (non-blocking)
+    fetchHistory(query);
   } catch(err) {
     console.error('Failed to load portfolio:', err);
     showToast('Failed to load: ' + (err.message || err), 'error');
+  }
+}
+
+async function fetchHistory(query) {
+  if (!addon) return;
+  try {
+    const history = await addon.api.getHistory(query);
+    if (Array.isArray(history) && history.length > 0) {
+      portfolioHistory = history;
+      if (activeTab === 'performance') renderHistoryChart();
+    }
+  } catch(e) {
+    console.log('History not available:', e);
+    portfolioHistory = [];
   }
 }
 
@@ -3228,6 +3346,413 @@ function onPromptChange() {
   if (val === 'custom') document.getElementById('customPrompt').focus();
 }
 
+// ─── Loading Skeletons ───────────────────────────────────────────────────────
+function showLoadingSkeletons() {
+  const targets = ['summaryGrid', 'holdingsGrid', 'perfSummaryGrid', 'riskScoresGrid'];
+  targets.forEach(id => {
+    const el = document.getElementById(id);
+    if (el && el.innerHTML === '') {
+      el.innerHTML = '<div class="skeleton skeleton-card"></div><div class="skeleton skeleton-card"></div>';
+    }
+  });
+}
+
+// ─── Holdings Table View ─────────────────────────────────────────────────────
+function setHoldingsView(view) {
+  holdingsView = view;
+  document.getElementById('viewCards').classList.toggle('active', view === 'cards');
+  document.getElementById('viewTable').classList.toggle('active', view === 'table');
+  document.getElementById('holdingsGrid').style.display = view === 'cards' ? '' : 'none';
+  document.getElementById('holdingsTableWrap').style.display = view === 'table' ? '' : 'none';
+  if (view === 'table') renderHoldingsTable();
+}
+
+function renderHoldingsTable() {
+  const totalVal = filteredPositions.reduce((s,p) => s + (p.market_value || p.value || 0), 0);
+  const sortBy = document.getElementById('holdingsSort').value;
+  let sorted = [...filteredPositions];
+  switch(sortBy) {
+    case 'value': sorted.sort((a,b) => (b.market_value||b.value||0) - (a.market_value||a.value||0)); break;
+    case 'gainloss': sorted.sort((a,b) => ((b.market_value||b.value||0)-(b.book_value||(b.market_value||b.value||0))) - ((a.market_value||a.value||0)-(a.book_value||(a.market_value||a.value||0)))); break;
+    case 'return': sorted.sort((a,b) => { const ra = (a.book_value||1) > 0 ? ((a.market_value||a.value||0)-(a.book_value||0))/(a.book_value||1) : 0; const rb = (b.book_value||1) > 0 ? ((b.market_value||b.value||0)-(b.book_value||0))/(b.book_value||1) : 0; return rb-ra; }); break;
+    case 'name': sorted.sort((a,b) => ((a.security?.symbol||a.symbol||'')).localeCompare(b.security?.symbol||b.symbol||'')); break;
+  }
+
+  let html = '<table class="holdings-table"><thead><tr>' +
+    '<th>Symbol</th><th>Name</th><th>Qty</th><th>Market Value</th><th>Book Value</th><th>Gain/Loss</th><th>Return</th><th>Weight</th><th>Account</th>' +
+    '</tr></thead><tbody>';
+  sorted.forEach(p => {
+    const sym = p.security?.symbol || p.symbol || '--';
+    const name = p.security?.name || '';
+    const mv = p.market_value || p.value || 0;
+    const bv = p.book_value || mv;
+    const gl = mv - bv;
+    const ret = bv > 0 ? ((mv-bv)/bv)*100 : 0;
+    const weight = totalVal > 0 ? (mv/totalVal*100) : 0;
+    html += '<tr>' +
+      '<td class="mono" style="font-weight:600">' + escapeHtml(sym) + '</td>' +
+      '<td style="max-width:150px;overflow:hidden;text-overflow:ellipsis">' + escapeHtml(name) + '</td>' +
+      '<td class="mono">' + (p.quantity != null ? p.quantity : '--') + '</td>' +
+      '<td class="mono">' + fmt(mv) + '</td>' +
+      '<td class="mono">' + fmt(bv) + '</td>' +
+      '<td class="mono ' + (gl >= 0 ? 'positive' : 'negative') + '">' + fmt(gl) + '</td>' +
+      '<td class="mono ' + (ret >= 0 ? 'positive' : 'negative') + '">' + pct(ret) + '</td>' +
+      '<td class="mono">' + weight.toFixed(1) + '%</td>' +
+      '<td style="font-size:11px;color:var(--text-muted)">' + escapeHtml(p._accountName || '') + '</td>' +
+      '</tr>';
+  });
+  html += '</tbody></table>';
+  document.getElementById('holdingsTableWrap').innerHTML = html;
+}
+
+// ─── History Chart ───────────────────────────────────────────────────────────
+function renderHistoryChart() {
+  const canvas = document.getElementById('historyChart');
+  const emptyMsg = document.getElementById('historyChartEmpty');
+  if (!canvas) return;
+
+  if (!portfolioHistory || portfolioHistory.length === 0) {
+    canvas.style.display = 'none';
+    if (emptyMsg) emptyMsg.style.display = '';
+    return;
+  }
+  canvas.style.display = '';
+  if (emptyMsg) emptyMsg.style.display = 'none';
+
+  const labels = portfolioHistory.map(h => {
+    const d = new Date(h.date || h.d);
+    return d.toLocaleDateString('en-CA', { month: 'short', day: 'numeric', year: '2-digit' });
+  });
+  const values = portfolioHistory.map(h => h.value || h.v || 0);
+
+  makeChart('history', canvas, {
+    type: 'line',
+    data: {
+      labels: labels,
+      datasets: [{
+        label: 'Portfolio Value',
+        data: values,
+        borderColor: '#3b82f6',
+        backgroundColor: 'rgba(59,130,246,0.08)',
+        fill: true,
+        tension: 0.3,
+        pointRadius: values.length > 60 ? 0 : 2,
+        borderWidth: 2,
+      }]
+    },
+    options: {
+      responsive: true,
+      plugins: { datalabels: { display: false }, legend: { display: false } },
+      scales: {
+        y: { grid: { color: 'var(--chart-grid, rgba(148,163,184,0.15))' }, ticks: { callback: v => '$' + (v/1000).toFixed(0) + 'k' } },
+        x: { grid: { display: false }, ticks: { maxTicksLimit: 8, font: { size: 10 } } }
+      },
+      interaction: { intersect: false, mode: 'index' },
+    }
+  });
+}
+
+// ─── Correlation Heatmap ─────────────────────────────────────────────────────
+function renderCorrelationMatrix() {
+  const wrap = document.getElementById('corrMatrixWrap');
+  if (!wrap) return;
+  const totalVal = filteredPositions.reduce((s,p) => s + (p.market_value||p.value||0), 0);
+  // Use top positions by weight
+  const top = [...filteredPositions].sort((a,b) => (b.market_value||b.value||0) - (a.market_value||a.value||0)).slice(0, 10);
+  if (top.length < 2) { wrap.innerHTML = '<div style="text-align:center;color:var(--text-muted);padding:20px">Need at least 2 positions for correlation analysis.</div>'; return; }
+
+  const syms = top.map(p => p.security?.symbol || p.symbol || '?');
+  const classes = top.map(p => inferAssetClass(p));
+
+  // Estimate correlation based on asset class similarity
+  const corrMap = {
+    same: 0.95,
+    equity: 0.70,
+    equityBond: -0.20,
+    equityCrypto: 0.35,
+    bondCash: 0.40,
+    cryptoCrypto: 0.85,
+    other: 0.30,
+  };
+
+  function estimateCorr(c1, c2) {
+    if (c1 === c2) return corrMap.same;
+    const isEquity = c => /Technology|Financials|Energy|Healthcare|Industrials|Materials|Communications|Consumer|Utilities|Equity|Diversified/.test(c);
+    const isBond = c => /Fixed Income|Cash|Preferred/.test(c);
+    const isCrypto = c => c === 'Crypto';
+    if (isEquity(c1) && isEquity(c2)) return corrMap.equity + (Math.random() * 0.15 - 0.075);
+    if ((isEquity(c1) && isBond(c2)) || (isBond(c1) && isEquity(c2))) return corrMap.equityBond + (Math.random() * 0.1 - 0.05);
+    if ((isEquity(c1) && isCrypto(c2)) || (isCrypto(c1) && isEquity(c2))) return corrMap.equityCrypto;
+    if (isCrypto(c1) && isCrypto(c2)) return corrMap.cryptoCrypto;
+    if ((isBond(c1) && isBond(c2)) || (isBond(c1) && c2 === 'Cash') || (c1 === 'Cash' && isBond(c2))) return corrMap.bondCash;
+    if (c1 === 'Real Estate' && isEquity(c2) || c2 === 'Real Estate' && isEquity(c1)) return 0.55;
+    return corrMap.other;
+  }
+
+  function corrColor(v) {
+    if (v >= 0.8) return 'rgba(239,68,68,0.6)';
+    if (v >= 0.5) return 'rgba(245,158,11,0.4)';
+    if (v >= 0.2) return 'rgba(245,158,11,0.15)';
+    if (v >= -0.1) return 'rgba(148,163,184,0.1)';
+    return 'rgba(34,197,94,0.3)';
+  }
+
+  let html = '<table class="corr-table"><thead><tr><th></th>';
+  syms.forEach(s => { html += '<th>' + s.replace(/\.(TO|TSX)$/,'') + '</th>'; });
+  html += '</tr></thead><tbody>';
+  for (let i = 0; i < top.length; i++) {
+    html += '<tr><td class="row-label">' + syms[i].replace(/\.(TO|TSX)$/,'') + '</td>';
+    for (let j = 0; j < top.length; j++) {
+      const corr = i === j ? 1.0 : estimateCorr(classes[i], classes[j]);
+      html += '<td style="background:' + corrColor(corr) + '">' + corr.toFixed(2) + '</td>';
+    }
+    html += '</tr>';
+  }
+  html += '</tbody></table>';
+  html += '<div style="font-size:10px;color:var(--text-muted);margin-top:8px">Estimated correlations based on asset class. Red = high correlation (move together), green = negative (diversification benefit).</div>';
+  wrap.innerHTML = html;
+}
+
+// ─── MER Fee Analysis ────────────────────────────────────────────────────────
+const ETF_MERS = {
+  'VFV.TO': 0.0009, 'VSP.TO': 0.0009, 'XUS.TO': 0.0010, 'ZSP.TO': 0.0009, 'HXS.TO': 0.0010,
+  'XIU.TO': 0.0018, 'XIC.TO': 0.0006, 'VCN.TO': 0.0005, 'ZCN.TO': 0.0006, 'HXT.TO': 0.0006,
+  'XEQT.TO': 0.0020, 'VEQT.TO': 0.0024, 'XGRO.TO': 0.0020, 'VGRO.TO': 0.0024, 'XBAL.TO': 0.0020, 'VBAL.TO': 0.0024,
+  'XBB.TO': 0.0009, 'ZAG.TO': 0.0009, 'VAB.TO': 0.0013, 'ZDB.TO': 0.0009,
+  'XEF.TO': 0.0022, 'VIU.TO': 0.0022, 'ZEA.TO': 0.0022, 'XEC.TO': 0.0025, 'VEE.TO': 0.0024,
+  'XRE.TO': 0.0061, 'ZRE.TO': 0.0061, 'VRE.TO': 0.0035,
+  'XQQ.TO': 0.0039, 'ZQQ.TO': 0.0039, 'TEC.TO': 0.0035, 'XIT.TO': 0.0061,
+  'VDY.TO': 0.0022, 'XEI.TO': 0.0022, 'ZWB.TO': 0.0071, 'ZEB.TO': 0.0028,
+  'ZLB.TO': 0.0035, 'ZLI.TO': 0.0035, 'ZLU.TO': 0.0035,
+  'SHOP.TO': 0, 'ENB.TO': 0, 'TD.TO': 0, 'RY.TO': 0, 'BNS.TO': 0, 'BMO.TO': 0, 'CM.TO': 0,
+  'SPY': 0.0009, 'VOO': 0.0003, 'IVV': 0.0003, 'QQQ': 0.0020, 'VTI': 0.0003,
+  'BND': 0.0003, 'AGG': 0.0003, 'VNQ': 0.0013,
+  'EFA': 0.0032, 'EEM': 0.0068, 'VEA': 0.0005, 'VWO': 0.0008,
+};
+
+function renderFeeAnalysis() {
+  const summaryEl = document.getElementById('feesSummary');
+  const gridEl = document.getElementById('feesGrid');
+  if (!summaryEl || !gridEl) return;
+
+  const totalVal = filteredPositions.reduce((s,p) => s + (p.market_value||p.value||0), 0);
+  let totalFees = 0, etfCount = 0, noFeeCount = 0;
+  const feePositions = [];
+
+  filteredPositions.forEach(p => {
+    const sym = (p.security?.symbol || p.symbol || '').toUpperCase();
+    const mv = p.market_value || p.value || 0;
+    const mer = ETF_MERS[sym];
+    if (mer !== undefined && mer > 0) {
+      const annualFee = mv * mer;
+      totalFees += annualFee;
+      etfCount++;
+      feePositions.push({ sym, name: p.security?.name || '', mv, mer, annualFee });
+    } else if (mer === 0) {
+      noFeeCount++;
+    }
+  });
+
+  // Summary cards
+  summaryEl.innerHTML = '';
+  [
+    { label: 'Annual ETF Fees', value: fmt(totalFees), sub: 'Estimated management fees' },
+    { label: 'Weighted Avg MER', value: totalVal > 0 ? (totalFees/totalVal*100).toFixed(3) + '%' : '--', sub: 'Across ' + etfCount + ' ETF holdings' },
+    { label: 'Monthly Drag', value: fmt(totalFees/12), sub: 'Fee impact per month' },
+    { label: '10-Year Cost', value: fmt(totalFees * 10), sub: 'At current portfolio size' },
+  ].forEach(c => {
+    const d = document.createElement('div');
+    d.className = 'summary-card';
+    d.innerHTML = '<div class="label">' + c.label + '</div><div class="value" style="font-size:16px;color:var(--red)">' + c.value + '</div><div class="sub">' + c.sub + '</div>';
+    summaryEl.appendChild(d);
+  });
+
+  // Fee cards per ETF
+  gridEl.innerHTML = '';
+  feePositions.sort((a,b) => b.annualFee - a.annualFee).forEach(fp => {
+    const d = document.createElement('div');
+    d.className = 'fee-card';
+    d.innerHTML = '<div class="fc-sym">' + escapeHtml(fp.sym) + '</div>' +
+      '<div class="fc-name">' + escapeHtml(fp.name) + '</div>' +
+      '<div class="fc-row"><span class="fc-label">MER</span><span class="fc-value">' + (fp.mer*100).toFixed(2) + '%</span></div>' +
+      '<div class="fc-row"><span class="fc-label">Annual Fee</span><span class="fc-value" style="color:var(--red)">' + fmt(fp.annualFee) + '</span></div>' +
+      '<div class="fc-row"><span class="fc-label">Holding Value</span><span class="fc-value">' + fmt(fp.mv) + '</span></div>';
+    gridEl.appendChild(d);
+  });
+
+  if (feePositions.length === 0) {
+    gridEl.innerHTML = '<div style="color:var(--text-muted);font-size:13px">No ETFs with known MER data found in your portfolio.</div>';
+  }
+}
+
+// ─── Dividend Calendar ───────────────────────────────────────────────────────
+function renderDivCalendar() {
+  const calEl = document.getElementById('divCalendar');
+  if (!calEl) return;
+
+  const totalVal = filteredPositions.reduce((s,p) => s + (p.market_value||p.value||0), 0);
+  const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  const monthlyIncome = new Array(12).fill(0);
+  const monthlyCount = new Array(12).fill(0);
+
+  // Quarterly dividend payers pay in Mar/Jun/Sep/Dec by default
+  // Monthly payers pay every month
+  filteredPositions.forEach(p => {
+    const sym = (p.security?.symbol || p.symbol || '').toUpperCase();
+    const mv = p.market_value || p.value || 0;
+    const yld = estimateYield(p);
+    if (yld <= 0) return;
+    const annualDiv = mv * yld;
+
+    // Determine payment frequency from sector
+    const sector = inferAssetClass(p);
+    const isMonthly = /Fixed Income|Real Estate|Utilities/.test(sector) || /\.(TO|TSX)$/.test(sym) && /^(XBB|ZAG|VAB|XRE|ZRE|VRE|FIE|XEI|ZWB)/.test(sym.replace(/\..*$/,''));
+
+    if (isMonthly) {
+      for (let m = 0; m < 12; m++) { monthlyIncome[m] += annualDiv / 12; monthlyCount[m]++; }
+    } else {
+      // Quarterly: distribute across 4 quarters
+      [2, 5, 8, 11].forEach(m => { monthlyIncome[m] += annualDiv / 4; monthlyCount[m]++; });
+    }
+  });
+
+  calEl.innerHTML = '';
+  months.forEach((name, i) => {
+    const d = document.createElement('div');
+    d.className = 'div-month';
+    d.innerHTML = '<div class="dm-name">' + name + '</div>' +
+      '<div class="dm-amount">' + fmt(monthlyIncome[i]) + '</div>' +
+      '<div class="dm-count">' + monthlyCount[i] + ' payment' + (monthlyCount[i] !== 1 ? 's' : '') + '</div>';
+    calEl.appendChild(d);
+  });
+}
+
+// ─── Rebalancing Calculator ──────────────────────────────────────────────────
+function updateRebalance() {
+  const sliders = document.querySelectorAll('#rebalanceSection input[type="range"]');
+  const labels = ['allocCA', 'allocUS', 'allocIntl', 'allocBond', 'allocOther'];
+  const targets = {};
+  let totalPct = 0;
+  sliders.forEach((s, i) => {
+    const v = parseInt(s.value);
+    targets[labels[i]] = v;
+    document.getElementById(labels[i]).textContent = v + '%';
+    totalPct += v;
+  });
+  const totalEl = document.getElementById('allocTotal');
+  totalEl.textContent = 'Total: ' + totalPct + '%';
+  totalEl.style.color = totalPct === 100 ? 'var(--green)' : 'var(--red)';
+
+  if (totalPct !== 100 || filteredPositions.length === 0) {
+    document.getElementById('rebalanceTrades').innerHTML = totalPct !== 100 ? '<div style="color:var(--text-muted);font-size:12px">Adjust sliders to total 100% to see rebalancing trades.</div>' : '';
+    return;
+  }
+
+  const totalVal = filteredPositions.reduce((s,p) => s + (p.market_value||p.value||0), 0);
+  // Compute current allocation by region-based buckets
+  const buckets = { allocCA: 0, allocUS: 0, allocIntl: 0, allocBond: 0, allocOther: 0 };
+  filteredPositions.forEach(p => {
+    const mv = p.market_value || p.value || 0;
+    const region = inferRegion(p);
+    const assetClass = inferAssetClass(p);
+    if (/Fixed Income|Cash|Preferred/.test(assetClass)) buckets.allocBond += mv;
+    else if (/Crypto|Commodities|Alternative/.test(assetClass)) buckets.allocOther += mv;
+    else if (region === 'Canada') buckets.allocCA += mv;
+    else if (region === 'United States') buckets.allocUS += mv;
+    else if (region === 'International') buckets.allocIntl += mv;
+    else buckets.allocOther += mv;
+  });
+
+  const trades = [];
+  labels.forEach(key => {
+    const targetVal = totalVal * targets[key] / 100;
+    const currentVal = buckets[key];
+    const diff = targetVal - currentVal;
+    const name = key.replace('alloc','').replace('CA','Canadian Equity').replace('US','US Equity').replace('Intl','International').replace('Bond','Fixed Income').replace('Other','Other');
+    if (Math.abs(diff) > totalVal * 0.01) {
+      trades.push({ name, diff, current: currentVal/totalVal*100, target: targets[key] });
+    }
+  });
+
+  const tradesEl = document.getElementById('rebalanceTrades');
+  if (trades.length === 0) {
+    tradesEl.innerHTML = '<div style="color:var(--green);font-size:13px">Your portfolio is already aligned with your target allocation.</div>';
+    return;
+  }
+  tradesEl.innerHTML = '';
+  trades.sort((a,b) => Math.abs(b.diff) - Math.abs(a.diff)).forEach(t => {
+    const d = document.createElement('div');
+    d.className = 'rebalance-trade';
+    const action = t.diff > 0 ? 'BUY' : 'SELL';
+    const actionCls = t.diff > 0 ? 'rt-buy' : 'rt-sell';
+    d.innerHTML = '<span class="rt-action ' + actionCls + '">' + action + '</span>' +
+      '<span style="flex:1">' + escapeHtml(t.name) + '</span>' +
+      '<span class="mono" style="color:' + (t.diff > 0 ? 'var(--green)' : 'var(--red)') + '">' + fmt(Math.abs(t.diff)) + '</span>' +
+      '<span class="mono" style="font-size:11px;color:var(--text-muted)">' + t.current.toFixed(1) + '% → ' + t.target + '%</span>';
+    tradesEl.appendChild(d);
+  });
+}
+
+// ─── Export Report ───────────────────────────────────────────────────────────
+function exportReport() {
+  const totalVal = filteredPositions.reduce((s,p) => s + (p.market_value||p.value||0), 0);
+  const totalBook = filteredPositions.reduce((s,p) => s + (p.book_value||p.market_value||p.value||0), 0);
+  const totalGL = totalVal - totalBook;
+  const totalRet = totalBook > 0 ? ((totalVal-totalBook)/totalBook*100) : 0;
+
+  let csv = 'Symbol,Name,Quantity,Market Value,Book Value,Gain/Loss,Return %,Weight %,Account,Asset Class,Region\n';
+  filteredPositions.forEach(p => {
+    const sym = p.security?.symbol || p.symbol || '';
+    const name = (p.security?.name || '').replace(/,/g, ' ');
+    const mv = p.market_value || p.value || 0;
+    const bv = p.book_value || mv;
+    const gl = mv - bv;
+    const ret = bv > 0 ? ((mv-bv)/bv*100).toFixed(2) : '0';
+    const w = totalVal > 0 ? (mv/totalVal*100).toFixed(2) : '0';
+    csv += [sym, name, p.quantity||'', mv.toFixed(2), bv.toFixed(2), gl.toFixed(2), ret, w, p._accountName||'', inferAssetClass(p), inferRegion(p)].join(',') + '\n';
+  });
+
+  // Add summary
+  csv += '\nSummary\n';
+  csv += 'Total Market Value,' + totalVal.toFixed(2) + '\n';
+  csv += 'Total Book Value,' + totalBook.toFixed(2) + '\n';
+  csv += 'Total Gain/Loss,' + totalGL.toFixed(2) + '\n';
+  csv += 'Total Return %,' + totalRet.toFixed(2) + '\n';
+  csv += 'Number of Positions,' + filteredPositions.length + '\n';
+  csv += 'Export Date,' + new Date().toISOString().split('T')[0] + '\n';
+
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'portfolio-report-' + new Date().toISOString().split('T')[0] + '.csv';
+  a.click();
+  URL.revokeObjectURL(url);
+  showToast('Report exported as CSV', 'success');
+}
+
+// ─── Mobile Swipe Navigation ─────────────────────────────────────────────────
+(function initSwipe() {
+  let touchStartX = 0, touchEndX = 0;
+  const tabOrder = ['overview','holdings','sectors','performance','risk','region','dividends','tax','models','stresstest','ai'];
+  document.addEventListener('touchstart', function(e) { touchStartX = e.changedTouches[0].screenX; }, { passive: true });
+  document.addEventListener('touchend', function(e) {
+    touchEndX = e.changedTouches[0].screenX;
+    const diff = touchStartX - touchEndX;
+    if (Math.abs(diff) < 80) return; // minimum swipe distance
+    const currentIdx = tabOrder.indexOf(activeTab);
+    if (currentIdx === -1) return;
+    if (diff > 0 && currentIdx < tabOrder.length - 1) {
+      switchTab(tabOrder[currentIdx + 1]);
+    } else if (diff < 0 && currentIdx > 0) {
+      switchTab(tabOrder[currentIdx - 1]);
+    }
+    // Scroll tab into view
+    const tabBtn = document.querySelector('.tab-btn.active');
+    if (tabBtn) tabBtn.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+  }, { passive: true });
+})();
+
 // ─── Tab-Level AI Analysis ───────────────────────────────────────────────────
 const TAB_AI_PROMPTS = {
   overview: 'Give a concise executive summary of this portfolio. What are the 3 most important things the investor should know right now? Include specific numbers.',
@@ -3246,6 +3771,14 @@ async function runTabAI(tab) {
   const btn = document.getElementById('aiBtn-' + tab);
   const resEl = document.getElementById('aiRes-' + tab);
   if (!btn || !resEl) return;
+
+  // Check cache first
+  if (aiResponseCache[tab] && btn.textContent.includes('Re-analyze') === false) {
+    resEl.classList.add('visible');
+    resEl.innerHTML = '<div class="ai-content">' + aiResponseCache[tab] + '</div>';
+    btn.innerHTML = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polygon points="5 3 19 12 5 21 5 3"/></svg> Re-analyze';
+    return;
+  }
 
   btn.disabled = true;
   btn.innerHTML = '<span class="spinner"></span> Analyzing...';
@@ -3292,6 +3825,7 @@ async function runTabAI(tab) {
     }
     const contentEl = resEl.querySelector('.ai-content');
     if (contentEl) { contentEl.innerHTML = renderMarkdown(fullText); contentEl.classList.remove('streaming-cursor'); }
+    aiResponseCache[tab] = renderMarkdown(fullText);
   } catch(err) {
     resEl.innerHTML = '<div style="color:var(--red)"><strong>Error:</strong> ' + escapeHtml(err.message) + '</div>';
     showToast('AI analysis failed: ' + err.message, 'error');
@@ -3361,6 +3895,19 @@ function loadDemoData() {
   portfolioData.positions.forEach(p => { tv += p.market_value || 0; tb += p.book_value || 0; });
   portfolioData.totalValue = tv;
   portfolioData.totalBook = tb;
+
+  // Generate mock portfolio history (24 months of data)
+  portfolioHistory = [];
+  const now = new Date();
+  const startValue = tv * 0.65;
+  for (let i = 24; i >= 0; i--) {
+    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    const progress = (24 - i) / 24;
+    const noise = 1 + (Math.sin(i * 1.3) * 0.04) + (Math.cos(i * 0.7) * 0.02);
+    const val = startValue + (tv - startValue) * progress * noise;
+    portfolioHistory.push({ date: d.toISOString().split('T')[0], value: Math.round(val) });
+  }
+
   filteredPositions = [...portfolioData.positions];
   populateAccountFilter();
   renderAllTabs();
