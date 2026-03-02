@@ -125,6 +125,18 @@
   .filter-bar label { font-size: 12px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; }
   .filter-bar select { background: var(--bg-card); border: 1px solid var(--border); color: var(--text-primary); padding: 6px 12px; border-radius: 6px; font-family: inherit; font-size: 12px; cursor: pointer; outline: none; }
   .filter-bar select:focus { border-color: var(--accent); }
+  /* Multi-select dropdown */
+  .multi-select { position: relative; display: inline-block; min-width: 160px; }
+  .multi-select-toggle { background: var(--bg-card); border: 1px solid var(--border); color: var(--text-primary); padding: 6px 28px 6px 12px; border-radius: 6px; font-family: inherit; font-size: 12px; font-weight: 500; cursor: pointer; outline: none; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 260px; display: block; position: relative; }
+  .multi-select-toggle::after { content: ''; position: absolute; right: 10px; top: 50%; transform: translateY(-50%); border-left: 4px solid transparent; border-right: 4px solid transparent; border-top: 5px solid var(--text-muted); }
+  .multi-select-toggle:hover, .multi-select-toggle:focus { border-color: var(--accent); }
+  .multi-select-dropdown { display: none; position: absolute; top: calc(100% + 4px); left: 0; min-width: 200px; max-height: 280px; overflow-y: auto; background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; box-shadow: 0 8px 24px rgba(0,0,0,0.15); z-index: 100; padding: 4px 0; }
+  .multi-select.open .multi-select-dropdown { display: block; }
+  .multi-select-item { display: flex; align-items: center; gap: 8px; padding: 7px 14px; cursor: pointer; font-size: 12px; color: var(--text-primary); transition: background 0.1s; }
+  .multi-select-item:hover { background: var(--bg-hover, rgba(0,0,0,0.05)); }
+  .multi-select-item input[type="checkbox"] { accent-color: var(--accent); margin: 0; cursor: pointer; }
+  .multi-select-item.select-all { border-bottom: 1px solid var(--border); font-weight: 600; color: var(--accent); }
+  .multi-select-item .ms-count { margin-left: auto; font-size: 11px; color: var(--text-muted); font-weight: 400; }
 
   /* Date Filter */
   .date-filter { display: flex; align-items: center; gap: 4px; }
@@ -555,9 +567,10 @@
   <!-- Filter Bar -->
   <div class="filter-bar" id="filterBar">
     <label>Group</label>
-    <select id="groupFilter" onchange="applyGroupFilter()" style="min-width:140px;font-weight:500;">
-      <option value="all">All Groups</option>
-    </select>
+    <div class="multi-select" id="groupMultiSelect">
+      <button type="button" class="multi-select-toggle" id="groupFilterToggle" onclick="toggleGroupDropdown()">All Groups</button>
+      <div class="multi-select-dropdown" id="groupFilterDropdown"></div>
+    </div>
     <label>Account</label>
     <select id="accountFilter" onchange="applyAccountFilter()">
       <option value="all">All Accounts</option>
@@ -902,7 +915,7 @@ let positionRatings = {};
 let riskTolerance = 5;
 let activeTab = 'overview';
 let availableGroups = [];
-let selectedGroup = 'all';
+let selectedGroups = []; // empty = all groups selected
 let activeDateRange = 'all';
 let holdingsView = 'cards';
 let portfolioHistory = [];
@@ -1110,7 +1123,9 @@ if (typeof Addon === 'undefined') {
       }
       // Sync group filter if Wealthica has one active
       if (options.groupsFilter) {
-        selectedGroup = options.groupsFilter;
+        // Wealthica passes a single group ID or comma-separated IDs
+        const gf = options.groupsFilter;
+        selectedGroups = typeof gf === 'string' ? gf.split(',').filter(Boolean) : Array.isArray(gf) ? gf : [];
       }
       fetchGroups();
       loadPortfolio();
@@ -1120,9 +1135,9 @@ if (typeof Addon === 'undefined') {
       currentOptions = { ...currentOptions, ...options };
       // Sync if Wealthica changed the group
       if (options.groupsFilter !== undefined) {
-        selectedGroup = options.groupsFilter || 'all';
-        const sel = document.getElementById('groupFilter');
-        if (sel) sel.value = selectedGroup;
+        const gf = options.groupsFilter;
+        selectedGroups = !gf ? [] : (typeof gf === 'string' ? gf.split(',').filter(Boolean) : Array.isArray(gf) ? gf : []);
+        updateGroupToggleLabel();
       }
       loadPortfolio();
     });
@@ -1171,29 +1186,106 @@ async function fetchGroups() {
 }
 
 function populateGroupFilter() {
-  const sel = document.getElementById('groupFilter');
-  sel.innerHTML = '<option value="all">All Groups</option>';
+  const dropdown = document.getElementById('groupFilterDropdown');
+  dropdown.innerHTML = '';
+  // "All Groups" toggle
+  const allItem = document.createElement('label');
+  allItem.className = 'multi-select-item select-all';
+  const allCb = document.createElement('input');
+  allCb.type = 'checkbox';
+  allCb.checked = selectedGroups.length === 0;
+  allCb.onchange = function() { selectedGroups = []; updateGroupCheckboxes(); applyGroupFilter(); };
+  allItem.appendChild(allCb);
+  allItem.appendChild(document.createTextNode('All Groups'));
+  dropdown.appendChild(allItem);
+  // Individual groups
   availableGroups.forEach(g => {
     const gid = g._id || g.id || '';
     const name = g.name || gid;
-    const o = document.createElement('option');
-    o.value = gid;
-    o.textContent = name;
-    sel.appendChild(o);
+    const item = document.createElement('label');
+    item.className = 'multi-select-item';
+    const cb = document.createElement('input');
+    cb.type = 'checkbox';
+    cb.value = gid;
+    cb.checked = selectedGroups.length === 0 || selectedGroups.includes(gid);
+    cb.onchange = function() { onGroupCheckboxChange(gid, this.checked); };
+    item.appendChild(cb);
+    item.appendChild(document.createTextNode(name));
+    // Show position count
+    const count = portfolioData.positions.filter(p => p._group === gid).length;
+    if (count > 0) {
+      const badge = document.createElement('span');
+      badge.className = 'ms-count';
+      badge.textContent = count;
+      item.appendChild(badge);
+    }
+    dropdown.appendChild(item);
   });
-  // Sync with current selection
-  if (selectedGroup && selectedGroup !== 'all') {
-    sel.value = selectedGroup;
+  updateGroupToggleLabel();
+}
+
+function toggleGroupDropdown() {
+  const ms = document.getElementById('groupMultiSelect');
+  ms.classList.toggle('open');
+  if (ms.classList.contains('open')) {
+    // Close on outside click
+    setTimeout(function() {
+      document.addEventListener('click', closeGroupDropdownOutside);
+    }, 0);
+  }
+}
+
+function closeGroupDropdownOutside(e) {
+  const ms = document.getElementById('groupMultiSelect');
+  if (!ms.contains(e.target)) {
+    ms.classList.remove('open');
+    document.removeEventListener('click', closeGroupDropdownOutside);
+  }
+}
+
+function onGroupCheckboxChange(gid, checked) {
+  if (checked) {
+    if (!selectedGroups.includes(gid)) selectedGroups.push(gid);
+  } else {
+    selectedGroups = selectedGroups.filter(g => g !== gid);
+  }
+  // If all are selected or none, reset to "all"
+  if (selectedGroups.length === availableGroups.length || selectedGroups.length === 0) {
+    selectedGroups = [];
+  }
+  updateGroupCheckboxes();
+  applyGroupFilter();
+}
+
+function updateGroupCheckboxes() {
+  const dropdown = document.getElementById('groupFilterDropdown');
+  const checkboxes = dropdown.querySelectorAll('input[type="checkbox"]');
+  const isAll = selectedGroups.length === 0;
+  checkboxes.forEach((cb, i) => {
+    if (i === 0) { cb.checked = isAll; return; } // "All" checkbox
+    cb.checked = isAll || selectedGroups.includes(cb.value);
+  });
+  updateGroupToggleLabel();
+}
+
+function updateGroupToggleLabel() {
+  const btn = document.getElementById('groupFilterToggle');
+  if (selectedGroups.length === 0) {
+    btn.textContent = 'All Groups';
+  } else if (selectedGroups.length === 1) {
+    const g = availableGroups.find(g => (g._id || g.id) === selectedGroups[0]);
+    btn.textContent = g ? g.name : selectedGroups[0];
+  } else {
+    btn.textContent = selectedGroups.length + ' Groups';
   }
 }
 
 async function applyGroupFilter() {
-  const val = document.getElementById('groupFilter').value;
-  selectedGroup = val;
-  if (val === 'all') {
+  updateGroupToggleLabel();
+  if (selectedGroups.length === 0) {
     delete currentOptions.groupsFilter;
   } else {
-    currentOptions.groupsFilter = val;
+    currentOptions.groupsFilter = selectedGroups.join(',');
   }
   // For demo mode: filter locally
   if (!addon) {
@@ -1205,34 +1297,36 @@ async function applyGroupFilter() {
 }
 
 function applyDemoGroupFilter() {
-  if (selectedGroup === 'all') {
+  if (selectedGroups.length === 0) {
     filteredPositions = [...portfolioData.positions];
   } else {
-    // Find the group and its institutions
-    const group = availableGroups.find(g => (g._id || g.id) === selectedGroup);
-    if (group && group.institutions) {
-      // Filter positions by matching institution IDs or account names
-      const instIds = new Set(group.institutions.map(i => typeof i === 'string' ? i : (i._id || i.id)));
-      const instNames = new Set();
-      portfolioData.institutions.forEach(inst => {
-        if (instIds.has(inst._id) || instIds.has(inst.id)) {
-          instNames.add(inst.name);
-        }
-      });
-      filteredPositions = portfolioData.positions.filter(p => {
-        const acct = p._accountName || '';
-        // Check if any institution name appears in the account name
-        for (const name of instNames) {
-          if (acct.toLowerCase().includes(name.toLowerCase())) return true;
-        }
-        // Also check _group field if set
-        if (p._group === selectedGroup) return true;
-        return false;
-      });
-    } else {
-      // Fallback: filter by _group field
-      filteredPositions = portfolioData.positions.filter(p => p._group === selectedGroup);
-    }
+    // Collect institution IDs and names from selected groups
+    const instIds = new Set();
+    const instNames = new Set();
+    selectedGroups.forEach(gid => {
+      const group = availableGroups.find(g => (g._id || g.id) === gid);
+      if (group && group.institutions) {
+        group.institutions.forEach(i => {
+          const iid = typeof i === 'string' ? i : (i._id || i.id);
+          instIds.add(iid);
+        });
+      }
+    });
+    portfolioData.institutions.forEach(inst => {
+      if (instIds.has(inst._id) || instIds.has(inst.id)) {
+        instNames.add(inst.name);
+      }
+    });
+    filteredPositions = portfolioData.positions.filter(p => {
+      const acct = p._accountName || '';
+      // Check if any institution name appears in the account name
+      for (const name of instNames) {
+        if (acct.toLowerCase().includes(name.toLowerCase())) return true;
+      }
+      // Also check _group field if set
+      if (p._group && selectedGroups.includes(p._group)) return true;
+      return false;
+    });
   }
   // Reset account filter
   document.getElementById('accountFilter').value = 'all';
