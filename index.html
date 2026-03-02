@@ -596,7 +596,7 @@
     <div class="summary-grid" id="summaryGrid">
       <div class="summary-card"><div class="label">Total Value</div><div class="value" id="totalValue">--</div><div class="sub" id="totalAccounts"></div></div>
       <div class="summary-card"><div class="label">Positions</div><div class="value" id="totalPositions">--</div><div class="sub" id="positionsSub"></div></div>
-      <div class="summary-card"><div class="label">Total Gain/Loss</div><div class="value" id="totalGainLoss">--</div><div class="sub" id="gainLossPct"></div></div>
+      <div class="summary-card"><div class="label" id="gainLossLabel">Total Gain/Loss</div><div class="value" id="totalGainLoss">--</div><div class="sub" id="gainLossPct"></div></div>
       <div class="summary-card"><div class="label">Top Holding</div><div class="value" id="topHolding" style="font-size:16px">--</div><div class="sub" id="topHoldingPct"></div></div>
     </div>
 
@@ -1819,18 +1819,29 @@ function makeChart(key, ctx, config) {
 }
 
 // ─── Overview Rendering ──────────────────────────────────────────────────────
+function getPeriodLabel() {
+  if (activeDateRange === 'ytd') return 'YTD';
+  if (activeDateRange === '1y') return '1 Year';
+  if (activeDateRange === '5y') return '5 Year';
+  return 'Total';
+}
+
 function renderSummary() {
   const totalValue = filteredPositions.reduce((s,p) => s + (p.market_value || p.value || 0), 0);
   const totalBook = filteredPositions.reduce((s,p) => s + (p.book_value || p.market_value || p.value || 0), 0);
-  const gainLoss = totalValue - totalBook;
-  const gainLossPctVal = totalBook > 0 ? ((totalValue - totalBook) / totalBook) * 100 : 0;
   const accounts = [...new Set(filteredPositions.map(p => p._accountName).filter(Boolean))];
+
+  // Use period-specific return from history if a date filter is active and history exists
+  const periodReturn = (activeDateRange !== 'all') ? getPeriodReturn() : null;
+  const gainLoss = periodReturn ? periodReturn.change : (totalValue - totalBook);
+  const gainLossPctVal = periodReturn ? periodReturn.pct : (totalBook > 0 ? ((totalValue - totalBook) / totalBook) * 100 : 0);
 
   document.getElementById('totalValue').textContent = fmt(totalValue);
   document.getElementById('totalAccounts').textContent = accounts.length + ' account' + (accounts.length !== 1 ? 's' : '');
   document.getElementById('totalPositions').textContent = filteredPositions.length;
   const uniq = new Set(filteredPositions.map(p => p.security?.symbol || p.symbol).filter(Boolean));
   document.getElementById('positionsSub').textContent = uniq.size + ' unique securities';
+  document.getElementById('gainLossLabel').textContent = getPeriodLabel() + ' Gain/Loss';
   const glEl = document.getElementById('totalGainLoss');
   glEl.textContent = fmt(gainLoss);
   glEl.className = 'value ' + (gainLoss >= 0 ? 'positive' : 'negative');
@@ -2036,8 +2047,12 @@ function renderHoldingsTab() {
 function renderPerformance() {
   const totalVal = filteredPositions.reduce((s,p) => s + (p.market_value || p.value || 0), 0);
   const totalBook = filteredPositions.reduce((s,p) => s + (p.book_value || p.market_value || p.value || 0), 0);
-  const totalGL = totalVal - totalBook;
-  const totalRet = totalBook > 0 ? ((totalVal - totalBook) / totalBook) * 100 : 0;
+
+  // Use period-specific return from history data when a filter is active
+  const periodReturn = (activeDateRange !== 'all') ? getPeriodReturn() : null;
+  const totalGL = periodReturn ? periodReturn.change : (totalVal - totalBook);
+  const totalRet = periodReturn ? periodReturn.pct : (totalBook > 0 ? ((totalVal - totalBook) / totalBook) * 100 : 0);
+  const periodLabel = getPeriodLabel();
 
   // Best/worst
   const withReturn = filteredPositions.map(p => {
@@ -2051,7 +2066,7 @@ function renderPerformance() {
   const grid = document.getElementById('perfSummaryGrid');
   grid.innerHTML = '';
   const cards = [
-    { label: 'Total Return', value: pct(totalRet), cls: totalRet >= 0 ? 'positive' : 'negative', sub: fmt(totalGL) },
+    { label: periodLabel + ' Return', value: pct(totalRet), cls: totalRet >= 0 ? 'positive' : 'negative', sub: fmt(totalGL) },
     { label: 'Best Performer', value: best ? (best.security?.symbol || best.symbol || '--') : '--', cls: 'positive', sub: best ? pct(best.ret) : '' },
     { label: 'Worst Performer', value: worst ? (worst.security?.symbol || worst.symbol || '--') : '--', cls: worst && worst.ret < 0 ? 'negative' : '', sub: worst ? pct(worst.ret) : '' },
     { label: 'Avg Return', value: pct(withReturn.length > 0 ? withReturn.reduce((s,p)=>s+p.ret,0)/withReturn.length : 0), cls: '', sub: filteredPositions.length + ' positions' },
@@ -2101,11 +2116,10 @@ function renderPerformance() {
 
 // ─── Benchmark Comparison ────────────────────────────────────────────────────
 function renderBenchmarkComparison(portfolioReturn) {
-  // Show portfolio return summary only — benchmark comparisons require
-  // matching time periods which we don't have from Wealthica position data.
   const totalVal = filteredPositions.reduce((s,p) => s + (p.market_value || p.value || 0), 0);
   const totalBook = filteredPositions.reduce((s,p) => s + (p.book_value || p.market_value || p.value || 0), 0);
-  const totalGL = totalVal - totalBook;
+  const periodReturn = (activeDateRange !== 'all') ? getPeriodReturn() : null;
+  const totalGL = periodReturn ? periodReturn.change : (totalVal - totalBook);
 
   // Group by account for per-account performance
   const acctPerf = {};
@@ -3406,12 +3420,30 @@ function renderHoldingsTable() {
 }
 
 // ─── History Chart ───────────────────────────────────────────────────────────
+function getFilteredHistory() {
+  if (!portfolioHistory || portfolioHistory.length === 0) return [];
+  const fromStr = getDateFrom(activeDateRange);
+  if (!fromStr) return portfolioHistory;
+  const fromDate = new Date(fromStr);
+  return portfolioHistory.filter(h => new Date(h.date || h.d) >= fromDate);
+}
+
+function getPeriodReturn() {
+  const history = getFilteredHistory();
+  if (history.length < 2) return null;
+  const startVal = history[0].value || history[0].v || 0;
+  const endVal = history[history.length - 1].value || history[history.length - 1].v || 0;
+  if (startVal <= 0) return null;
+  return { startVal, endVal, change: endVal - startVal, pct: ((endVal - startVal) / startVal) * 100 };
+}
+
 function renderHistoryChart() {
   const canvas = document.getElementById('historyChart');
   const emptyMsg = document.getElementById('historyChartEmpty');
   if (!canvas) return;
 
-  if (!portfolioHistory || portfolioHistory.length === 0) {
+  const filtered = getFilteredHistory();
+  if (filtered.length === 0) {
     canvas.style.display = 'none';
     if (emptyMsg) emptyMsg.style.display = '';
     return;
@@ -3419,11 +3451,11 @@ function renderHistoryChart() {
   canvas.style.display = '';
   if (emptyMsg) emptyMsg.style.display = 'none';
 
-  const labels = portfolioHistory.map(h => {
+  const labels = filtered.map(h => {
     const d = new Date(h.date || h.d);
     return d.toLocaleDateString('en-CA', { month: 'short', day: 'numeric', year: '2-digit' });
   });
-  const values = portfolioHistory.map(h => h.value || h.v || 0);
+  const values = filtered.map(h => h.value || h.v || 0);
 
   makeChart('history', canvas, {
     type: 'line',
