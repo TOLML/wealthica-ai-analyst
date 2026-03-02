@@ -575,13 +575,6 @@
     <select id="accountFilter" onchange="applyAccountFilter()">
       <option value="all">All Accounts</option>
     </select>
-    <div class="date-filter">
-      <label style="margin-right:4px">Period</label>
-      <button class="date-btn active" onclick="setDateRange('all')">All Time</button>
-      <button class="date-btn" onclick="setDateRange('ytd')">YTD</button>
-      <button class="date-btn" onclick="setDateRange('1y')">1Y</button>
-      <button class="date-btn" onclick="setDateRange('5y')">5Y</button>
-    </div>
     <div class="risk-slider-wrap">
       <label>Risk Tolerance</label>
       <input type="range" class="risk-slider" id="riskSlider" min="1" max="10" value="5" oninput="onRiskChange()">
@@ -694,6 +687,13 @@
     <div class="tab-description">
       <h2>Performance Analysis</h2>
       <p>Track your portfolio's returns, view historical portfolio value over time, and identify your best and worst performers. The history chart uses data from your Wealthica account when available.</p>
+    </div>
+    <div class="date-filter" style="margin-bottom:16px">
+      <label style="margin-right:4px">Period</label>
+      <button class="date-btn active" onclick="setDateRange('all')">All Time</button>
+      <button class="date-btn" onclick="setDateRange('ytd')">YTD</button>
+      <button class="date-btn" onclick="setDateRange('1y')">1Y</button>
+      <button class="date-btn" onclick="setDateRange('5y')">5Y</button>
     </div>
     <div class="chart-card" id="historyChartWrap" style="margin-bottom:20px"><h3>Portfolio Value Over Time</h3><canvas id="historyChart"></canvas><div id="historyChartEmpty" style="display:none;text-align:center;padding:30px 0;color:var(--text-muted);font-size:13px">History data not available. Connect to Wealthica to see portfolio value over time.</div></div>
     <div class="summary-grid" id="perfSummaryGrid"></div>
@@ -2011,6 +2011,7 @@ function renderSummary() {
   const totalValue = filteredPositions.reduce((s,p) => s + (p.market_value || p.value || 0), 0);
   const totalBook = filteredPositions.reduce((s,p) => s + (p.book_value || p.market_value || p.value || 0), 0);
   const accounts = [...new Set(filteredPositions.map(p => p._accountName).filter(Boolean))];
+  const aggregated = aggregatePositions(filteredPositions);
 
   // Use period-specific return from history if a date filter is active and history exists
   const periodReturn = (activeDateRange !== 'all') ? getPeriodReturn() : null;
@@ -2019,9 +2020,8 @@ function renderSummary() {
 
   document.getElementById('totalValue').textContent = fmt(totalValue);
   document.getElementById('totalAccounts').textContent = accounts.length + ' account' + (accounts.length !== 1 ? 's' : '');
-  document.getElementById('totalPositions').textContent = filteredPositions.length;
-  const uniq = new Set(filteredPositions.map(p => p.security?.symbol || p.symbol).filter(Boolean));
-  document.getElementById('positionsSub').textContent = uniq.size + ' unique securities';
+  document.getElementById('totalPositions').textContent = aggregated.length;
+  document.getElementById('positionsSub').textContent = aggregated.length + ' unique securities';
   document.getElementById('gainLossLabel').textContent = getPeriodLabel() + ' Gain/Loss';
   const glEl = document.getElementById('totalGainLoss');
   glEl.textContent = fmt(gainLoss);
@@ -2029,8 +2029,8 @@ function renderSummary() {
   document.getElementById('gainLossPct').textContent = pct(gainLossPctVal);
   document.getElementById('gainLossPct').className = 'sub ' + (gainLoss >= 0 ? 'positive' : 'negative');
 
-  if (filteredPositions.length > 0) {
-    const sorted = [...filteredPositions].sort((a,b) => (b.market_value||b.value||0) - (a.market_value||a.value||0));
+  if (aggregated.length > 0) {
+    const sorted = [...aggregated].sort((a,b) => (b.market_value||b.value||0) - (a.market_value||a.value||0));
     const top = sorted[0];
     document.getElementById('topHolding').textContent = top.security?.symbol || top.symbol || 'N/A';
     document.getElementById('topHoldingPct').textContent = (((top.market_value||top.value||0)/totalValue)*100).toFixed(1) + '% of portfolio';
@@ -2117,10 +2117,11 @@ function renderSummary() {
 
 function renderOverview() {
   const totalValue = filteredPositions.reduce((s,p) => s + (p.market_value || p.value || 0), 0);
+  const aggregated = aggregatePositions(filteredPositions);
 
   // Allocation chart (by type/sector)
   const sectorMap = {};
-  filteredPositions.forEach(p => {
+  aggregated.forEach(p => {
     const sector = inferAssetClass(p);
     sectorMap[sector] = (sectorMap[sector] || 0) + (p.market_value || p.value || 0);
   });
@@ -2131,8 +2132,8 @@ function renderOverview() {
     options: { responsive: true, maintainAspectRatio: true, cutout: '60%', plugins: { datalabels: doughnutLabels(totalValue), legend: { position: 'bottom', labels: { padding: 10, usePointStyle: true, pointStyleWidth: 8, font: { size: 11 } } } } }
   });
 
-  // Top holdings bar chart
-  const sorted = [...filteredPositions].sort((a,b) => (b.market_value||b.value||0) - (a.market_value||a.value||0)).slice(0, 8);
+  // Top holdings bar chart (aggregated by symbol)
+  const sorted = [...aggregated].sort((a,b) => (b.market_value||b.value||0) - (a.market_value||a.value||0)).slice(0, 8);
   makeChart('topHoldings', document.getElementById('topHoldingsChart'), {
     type: 'bar',
     data: {
@@ -2160,11 +2161,33 @@ function renderAccounts() {
 }
 
 // ─── Holdings Tab ────────────────────────────────────────────────────────────
+// Aggregate positions by security symbol, summing values across accounts
+function aggregatePositions(positions) {
+  const map = {};
+  positions.forEach(p => {
+    const sym = (p.security?.symbol || p.symbol || '').toUpperCase() || '--';
+    if (!map[sym]) {
+      map[sym] = {
+        ...p,
+        market_value: 0, book_value: 0, quantity: 0,
+        _accounts: [],
+      };
+    }
+    map[sym].market_value += (p.market_value || p.value || 0);
+    map[sym].book_value += (p.book_value || p.market_value || p.value || 0);
+    map[sym].quantity += (p.quantity || 0);
+    const acct = p._accountName || '';
+    if (acct && !map[sym]._accounts.includes(acct)) map[sym]._accounts.push(acct);
+  });
+  return Object.values(map);
+}
+
 function renderHoldingsTab() {
-  const totalVal = filteredPositions.reduce((s,p) => s + (p.market_value || p.value || 0), 0);
+  const aggregated = aggregatePositions(filteredPositions);
+  const totalVal = aggregated.reduce((s,p) => s + (p.market_value || p.value || 0), 0);
   const sortBy = document.getElementById('holdingsSort').value;
 
-  let sorted = [...filteredPositions];
+  let sorted = [...aggregated];
   switch(sortBy) {
     case 'value': sorted.sort((a,b) => (b.market_value||b.value||0) - (a.market_value||a.value||0)); break;
     case 'gainloss': sorted.sort((a,b) => ((b.market_value||b.value||0)-(b.book_value||0)) - ((a.market_value||a.value||0)-(a.book_value||0))); break;
@@ -2200,7 +2223,7 @@ function renderHoldingsTab() {
 
     card.innerHTML = '<div class="pos-header"><div><div class="pos-symbol">' + escapeHtml(sym) + '</div>' +
       (name ? '<div class="pos-name">' + escapeHtml(name) + '</div>' : '') +
-      '<div class="pos-account">' + escapeHtml(pos._accountName || '--') + '</div></div>' +
+      '<div class="pos-account">' + escapeHtml((pos._accounts || []).join(', ') || pos._accountName || '--') + '</div></div>' +
       (rating ? '<div style="text-align:right">' + ratingHTML + '</div>' : '') +
       '</div><div class="pos-values">' +
       '<div class="pos-metric"><div class="pm-label">Value</div><div class="pm-value">' + fmt(mv) + '</div></div>' +
@@ -2228,6 +2251,7 @@ function renderHoldingsTab() {
 function renderPerformance() {
   const totalVal = filteredPositions.reduce((s,p) => s + (p.market_value || p.value || 0), 0);
   const totalBook = filteredPositions.reduce((s,p) => s + (p.book_value || p.market_value || p.value || 0), 0);
+  const aggregated = aggregatePositions(filteredPositions);
 
   // Use period-specific return from history data when a filter is active
   const periodReturn = (activeDateRange !== 'all') ? getPeriodReturn() : null;
@@ -2235,8 +2259,8 @@ function renderPerformance() {
   const totalRet = periodReturn ? periodReturn.pct : (totalBook > 0 ? ((totalVal - totalBook) / totalBook) * 100 : 0);
   const periodLabel = getPeriodLabel();
 
-  // Best/worst
-  const withReturn = filteredPositions.map(p => {
+  // Best/worst (aggregated by symbol)
+  const withReturn = aggregated.map(p => {
     const mv = p.market_value || p.value || 0;
     const bv = p.book_value || mv;
     return { ...p, ret: bv > 0 ? ((mv-bv)/bv)*100 : 0, gl: mv - bv };
@@ -2250,7 +2274,7 @@ function renderPerformance() {
     { label: periodLabel + ' Return', value: pct(totalRet), cls: totalRet >= 0 ? 'positive' : 'negative', sub: fmt(totalGL) },
     { label: 'Best Performer', value: best ? (best.security?.symbol || best.symbol || '--') : '--', cls: 'positive', sub: best ? pct(best.ret) : '' },
     { label: 'Worst Performer', value: worst ? (worst.security?.symbol || worst.symbol || '--') : '--', cls: worst && worst.ret < 0 ? 'negative' : '', sub: worst ? pct(worst.ret) : '' },
-    { label: 'Avg Return', value: pct(withReturn.length > 0 ? withReturn.reduce((s,p)=>s+p.ret,0)/withReturn.length : 0), cls: '', sub: filteredPositions.length + ' positions' },
+    { label: 'Avg Return', value: pct(withReturn.length > 0 ? withReturn.reduce((s,p)=>s+p.ret,0)/withReturn.length : 0), cls: '', sub: aggregated.length + ' holdings' },
   ];
   cards.forEach(c => {
     const d = document.createElement('div');
@@ -2259,7 +2283,7 @@ function renderPerformance() {
     grid.appendChild(d);
   });
 
-  // Gain/loss by position
+  // Gain/loss by position (aggregated)
   const glSorted = [...withReturn].sort((a,b) => b.gl - a.gl);
   makeChart('gainLoss', document.getElementById('gainLossChart'), {
     type: 'bar',
@@ -2299,6 +2323,7 @@ function renderPerformance() {
 function renderBenchmarkComparison(portfolioReturn) {
   const totalVal = filteredPositions.reduce((s,p) => s + (p.market_value || p.value || 0), 0);
   const totalBook = filteredPositions.reduce((s,p) => s + (p.book_value || p.market_value || p.value || 0), 0);
+  const aggregated = aggregatePositions(filteredPositions);
   const periodReturn = (activeDateRange !== 'all') ? getPeriodReturn() : null;
   const totalGL = periodReturn ? periodReturn.change : (totalVal - totalBook);
 
@@ -2311,15 +2336,15 @@ function renderBenchmarkComparison(portfolioReturn) {
     acctPerf[a].bv += (p.book_value || p.market_value || p.value || 0);
   });
 
-  const winners = filteredPositions.filter(p => (p.market_value||p.value||0) > (p.book_value||(p.market_value||p.value||0))).length;
-  const losers = filteredPositions.length - winners;
+  const winners = aggregated.filter(p => (p.market_value||p.value||0) > (p.book_value||(p.market_value||p.value||0))).length;
+  const losers = aggregated.length - winners;
 
   const grid = document.getElementById('benchmarkGrid');
   grid.innerHTML = '';
   const cards = [
     { cls: 'portfolio', label: 'Total Return', value: pct(portfolioReturn), desc: fmt(totalGL) + ' gain/loss', vs: '' },
     { cls: 'sp500', label: 'Portfolio Value', value: fmt(totalVal), desc: 'Book value: ' + fmt(totalBook), vs: '' },
-    { cls: 'tsx', label: 'Win Rate', value: (filteredPositions.length > 0 ? (winners/filteredPositions.length*100).toFixed(0) : 0) + '%', desc: winners + ' winners / ' + losers + ' losers', vs: '' },
+    { cls: 'tsx', label: 'Win Rate', value: (aggregated.length > 0 ? (winners/aggregated.length*100).toFixed(0) : 0) + '%', desc: winners + ' winners / ' + losers + ' losers', vs: '' },
     { cls: 'nasdaq', label: 'Best Account', value: Object.entries(acctPerf).sort((a,b) => (b[1].mv-b[1].bv)/(b[1].bv||1) - (a[1].mv-a[1].bv)/(a[1].bv||1))[0]?.[0] || '--', desc: Object.entries(acctPerf).length > 0 ? pct(((Object.entries(acctPerf).sort((a,b) => (b[1].mv-b[1].bv)/(b[1].bv||1) - (a[1].mv-a[1].bv)/(a[1].bv||1))[0][1].mv - Object.entries(acctPerf).sort((a,b) => (b[1].mv-b[1].bv)/(b[1].bv||1) - (a[1].mv-a[1].bv)/(a[1].bv||1))[0][1].bv) / (Object.entries(acctPerf).sort((a,b) => (b[1].mv-b[1].bv)/(b[1].bv||1) - (a[1].mv-a[1].bv)/(a[1].bv||1))[0][1].bv || 1)) * 100) + ' return' : '', vs: '' },
   ];
   cards.forEach(c => {
@@ -2331,8 +2356,8 @@ function renderBenchmarkComparison(portfolioReturn) {
     grid.appendChild(d);
   });
 
-  // Return by position bar chart
-  const returnData = filteredPositions.map(p => {
+  // Return by position bar chart (aggregated)
+  const returnData = aggregated.map(p => {
     const mv = p.market_value || p.value || 0;
     const bv = p.book_value || mv;
     return { sym: p.security?.symbol || p.symbol || '?', ret: bv > 0 ? ((mv-bv)/bv)*100 : 0 };
@@ -2387,9 +2412,10 @@ function renderRisk() {
     grid.appendChild(d);
   });
 
-  // Concentration chart
-  const totalVal = filteredPositions.reduce((s,p) => s + (p.market_value || p.value || 0), 0);
-  const sorted = [...filteredPositions].sort((a,b) => (b.market_value||b.value||0) - (a.market_value||a.value||0));
+  // Concentration chart (aggregated by symbol)
+  const riskAgg = aggregatePositions(filteredPositions);
+  const totalVal = riskAgg.reduce((s,p) => s + (p.market_value || p.value || 0), 0);
+  const sorted = [...riskAgg].sort((a,b) => (b.market_value||b.value||0) - (a.market_value||a.value||0));
   const top5 = sorted.slice(0, 5);
   const rest = sorted.slice(5);
   const restVal = rest.reduce((s,p) => s + (p.market_value || p.value || 0), 0);
@@ -2415,8 +2441,9 @@ function renderRisk() {
   if (scores.maxConcentration > 25) factors.push({ severity: 'high', title: 'High Single Position Concentration', desc: 'Your largest position is ' + scores.maxConcentration.toFixed(1) + '% of portfolio. Consider trimming to below 20%.' });
   else if (scores.maxConcentration > 15) factors.push({ severity: 'medium', title: 'Moderate Concentration', desc: 'Largest position is ' + scores.maxConcentration.toFixed(1) + '% — within acceptable range but monitor closely.' });
   if (scores.top3Concentration > 70) factors.push({ severity: 'high', title: 'Top 3 Holdings Dominate', desc: 'Top 3 positions represent ' + scores.top3Concentration.toFixed(1) + '% of your portfolio.' });
-  if (filteredPositions.length < 5) factors.push({ severity: 'high', title: 'Too Few Positions', desc: 'Only ' + filteredPositions.length + ' positions. Consider adding more for diversification.' });
-  else if (filteredPositions.length < 10) factors.push({ severity: 'medium', title: 'Limited Positions', desc: filteredPositions.length + ' positions. Adequate but more diversification could help.' });
+  const holdingCount = riskAgg.length;
+  if (holdingCount < 5) factors.push({ severity: 'high', title: 'Too Few Positions', desc: 'Only ' + holdingCount + ' holdings. Consider adding more for diversification.' });
+  else if (holdingCount < 10) factors.push({ severity: 'medium', title: 'Limited Positions', desc: holdingCount + ' holdings. Adequate but more diversification could help.' });
 
   const sectorMap = {};
   filteredPositions.forEach(p => {
@@ -2758,13 +2785,14 @@ function renderTax() {
 
 // ─── Risk Models Tab ─────────────────────────────────────────────────────────
 function computePortfolioStats() {
-  const totalVal = filteredPositions.reduce((s,p) => s + (p.market_value || p.value || 0), 0);
-  if (!totalVal || filteredPositions.length === 0) return null;
+  const modelPositions = aggregatePositions(filteredPositions);
+  const totalVal = modelPositions.reduce((s,p) => s + (p.market_value || p.value || 0), 0);
+  if (!totalVal || modelPositions.length === 0) return null;
 
   let portfolioVol = 0, portfolioBeta = 0, portfolioYield = 0;
   const posStats = [];
 
-  filteredPositions.forEach(p => {
+  modelPositions.forEach(p => {
     const mv = p.market_value || p.value || 0;
     const bv = p.book_value || mv;
     const w = mv / totalVal;
@@ -2784,13 +2812,13 @@ function computePortfolioStats() {
 
   // Portfolio volatility (simplified — partial correlation adjustment)
   portfolioVol = Math.sqrt(portfolioVol) * 1.4; // correlation adjustment factor
-  const n = filteredPositions.length;
+  const n = modelPositions.length;
   // Diversification benefit: more positions = lower correlation impact
   const divFactor = Math.max(0.6, 1 - (n - 1) * 0.02);
   portfolioVol *= divFactor;
 
   const riskFreeRate = 0.04; // ~4% (Canadian T-bills)
-  const totalBook = filteredPositions.reduce((s,p) => s + (p.book_value || p.market_value || p.value || 0), 0);
+  const totalBook = modelPositions.reduce((s,p) => s + (p.book_value || p.market_value || p.value || 0), 0);
   const cumulativeReturn = totalBook > 0 ? (totalVal - totalBook) / totalBook : 0;
   // Estimate annualized return — assume ~2 year average holding period if unknown
   const holdingYears = Math.max(0.5, Math.abs(cumulativeReturn) > 0.5 ? 3 : Math.abs(cumulativeReturn) > 0.2 ? 2 : 1);
@@ -3496,7 +3524,7 @@ function buildPortfolioSummary() {
     total_book_value_cad: Math.round(totalBook*100)/100,
     unrealized_gain_loss: Math.round((totalValue-totalBook)*100)/100,
     number_of_accounts: [...new Set(filteredPositions.map(p => p._accountName))].length,
-    number_of_positions: filteredPositions.length,
+    number_of_holdings: aggregatePositions(filteredPositions).length,
     accounts: byAccount,
   };
 }
@@ -3581,9 +3609,10 @@ function setHoldingsView(view) {
 }
 
 function renderHoldingsTable() {
-  const totalVal = filteredPositions.reduce((s,p) => s + (p.market_value || p.value || 0), 0);
+  const aggregated = aggregatePositions(filteredPositions);
+  const totalVal = aggregated.reduce((s,p) => s + (p.market_value || p.value || 0), 0);
   const sortBy = document.getElementById('holdingsSort').value;
-  let sorted = [...filteredPositions];
+  let sorted = [...aggregated];
   switch(sortBy) {
     case 'value': sorted.sort((a,b) => (b.market_value||b.value||0) - (a.market_value||a.value||0)); break;
     case 'gainloss': sorted.sort((a,b) => ((b.market_value||b.value||0)-(b.book_value||(b.market_value||b.value||0))) - ((a.market_value||a.value||0)-(a.book_value||(a.market_value||a.value||0)))); break;
@@ -3592,7 +3621,7 @@ function renderHoldingsTable() {
   }
 
   let html = '<table class="holdings-table"><thead><tr>' +
-    '<th>Symbol</th><th>Name</th><th>Qty</th><th>Market Value</th><th>Book Value</th><th>Gain/Loss</th><th>Return</th><th>Weight</th><th>Account</th>' +
+    '<th>Symbol</th><th>Name</th><th>Qty</th><th>Market Value</th><th>Book Value</th><th>Gain/Loss</th><th>Return</th><th>Weight</th><th>Account(s)</th>' +
     '</tr></thead><tbody>';
   sorted.forEach(p => {
     const sym = p.security?.symbol || p.symbol || '--';
@@ -3602,16 +3631,17 @@ function renderHoldingsTable() {
     const gl = mv - bv;
     const ret = bv > 0 ? ((mv-bv)/bv)*100 : 0;
     const weight = totalVal > 0 ? (mv/totalVal*100) : 0;
+    const accounts = (p._accounts || []).join(', ') || p._accountName || '';
     html += '<tr>' +
       '<td class="mono" style="font-weight:600">' + escapeHtml(sym) + '</td>' +
       '<td style="max-width:150px;overflow:hidden;text-overflow:ellipsis">' + escapeHtml(name) + '</td>' +
-      '<td class="mono">' + (p.quantity != null ? p.quantity : '--') + '</td>' +
+      '<td class="mono">' + (p.quantity != null ? Number(p.quantity).toLocaleString('en-CA',{maximumFractionDigits:4}) : '--') + '</td>' +
       '<td class="mono">' + fmt(mv) + '</td>' +
       '<td class="mono">' + fmt(bv) + '</td>' +
       '<td class="mono ' + (gl >= 0 ? 'positive' : 'negative') + '">' + fmt(gl) + '</td>' +
       '<td class="mono ' + (ret >= 0 ? 'positive' : 'negative') + '">' + pct(ret) + '</td>' +
       '<td class="mono">' + weight.toFixed(1) + '%</td>' +
-      '<td style="font-size:11px;color:var(--text-muted)">' + escapeHtml(p._accountName || '') + '</td>' +
+      '<td style="font-size:11px;color:var(--text-muted)">' + escapeHtml(accounts) + '</td>' +
       '</tr>';
   });
   html += '</tbody></table>';
@@ -3687,9 +3717,10 @@ function renderHistoryChart() {
 function renderCorrelationMatrix() {
   const wrap = document.getElementById('corrMatrixWrap');
   if (!wrap) return;
-  const totalVal = filteredPositions.reduce((s,p) => s + (p.market_value||p.value||0), 0);
+  const corrAgg = aggregatePositions(filteredPositions);
+  const totalVal = corrAgg.reduce((s,p) => s + (p.market_value||p.value||0), 0);
   // Use top positions by weight
-  const top = [...filteredPositions].sort((a,b) => (b.market_value||b.value||0) - (a.market_value||a.value||0)).slice(0, 10);
+  const top = [...corrAgg].sort((a,b) => (b.market_value||b.value||0) - (a.market_value||a.value||0)).slice(0, 10);
   if (top.length < 2) { wrap.innerHTML = '<div style="text-align:center;color:var(--text-muted);padding:20px">Need at least 2 positions for correlation analysis.</div>'; return; }
 
   const syms = top.map(p => p.security?.symbol || p.symbol || '?');
@@ -3931,8 +3962,9 @@ function exportReport() {
   const totalGL = totalVal - totalBook;
   const totalRet = totalBook > 0 ? ((totalVal-totalBook)/totalBook*100) : 0;
 
-  let csv = 'Symbol,Name,Quantity,Market Value,Book Value,Gain/Loss,Return %,Weight %,Account,Asset Class,Region\n';
-  filteredPositions.forEach(p => {
+  const aggregated = aggregatePositions(filteredPositions);
+  let csv = 'Symbol,Name,Quantity,Market Value,Book Value,Gain/Loss,Return %,Weight %,Account(s),Asset Class,Region\n';
+  aggregated.forEach(p => {
     const sym = p.security?.symbol || p.symbol || '';
     const name = (p.security?.name || '').replace(/,/g, ' ');
     const mv = p.market_value || p.value || 0;
@@ -3940,7 +3972,8 @@ function exportReport() {
     const gl = mv - bv;
     const ret = bv > 0 ? ((mv-bv)/bv*100).toFixed(2) : '0';
     const w = totalVal > 0 ? (mv/totalVal*100).toFixed(2) : '0';
-    csv += [sym, name, p.quantity||'', mv.toFixed(2), bv.toFixed(2), gl.toFixed(2), ret, w, p._accountName||'', inferAssetClass(p), inferRegion(p)].join(',') + '\n';
+    const accounts = ((p._accounts || []).join('; ') || p._accountName || '').replace(/,/g, ' ');
+    csv += [sym, name, p.quantity||'', mv.toFixed(2), bv.toFixed(2), gl.toFixed(2), ret, w, accounts, inferAssetClass(p), inferRegion(p)].join(',') + '\n';
   });
 
   // Add summary
@@ -3949,7 +3982,7 @@ function exportReport() {
   csv += 'Total Book Value,' + totalBook.toFixed(2) + '\n';
   csv += 'Total Gain/Loss,' + totalGL.toFixed(2) + '\n';
   csv += 'Total Return %,' + totalRet.toFixed(2) + '\n';
-  csv += 'Number of Positions,' + filteredPositions.length + '\n';
+  csv += 'Number of Holdings,' + aggregated.length + '\n';
   csv += 'Export Date,' + new Date().toISOString().split('T')[0] + '\n';
 
   const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
