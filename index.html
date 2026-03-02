@@ -566,7 +566,7 @@
 
   <!-- Filter Bar -->
   <div class="filter-bar" id="filterBar">
-    <label>Group</label>
+    <label id="groupFilterLabel">Group</label>
     <div class="multi-select" id="groupMultiSelect">
       <button type="button" class="multi-select-toggle" id="groupFilterToggle" onclick="toggleGroupDropdown()">All Groups</button>
       <div class="multi-select-dropdown" id="groupFilterDropdown"></div>
@@ -1136,23 +1136,23 @@ if (typeof Addon === 'undefined') {
         document.getElementById('apiKeyInput').value = apiKey;
         updateStatus('connected', 'API key loaded');
       }
+      // Hide local group filter — Wealthica dashboard provides its own
+      document.getElementById('groupFilterLabel').style.display = 'none';
+      document.getElementById('groupMultiSelect').style.display = 'none';
       // Sync group filter if Wealthica has one active
       if (options.groupsFilter) {
-        // Wealthica passes a single group ID or comma-separated IDs
         const gf = options.groupsFilter;
         selectedGroups = typeof gf === 'string' ? gf.split(',').filter(Boolean) : Array.isArray(gf) ? gf : [];
       }
-      fetchGroups();
       loadPortfolio();
     });
-    addon.on('reload', function() { fetchGroups(); loadPortfolio(); });
+    addon.on('reload', function() { loadPortfolio(); });
     addon.on('update', function(options) {
       currentOptions = { ...currentOptions, ...options };
-      // Sync if Wealthica changed the group
+      // Sync if Wealthica changed the group from its dashboard
       if (options.groupsFilter !== undefined) {
         const gf = options.groupsFilter;
         selectedGroups = !gf ? [] : (typeof gf === 'string' ? gf.split(',').filter(Boolean) : Array.isArray(gf) ? gf : []);
-        updateGroupToggleLabel();
       }
       loadPortfolio();
     });
@@ -1259,13 +1259,16 @@ function closeGroupDropdownOutside(e) {
 }
 
 function onGroupCheckboxChange(gid, checked) {
-  if (checked) {
+  // If currently "all" (empty array) and user unchecks one, populate with all EXCEPT that one
+  if (selectedGroups.length === 0 && !checked) {
+    selectedGroups = availableGroups.map(g => g._id || g.id || '').filter(id => id !== gid);
+  } else if (checked) {
     if (!selectedGroups.includes(gid)) selectedGroups.push(gid);
   } else {
     selectedGroups = selectedGroups.filter(g => g !== gid);
   }
-  // If all are selected or none, reset to "all"
-  if (selectedGroups.length === availableGroups.length || selectedGroups.length === 0) {
+  // If all are selected, reset to "all"
+  if (selectedGroups.length === availableGroups.length) {
     selectedGroups = [];
   }
   updateGroupCheckboxes();
@@ -1278,7 +1281,8 @@ function updateGroupCheckboxes() {
   const isAll = selectedGroups.length === 0;
   checkboxes.forEach((cb, i) => {
     if (i === 0) { cb.checked = isAll; return; } // "All" checkbox
-    cb.checked = isAll || selectedGroups.includes(cb.value);
+    if (isAll) { cb.checked = true; }
+    else { cb.checked = selectedGroups.includes(cb.value); }
   });
   updateGroupToggleLabel();
 }
