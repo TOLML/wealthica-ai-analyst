@@ -1320,14 +1320,11 @@ async function fetchHistory(query) {
 }
 
 function processPortfolio() {
-  let totalValue = 0, totalBook = 0;
-
-  // ── Build lookup maps from institutions ──
-  // instMap: institution ID → institution object
-  // invMap: investment ID → { instName, invName, fullName, type }
-  const instMap = {};
-  const invMap = {};
   const typeLabels = { 'tfsa': 'TFSA', 'rrsp': 'RRSP', 'rrif': 'RRIF', 'lira': 'LIRA', 'resp': 'RESP', 'margin': 'Non-Reg', 'cash': 'Cash', 'individual': 'Non-Reg', 'joint': 'Joint', 'fhsa': 'FHSA', 'lrsp': 'LRSP', 'dpsp': 'DPSP', 'rdsp': 'RDSP', 'group_rrsp': 'Group RRSP' };
+
+  // ── Build institution + investment lookup maps ──
+  const instMap = {};  // institution ID → { name, ... }
+  const invMap = {};   // investment ID → { instName, typeName, fullName }
 
   (portfolioData.institutions || []).forEach(inst => {
     const iid = inst._id || inst.id;
@@ -1335,7 +1332,6 @@ function processPortfolio() {
     if (iid) instMap[iid] = { ...inst, _resolvedName: instName };
     if (instName) instMap['name:' + instName.toLowerCase()] = inst;
 
-    // Index all investments within each institution
     (inst.investments || []).forEach(inv => {
       const vid = inv._id || inv.id;
       const invType = (inv.type || inv.name || '').toLowerCase();
@@ -1343,7 +1339,6 @@ function processPortfolio() {
       const fullLabel = invLabel && instName ? invLabel + ' - ' + instName : invLabel || instName || 'Account';
       if (vid) {
         invMap[vid] = { instId: iid, instName, invName: invLabel, fullName: fullLabel, type: invType };
-        // Also index by first portion of colon-separated IDs
         if (vid.includes(':')) {
           const prefix = vid.split(':')[0];
           if (!invMap['prefix:' + prefix]) invMap['prefix:' + prefix] = { instId: iid, instName, invName: invLabel, fullName: fullLabel, type: invType };
@@ -1355,90 +1350,100 @@ function processPortfolio() {
   console.log('[Wealthica] instMap keys:', Object.keys(instMap).filter(k => !k.startsWith('name:')));
   console.log('[Wealthica] invMap keys:', Object.keys(invMap).filter(k => !k.startsWith('prefix:')));
 
-  portfolioData.positions.forEach(pos => {
-    const mv = pos.market_value || pos.value || 0;
-    const bv = pos.book_value || mv;
-    totalValue += mv;
-    totalBook += bv;
+  // ── Helper to resolve an account name from institution/investment IDs ──
+  function resolveAccountName(instId, investId) {
+    const investStr = String(investId || '');
+    const instStr = String(instId || '');
 
-    if (pos._accountName) return; // already set (e.g., demo data)
+    // 1. Direct investment ID match in invMap
+    if (investStr && invMap[investStr]) return invMap[investStr].fullName;
 
-    // Extract IDs — handle both string IDs and embedded objects
-    const investId = typeof pos.investment === 'object' ? (pos.investment?._id || pos.investment?.id || '') : (pos.investment || '');
-    const instId = typeof pos.institution === 'object' ? (pos.institution?._id || pos.institution?.id || '') : (pos.institution || '');
-    const investStr = String(investId);
-    const instStr = String(instId);
-
-    // Strategy 1: Direct investment ID match
-    if (investStr && invMap[investStr]) {
-      pos._accountName = invMap[investStr].fullName;
-      return;
-    }
-
-    // Strategy 2: Investment ID prefix match (before first colon)
+    // 2. Prefix match (before first colon)
     if (investStr && investStr.includes(':')) {
       const prefix = investStr.split(':')[0];
-      if (invMap['prefix:' + prefix]) {
-        pos._accountName = invMap['prefix:' + prefix].fullName;
-        return;
-      }
+      if (invMap['prefix:' + prefix]) return invMap['prefix:' + prefix].fullName;
     }
 
-    // Strategy 3: Investment ID IS an institution ID (Wealthica sometimes does this)
-    if (investStr && instMap[investStr]) {
-      // Parse account type from the investment string if it has colons
-      const inst = instMap[investStr];
-      pos._accountName = inst._resolvedName || inst.name || 'Account';
-      return;
-    }
-
-    // Strategy 4: Parse investment ID format {institutionId}:{type}:{currency}
+    // 3. Parse investment ID format {institutionId}:{type}:{currency}
     if (investStr && investStr.includes(':')) {
       const parts = investStr.split(':');
       const possibleInstId = parts[0];
       const possibleType = parts.length >= 2 ? parts[1] : '';
       const typeName = typeLabels[possibleType.toLowerCase()] || possibleType;
-      const instObj = instMap[possibleInstId];
-      if (instObj) {
-        const instLabel = instObj._resolvedName || instObj.name || '';
-        pos._accountName = typeName && instLabel ? typeName + ' - ' + instLabel : typeName || instLabel || 'Account';
-      } else {
-        pos._accountName = typeName || 'Account';
-      }
+      const instObj = instMap[possibleInstId] || instMap[instStr];
+      const instLabel = instObj ? (instObj._resolvedName || instObj.name || '') : '';
+      if (typeName || instLabel) return typeName && instLabel ? typeName + ' - ' + instLabel : typeName || instLabel;
+    }
+
+    // 4. Investment ID is an institution ID
+    if (investStr && instMap[investStr]) return instMap[investStr]._resolvedName || instMap[investStr].name || 'Account';
+
+    // 5. Direct institution ID match
+    if (instStr && instMap[instStr]) return instMap[instStr]._resolvedName || instMap[instStr].name || 'Account';
+
+    // 6. Institution is a name string
+    if (instStr && instMap['name:' + instStr.toLowerCase()]) return instMap['name:' + instStr.toLowerCase()].name || instStr;
+
+    return '';
+  }
+
+  // ── Process positions: split multi-account positions using investments[] array ──
+  let totalValue = 0, totalBook = 0;
+  const expandedPositions = [];
+
+  portfolioData.positions.forEach(pos => {
+    if (pos._accountName) {
+      // Demo data — already has _accountName, keep as-is
+      totalValue += pos.market_value || pos.value || 0;
+      totalBook += pos.book_value || pos.market_value || pos.value || 0;
+      expandedPositions.push(pos);
       return;
     }
 
-    // Strategy 5: Direct institution ID match
-    if (instStr && instMap[instStr]) {
-      pos._accountName = instMap[instStr]._resolvedName || instMap[instStr].name || 'Account';
-      return;
+    // Check for investments[] array — this is the canonical Wealthica structure
+    const investments = pos.investments;
+    if (Array.isArray(investments) && investments.length > 0) {
+      investments.forEach(inv => {
+        const invInstId = typeof inv.institution === 'object' ? (inv.institution?._id || inv.institution?.id) : inv.institution;
+        const invInvestId = typeof inv.investment === 'object' ? (inv.investment?._id || inv.investment?.id) : inv.investment;
+        const mv = inv.market_value || inv.value || 0;
+        const bv = inv.book_value || mv;
+        totalValue += mv;
+        totalBook += bv;
+        const accountName = resolveAccountName(invInstId, invInvestId) || pos.account_name || pos.accountName || 'Account';
+        expandedPositions.push({
+          ...pos,
+          market_value: mv,
+          book_value: bv,
+          quantity: inv.quantity != null ? inv.quantity : pos.quantity,
+          gain_amount: inv.gain_amount,
+          gain_percent: inv.gain_percent,
+          _accountName: accountName,
+          _investmentCurrency: inv.currency || pos.security?.currency || '',
+        });
+      });
+    } else {
+      // No investments[] — use top-level fields (old-style or single-account)
+      const mv = pos.market_value || pos.value || 0;
+      const bv = pos.book_value || mv;
+      totalValue += mv;
+      totalBook += bv;
+      const investId = typeof pos.investment === 'object' ? (pos.investment?._id || pos.investment?.id) : pos.investment;
+      const instId = typeof pos.institution === 'object' ? (pos.institution?._id || pos.institution?.id) : pos.institution;
+      pos._accountName = resolveAccountName(instId, investId) || pos.account_name || pos.accountName || pos.account || pos.group || 'Account';
+      expandedPositions.push(pos);
     }
-
-    // Strategy 6: Institution field is a name string
-    if (pos.institution && typeof pos.institution === 'string' && !instMap[pos.institution]) {
-      const byName = instMap['name:' + pos.institution.toLowerCase()];
-      pos._accountName = byName ? (byName.name || pos.institution) : pos.institution;
-      return;
-    }
-
-    // Strategy 7: Use any available fallback fields
-    pos._accountName = pos.account_name || pos.accountName || pos.account || pos.group || '';
-    if (!pos._accountName && investStr) {
-      pos._accountName = investStr.length > 30 ? 'Account' : investStr;
-    }
-    if (!pos._accountName) pos._accountName = 'Account';
   });
+
+  // Replace positions with expanded per-account positions
+  portfolioData.positions = expandedPositions;
+  portfolioData.totalValue = totalValue;
+  portfolioData.totalBook = totalBook;
 
   // Log resolved accounts for debugging
   const acctSummary = {};
-  portfolioData.positions.forEach(p => {
-    const a = p._accountName || 'Account';
-    acctSummary[a] = (acctSummary[a] || 0) + 1;
-  });
-  console.log('[Wealthica] Resolved accounts:', acctSummary);
-
-  portfolioData.totalValue = totalValue;
-  portfolioData.totalBook = totalBook;
+  expandedPositions.forEach(p => { acctSummary[p._accountName || 'Account'] = (acctSummary[p._accountName || 'Account'] || 0) + 1; });
+  console.log('[Wealthica] Resolved accounts (' + expandedPositions.length + ' positions):', acctSummary);
 }
 
 // ─── Account Filter ──────────────────────────────────────────────────────────
