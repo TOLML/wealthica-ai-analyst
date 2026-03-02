@@ -1263,6 +1263,8 @@ async function loadPortfolio() {
     ]);
     portfolioData.positions = positions || [];
     portfolioData.institutions = institutions || [];
+    console.log('[Wealthica] Raw positions sample:', JSON.stringify((positions||[]).slice(0,2), null, 2));
+    console.log('[Wealthica] Raw institutions:', JSON.stringify(institutions, null, 2));
     processPortfolio();
     filteredPositions = [...portfolioData.positions];
     populateAccountFilter();
@@ -1280,10 +1282,36 @@ async function loadPortfolio() {
 async function fetchHistory(query) {
   if (!addon) return;
   try {
-    const history = await addon.api.getHistory(query);
+    // Try addon.api.getHistory first
+    let history;
+    try {
+      history = await addon.api.getHistory(query);
+    } catch(e1) {
+      // Fallback: use addon.request to the history endpoint
+      try {
+        history = await addon.request({ method: 'GET', endpoint: 'history', query: query });
+      } catch(e2) {
+        console.log('History fallback also failed:', e2);
+      }
+    }
     if (Array.isArray(history) && history.length > 0) {
       portfolioHistory = history;
+      console.log('[Wealthica] History loaded:', history.length, 'points. Sample:', JSON.stringify(history.slice(0,2)));
       if (activeTab === 'performance') renderHistoryChart();
+    } else if (history && typeof history === 'object' && !Array.isArray(history)) {
+      // History might be an object with a results/data array
+      const arr = history.results || history.data || history.history || [];
+      if (arr.length > 0) {
+        portfolioHistory = arr;
+        console.log('[Wealthica] History (nested) loaded:', arr.length, 'points');
+        if (activeTab === 'performance') renderHistoryChart();
+      } else {
+        console.log('[Wealthica] History response format:', Object.keys(history));
+        portfolioHistory = [];
+      }
+    } else {
+      console.log('[Wealthica] No history data returned');
+      portfolioHistory = [];
     }
   } catch(e) {
     console.log('History not available:', e);
@@ -1294,30 +1322,38 @@ async function fetchHistory(query) {
 function processPortfolio() {
   let totalValue = 0, totalBook = 0;
 
-  // Build institution/investment lookup — handle both string IDs and object refs
+  // ── Build lookup maps from institutions ──
+  // instMap: institution ID → institution object
+  // invMap: investment ID → { instName, invName, fullName, type }
   const instMap = {};
   const invMap = {};
-  portfolioData.institutions.forEach(inst => {
+  const typeLabels = { 'tfsa': 'TFSA', 'rrsp': 'RRSP', 'rrif': 'RRIF', 'lira': 'LIRA', 'resp': 'RESP', 'margin': 'Non-Reg', 'cash': 'Cash', 'individual': 'Non-Reg', 'joint': 'Joint', 'fhsa': 'FHSA', 'lrsp': 'LRSP', 'dpsp': 'DPSP', 'rdsp': 'RDSP', 'group_rrsp': 'Group RRSP' };
+
+  (portfolioData.institutions || []).forEach(inst => {
     const iid = inst._id || inst.id;
-    if (iid) instMap[iid] = inst;
-    // Also index by name for fallback matching
-    if (inst.name) instMap['name:' + inst.name.toLowerCase()] = inst;
-    if (inst.investments) {
-      inst.investments.forEach(inv => {
-        const vid = inv._id || inv.id;
-        const invLabel = inv.name || inv.type || '';
-        const instLabel = inst.name || '';
-        const fullLabel = invLabel && instLabel ? invLabel + ' - ' + instLabel : invLabel || instLabel;
-        if (vid) invMap[vid] = { instName: instLabel, invName: invLabel, fullName: fullLabel };
-        // Wealthica investment IDs are often {accountId}:{type}:{currency}
-        // Also index by the accountId portion for partial matching
-        if (vid && vid.includes(':')) {
-          const parts = vid.split(':');
-          invMap['partial:' + parts[0]] = invMap['partial:' + parts[0]] || { instName: instLabel, invName: invLabel, fullName: fullLabel };
+    const instName = inst.name || inst.type || '';
+    if (iid) instMap[iid] = { ...inst, _resolvedName: instName };
+    if (instName) instMap['name:' + instName.toLowerCase()] = inst;
+
+    // Index all investments within each institution
+    (inst.investments || []).forEach(inv => {
+      const vid = inv._id || inv.id;
+      const invType = (inv.type || inv.name || '').toLowerCase();
+      const invLabel = typeLabels[invType] || inv.name || inv.type || '';
+      const fullLabel = invLabel && instName ? invLabel + ' - ' + instName : invLabel || instName || 'Account';
+      if (vid) {
+        invMap[vid] = { instId: iid, instName, invName: invLabel, fullName: fullLabel, type: invType };
+        // Also index by first portion of colon-separated IDs
+        if (vid.includes(':')) {
+          const prefix = vid.split(':')[0];
+          if (!invMap['prefix:' + prefix]) invMap['prefix:' + prefix] = { instId: iid, instName, invName: invLabel, fullName: fullLabel, type: invType };
         }
-      });
-    }
+      }
+    });
   });
+
+  console.log('[Wealthica] instMap keys:', Object.keys(instMap).filter(k => !k.startsWith('name:')));
+  console.log('[Wealthica] invMap keys:', Object.keys(invMap).filter(k => !k.startsWith('prefix:')));
 
   portfolioData.positions.forEach(pos => {
     const mv = pos.market_value || pos.value || 0;
@@ -1325,52 +1361,82 @@ function processPortfolio() {
     totalValue += mv;
     totalBook += bv;
 
-    // Resolve account name from investment > institution > fallback
     if (pos._accountName) return; // already set (e.g., demo data)
 
-    const investId = typeof pos.investment === 'object' ? (pos.investment?._id || pos.investment?.id) : pos.investment;
-    const instId = typeof pos.institution === 'object' ? (pos.institution?._id || pos.institution?.id) : pos.institution;
+    // Extract IDs — handle both string IDs and embedded objects
+    const investId = typeof pos.investment === 'object' ? (pos.investment?._id || pos.investment?.id || '') : (pos.investment || '');
+    const instId = typeof pos.institution === 'object' ? (pos.institution?._id || pos.institution?.id || '') : (pos.institution || '');
+    const investStr = String(investId);
+    const instStr = String(instId);
 
-    // 1. Direct investment ID match
-    if (investId && invMap[investId]) {
-      pos._accountName = invMap[investId].fullName;
+    // Strategy 1: Direct investment ID match
+    if (investStr && invMap[investStr]) {
+      pos._accountName = invMap[investStr].fullName;
+      return;
     }
-    // 2. Partial investment ID match (match on accountId portion before ':')
-    else if (investId && investId.includes(':') && invMap['partial:' + investId.split(':')[0]]) {
-      pos._accountName = invMap['partial:' + investId.split(':')[0]].fullName;
-    }
-    // 3. Investment ID is actually an institution ID
-    else if (investId && instMap[investId]) {
-      pos._accountName = instMap[investId].name;
-    }
-    // 4. Direct institution ID match
-    else if (instId && instMap[instId]) {
-      pos._accountName = instMap[instId].name;
-    }
-    // 5. Institution string that might be a name
-    else if (pos.institution && typeof pos.institution === 'string') {
-      const byName = instMap['name:' + pos.institution.toLowerCase()];
-      pos._accountName = byName ? byName.name : pos.institution;
-    }
-    // 6. Try all available fields as fallback
-    else {
-      pos._accountName = pos.account_name || pos.accountName || pos.group || '';
-      // If still empty, try to build from investment ID structure
-      if (!pos._accountName && investId) {
-        // Investment ID format: {accountId}:{type}:{currency}
-        const parts = String(investId).split(':');
-        if (parts.length >= 2) {
-          const type = parts[1] || '';
-          // Make the type human-readable
-          const typeLabels = { 'tfsa': 'TFSA', 'rrsp': 'RRSP', 'rrif': 'RRIF', 'lira': 'LIRA', 'resp': 'RESP', 'margin': 'Non-Reg', 'cash': 'Cash', 'individual': 'Non-Reg', 'joint': 'Joint' };
-          pos._accountName = typeLabels[type.toLowerCase()] || type || 'Account';
-        } else {
-          pos._accountName = 'Account';
-        }
+
+    // Strategy 2: Investment ID prefix match (before first colon)
+    if (investStr && investStr.includes(':')) {
+      const prefix = investStr.split(':')[0];
+      if (invMap['prefix:' + prefix]) {
+        pos._accountName = invMap['prefix:' + prefix].fullName;
+        return;
       }
-      if (!pos._accountName) pos._accountName = 'Account';
     }
+
+    // Strategy 3: Investment ID IS an institution ID (Wealthica sometimes does this)
+    if (investStr && instMap[investStr]) {
+      // Parse account type from the investment string if it has colons
+      const inst = instMap[investStr];
+      pos._accountName = inst._resolvedName || inst.name || 'Account';
+      return;
+    }
+
+    // Strategy 4: Parse investment ID format {institutionId}:{type}:{currency}
+    if (investStr && investStr.includes(':')) {
+      const parts = investStr.split(':');
+      const possibleInstId = parts[0];
+      const possibleType = parts.length >= 2 ? parts[1] : '';
+      const typeName = typeLabels[possibleType.toLowerCase()] || possibleType;
+      const instObj = instMap[possibleInstId];
+      if (instObj) {
+        const instLabel = instObj._resolvedName || instObj.name || '';
+        pos._accountName = typeName && instLabel ? typeName + ' - ' + instLabel : typeName || instLabel || 'Account';
+      } else {
+        pos._accountName = typeName || 'Account';
+      }
+      return;
+    }
+
+    // Strategy 5: Direct institution ID match
+    if (instStr && instMap[instStr]) {
+      pos._accountName = instMap[instStr]._resolvedName || instMap[instStr].name || 'Account';
+      return;
+    }
+
+    // Strategy 6: Institution field is a name string
+    if (pos.institution && typeof pos.institution === 'string' && !instMap[pos.institution]) {
+      const byName = instMap['name:' + pos.institution.toLowerCase()];
+      pos._accountName = byName ? (byName.name || pos.institution) : pos.institution;
+      return;
+    }
+
+    // Strategy 7: Use any available fallback fields
+    pos._accountName = pos.account_name || pos.accountName || pos.account || pos.group || '';
+    if (!pos._accountName && investStr) {
+      pos._accountName = investStr.length > 30 ? 'Account' : investStr;
+    }
+    if (!pos._accountName) pos._accountName = 'Account';
   });
+
+  // Log resolved accounts for debugging
+  const acctSummary = {};
+  portfolioData.positions.forEach(p => {
+    const a = p._accountName || 'Account';
+    acctSummary[a] = (acctSummary[a] || 0) + 1;
+  });
+  console.log('[Wealthica] Resolved accounts:', acctSummary);
+
   portfolioData.totalValue = totalValue;
   portfolioData.totalBook = totalBook;
 }
@@ -1653,14 +1719,17 @@ function computeScores() {
   const sectors = {};
   positions.forEach(p => { const sec = inferAssetClass(p); sectors[sec] = (sectors[sec]||0) + (p.market_value||p.value||0); });
   const sectorCount = Object.keys(sectors).length;
-  const sectorScore = Math.min(100, sectorCount * 15);
+  // Sector diversity: diminishing returns — 4 sectors = 60, 6 = 80, 8+ = 95
+  const sectorScore = Math.min(100, Math.round(100 * (1 - Math.exp(-sectorCount * 0.3))));
 
   const regions = {};
   positions.forEach(p => { const r = inferRegion(p); regions[r] = (regions[r]||0) + (p.market_value||p.value||0); });
   const regionCount = Object.keys(regions).filter(r => r !== 'Unknown').length;
-  const regionScore = Math.min(100, regionCount * 30);
+  // Region diversity: 1 = 25, 2 = 50, 3 = 75, 4+ = 90
+  const regionScore = Math.min(100, Math.round(100 * (1 - Math.exp(-regionCount * 0.4))));
 
-  const posCountScore = Math.min(100, uniqueSecurities * 8);
+  // Position count: diminishing returns — 5 = 40, 10 = 65, 15 = 80, 20+ = 90
+  const posCountScore = Math.min(100, Math.round(100 * (1 - Math.exp(-uniqueSecurities * 0.1))));
   const diversification = clamp(Math.round(hhiScore * 0.35 + sectorScore * 0.25 + regionScore * 0.2 + posCountScore * 0.2));
   const diversificationDetail = hhiScore >= 70
     ? uniqueSecurities + ' securities across ' + sectorCount + ' sectors and ' + regionCount + ' regions. Weight distribution is well-balanced.'
@@ -1698,9 +1767,13 @@ function computeScores() {
   const avgReturn = posReturns.reduce((s,r) => s + r, 0) / posReturns.length;
   const winners = posReturns.filter(r => r > 0).length;
   const winRate = (winners / posReturns.length) * 100;
-  const returnScore = clamp(Math.round(50 + totalReturn * 2));
+  // Scoring: 0% return = 50, positive returns scale up, negative scale down
+  // Use log-like scaling to avoid extreme scores: +20% → ~75, +50% → ~85, -10% → ~40
+  const returnScore = clamp(Math.round(50 + Math.sign(totalReturn) * Math.min(45, Math.sqrt(Math.abs(totalReturn)) * 7)));
   const winRateScore = clamp(Math.round(winRate));
-  const consistencyScore = clamp(Math.round(100 - Math.min(80, Math.abs(avgReturn - totalReturn) * 2)));
+  // Consistency: how close individual returns are to average (lower spread = better)
+  const returnSpread = posReturns.length > 1 ? Math.sqrt(posReturns.reduce((s,r) => s + Math.pow(r - avgReturn, 2), 0) / posReturns.length) : 0;
+  const consistencyScore = clamp(Math.round(100 - Math.min(60, returnSpread * 0.8)));
   const performance = clamp(Math.round(returnScore * 0.5 + winRateScore * 0.3 + consistencyScore * 0.2));
   const performanceDetail = totalReturn > 15
     ? 'Strong returns of ' + pct(totalReturn) + ' overall. ' + winners + '/' + posReturns.length + ' positions profitable (' + winRate.toFixed(0) + '% win rate). Average position return: ' + pct(avgReturn) + '.'
@@ -1711,28 +1784,37 @@ function computeScores() {
   // ── 4. Tax Efficiency (0-100) ──
   const accounts = {};
   positions.forEach(p => { const a = p._accountName || ''; accounts[a] = (accounts[a] || []).concat(p); });
-  let taxScore = 70; // base
+  let taxScore = 80; // base — most portfolios are reasonably placed
   const taxIssues = [];
   Object.entries(accounts).forEach(([name, poss]) => {
     const isRRSP = /rrsp|lira|rrif/i.test(name);
     const isTFSA = /tfsa/i.test(name);
-    const isNonReg = !isRRSP && !isTFSA;
+    const isRESP = /resp/i.test(name);
+    const isRegistered = isRRSP || isTFSA || isRESP;
+    const isNonReg = !isRegistered;
     poss.forEach(p => {
       const sym = (p.security?.symbol||p.symbol||'').toUpperCase();
       const cur = p.security?.currency || p.currency || 'CAD';
       const sector = inferAssetClass(p);
+      const mv = p.market_value || p.value || 0;
+      const weight = totalVal > 0 ? mv / totalVal : 0;
+      // Only penalize meaningful positions (>2% of portfolio)
+      if (weight < 0.02) return;
       // US dividends in non-RRSP lose 15% withholding
       if (cur === 'USD' && !isRRSP && (sector.includes('Equity') || sector === 'Financials' || sector === 'Technology' || sector === 'Healthcare')) {
-        taxScore -= 3;
+        taxScore -= 2;
         taxIssues.push(sym + ' (USD dividend payer) in non-RRSP — loses 15% withholding tax');
       }
       // Growth stocks in RRSP instead of TFSA
-      if (isRRSP && sector === 'Crypto') { taxScore -= 5; taxIssues.push(sym + ' in RRSP — crypto growth is better sheltered in TFSA'); }
-      // Unrealized losses in registered accounts (can\'t harvest)
+      if (isRRSP && sector === 'Crypto') { taxScore -= 4; taxIssues.push(sym + ' in RRSP — crypto growth is better sheltered in TFSA'); }
+      // Unrealized losses in registered accounts (can't harvest)
       const gl = (p.market_value||p.value||0) - (p.book_value||0);
-      if (gl < -1000 && !isNonReg) { taxScore -= 2; taxIssues.push(sym + ' has ' + fmt(gl) + ' unrealized loss in registered account — cannot tax-loss harvest'); }
+      if (gl < -2000 && isRegistered && !isNonReg) { taxScore -= 2; taxIssues.push(sym + ' has ' + fmt(gl) + ' unrealized loss in registered account — cannot tax-loss harvest'); }
     });
   });
+  // Bonus: having registered accounts at all
+  const hasRegistered = Object.keys(accounts).some(a => /rrsp|tfsa|resp|lira|fhsa/i.test(a));
+  if (hasRegistered) taxScore += 5;
   const taxEfficiency = clamp(Math.round(taxScore));
   const taxDetail = taxIssues.length === 0
     ? 'No major tax efficiency issues detected. Holdings appear well-placed across account types.'
@@ -2610,9 +2692,12 @@ function computePortfolioStats() {
 
   const riskFreeRate = 0.04; // ~4% (Canadian T-bills)
   const totalBook = filteredPositions.reduce((s,p) => s + (p.book_value || p.market_value || p.value || 0), 0);
-  const portfolioReturn = totalBook > 0 ? (totalVal - totalBook) / totalBook : 0;
+  const cumulativeReturn = totalBook > 0 ? (totalVal - totalBook) / totalBook : 0;
+  // Estimate annualized return — assume ~2 year average holding period if unknown
+  const holdingYears = Math.max(0.5, Math.abs(cumulativeReturn) > 0.5 ? 3 : Math.abs(cumulativeReturn) > 0.2 ? 2 : 1);
+  const portfolioReturn = Math.pow(1 + cumulativeReturn, 1 / holdingYears) - 1;
 
-  // Sharpe Ratio
+  // Sharpe Ratio (annualized return vs annualized vol)
   const sharpe = portfolioVol > 0 ? (portfolioReturn - riskFreeRate) / portfolioVol : 0;
 
   // Standard deviation (annualized)
@@ -2631,10 +2716,10 @@ function computePortfolioStats() {
   const cvar95_1d = var95_1d * 1.4;
   const cvar99_1d = var99_1d * 1.27;
 
-  // Monte Carlo Simulation (simplified)
+  // Monte Carlo Simulation (simplified, using annualized return)
   const mcTrials = 5000;
   const mcHorizon = 252; // 1 year in trading days
-  const dailyReturn = portfolioReturn / 252;
+  const dailyReturn = Math.log(1 + portfolioReturn) / 252; // log return for compounding
   const dailyVol = portfolioVol / Math.sqrt(252);
   const mcResults = [];
   for (let i = 0; i < mcTrials; i++) {
@@ -2776,6 +2861,7 @@ function renderModels() {
 
   // Factor Exposure chart
   const factorEntries = Object.entries(stats.factors).filter(([,v]) => v > 0.01);
+  const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
   makeChart('factor', document.getElementById('factorChart'), {
     type: 'radar',
     data: {
@@ -2783,14 +2869,28 @@ function renderModels() {
       datasets: [{
         label: 'Your Portfolio',
         data: factorEntries.map(e => Math.min(1, e[1])),
-        backgroundColor: 'rgba(59,130,246,0.15)',
-        borderColor: '#3b82f6',
-        borderWidth: 2,
-        pointBackgroundColor: '#3b82f6',
-        pointRadius: 4,
+        backgroundColor: isDark ? 'rgba(59,130,246,0.25)' : 'rgba(37,99,235,0.20)',
+        borderColor: isDark ? '#60a5fa' : '#2563eb',
+        borderWidth: 2.5,
+        pointBackgroundColor: isDark ? '#60a5fa' : '#2563eb',
+        pointBorderColor: isDark ? '#1e293b' : '#ffffff',
+        pointBorderWidth: 2,
+        pointRadius: 5,
       }]
     },
-    options: { responsive: true, plugins: { datalabels: { display: false }, legend: { display: false } }, scales: { r: { beginAtZero: true, max: 1, ticks: { display: false }, grid: { color: 'var(--chart-grid, rgba(148,163,184,0.15))' }, pointLabels: { color: 'var(--text-secondary, #475569)', font: { size: 11 } } } } }
+    options: {
+      responsive: true,
+      plugins: { datalabels: { display: false }, legend: { display: false } },
+      scales: {
+        r: {
+          beginAtZero: true, max: 1,
+          ticks: { display: true, stepSize: 0.25, color: isDark ? '#64748b' : '#94a3b8', font: { size: 9 }, backdropColor: 'transparent' },
+          grid: { color: isDark ? 'rgba(71,85,105,0.4)' : 'rgba(148,163,184,0.3)', lineWidth: 1 },
+          angleLines: { color: isDark ? 'rgba(71,85,105,0.4)' : 'rgba(148,163,184,0.3)' },
+          pointLabels: { color: isDark ? '#e2e8f0' : '#1e293b', font: { size: 12, weight: 600 } },
+        }
+      }
+    }
   });
 
   // Factor analysis text
