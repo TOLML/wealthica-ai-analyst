@@ -1136,15 +1136,13 @@ if (typeof Addon === 'undefined') {
         document.getElementById('apiKeyInput').value = apiKey;
         updateStatus('connected', 'API key loaded');
       }
-      // Hide local group filter — Wealthica dashboard provides its own
-      document.getElementById('groupFilterLabel').style.display = 'none';
-      document.getElementById('groupMultiSelect').style.display = 'none';
       // Sync group filter if Wealthica has one active
       if (options.groupsFilter) {
         const gf = options.groupsFilter;
         selectedGroups = typeof gf === 'string' ? gf.split(',').filter(Boolean) : Array.isArray(gf) ? gf : [];
       }
       loadPortfolio();
+      fetchGroups();
     });
     addon.on('reload', function() { loadPortfolio(); });
     addon.on('update', function(options) {
@@ -1164,39 +1162,58 @@ if (typeof Addon === 'undefined') {
 }
 
 // ─── Groups ──────────────────────────────────────────────────────────────────
+
+// Build groups dynamically from loaded portfolio data (works in both demo and Wealthica mode)
+function buildGroupsFromData() {
+  // If we already have API-fetched groups, don't overwrite
+  if (availableGroups.length > 0) return;
+
+  // Derive groups from _group field on positions (demo data)
+  const groupSet = {};
+  portfolioData.positions.forEach(p => {
+    const gid = p._group;
+    if (gid && !groupSet[gid]) {
+      groupSet[gid] = { _id: gid, name: gid.charAt(0).toUpperCase() + gid.slice(1), _posCount: 0 };
+    }
+    if (gid) groupSet[gid]._posCount++;
+  });
+
+  // If no _group fields, derive from institutions
+  if (Object.keys(groupSet).length === 0) {
+    (portfolioData.institutions || []).forEach(inst => {
+      const iid = inst._id || inst.id || '';
+      const name = inst.name || inst.type || iid;
+      if (iid) groupSet[iid] = { _id: iid, name: name, institutions: [iid] };
+    });
+  }
+
+  const groups = Object.values(groupSet);
+  if (groups.length > 1) {
+    availableGroups = groups;
+    populateGroupFilter();
+  }
+}
+
+// Try fetching real groups from Wealthica API (overrides auto-generated ones)
 async function fetchGroups() {
   if (!addon) return;
+  let groups = null;
   try {
-    // Try fetching groups from the Wealthica API
-    const groups = await addon.request({ method: 'GET', endpoint: 'groups' });
-    if (Array.isArray(groups) && groups.length > 0) {
-      availableGroups = groups;
-      populateGroupFilter();
-      return;
-    }
+    groups = await addon.request({ method: 'GET', endpoint: 'groups' });
   } catch(e) {
-    console.log('Groups endpoint not available, trying alternatives:', e);
+    console.log('Groups endpoint not available, trying user profile:', e);
   }
-  // Fallback: try to get groups from user profile
-  try {
-    const user = await addon.api.getUser();
-    if (user && user.groups && Array.isArray(user.groups) && user.groups.length > 0) {
-      availableGroups = user.groups;
-      populateGroupFilter();
-      return;
+  if (!Array.isArray(groups) || groups.length === 0) {
+    try {
+      const user = await addon.api.getUser();
+      if (user && user.groups && Array.isArray(user.groups)) groups = user.groups;
+    } catch(e) {
+      console.log('User groups not available:', e);
     }
-  } catch(e) {
-    console.log('User groups not available:', e);
   }
-  // Final fallback: try without any query params
-  try {
-    const groups = await addon.request({ method: 'GET', endpoint: 'groups', query: {} });
-    if (Array.isArray(groups) && groups.length > 0) {
-      availableGroups = groups;
-      populateGroupFilter();
-    }
-  } catch(e) {
-    console.log('No groups available:', e);
+  if (Array.isArray(groups) && groups.length > 0) {
+    availableGroups = groups;
+    populateGroupFilter();
   }
 }
 
@@ -1226,8 +1243,12 @@ function populateGroupFilter() {
     cb.onchange = function() { onGroupCheckboxChange(gid, this.checked); };
     item.appendChild(cb);
     item.appendChild(document.createTextNode(name));
-    // Show position count
-    const count = portfolioData.positions.filter(p => p._group === gid).length;
+    // Show position count (check _group field, then institution membership)
+    let count = portfolioData.positions.filter(p => p._group === gid).length;
+    if (count === 0 && g.institutions) {
+      const gInstIds = new Set((g.institutions || []).map(i => typeof i === 'string' ? i : (i._id || i.id)));
+      count = portfolioData.positions.filter(p => gInstIds.has(p.institution) || gInstIds.has(p._institutionId)).length;
+    }
     if (count > 0) {
       const badge = document.createElement('span');
       badge.className = 'ms-count';
@@ -1400,6 +1421,7 @@ async function loadPortfolio() {
     processPortfolio();
     filteredPositions = [...portfolioData.positions];
     populateAccountFilter();
+    buildGroupsFromData();
     renderAllTabs();
     document.getElementById('btnAnalyze').disabled = !apiKey;
     if (portfolioData.positions.length > 0) showToast('Loaded ' + portfolioData.positions.length + ' positions', 'success');
@@ -4208,14 +4230,8 @@ function loadDemoData() {
     totalValue: 0, totalBook: 0,
   };
 
-  // Set up demo groups
-  availableGroups = [
-    { _id: 'lihan', name: 'Lihan', institutions: ['1', '3'] },
-    { _id: 'johan', name: 'Johan', institutions: ['2', '1'] },
-    { _id: 'lara', name: 'Lara', institutions: ['1'] },
-    { _id: 'lindie', name: 'Lindie', institutions: ['1'] },
-  ];
-  populateGroupFilter();
+  // Derive groups dynamically from position _group fields
+  buildGroupsFromData();
 
   let tv = 0, tb = 0;
   portfolioData.positions.forEach(p => { tv += p.market_value || 0; tb += p.book_value || 0; });
