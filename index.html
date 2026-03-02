@@ -575,7 +575,7 @@
     <select id="accountFilter" onchange="applyAccountFilter()">
       <option value="all">All Accounts</option>
     </select>
-    <div class="risk-slider-wrap">
+    <div class="risk-slider-wrap" id="riskSliderWrap" style="display:none">
       <label>Risk Tolerance</label>
       <input type="range" class="risk-slider" id="riskSlider" min="1" max="10" value="5" oninput="onRiskChange()">
       <span class="risk-level-label" id="riskLabel" style="color:var(--yellow)">Moderate</span>
@@ -849,6 +849,12 @@
     </div>
     <div id="factorSection" class="model-section"></div>
     <div class="model-conclusion" id="modelConclusion"></div>
+    <div style="margin-top:20px">
+      <button class="tab-ai-btn" id="aiBtn-models" onclick="runTabAI('models')">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+        AI Risk Model Review</button>
+      <div class="tab-ai-response" id="aiRes-models"></div>
+    </div>
   </section>
 
   <!-- ==================== STRESS TEST TAB ==================== -->
@@ -865,6 +871,12 @@
       <div class="model-desc">Actionable suggestions based on your portfolio's risk profile, stress test results, and quantitative analysis.</div>
     </div>
     <div class="rec-cards" id="riskRecommendations"></div>
+    <div style="margin-top:20px">
+      <button class="tab-ai-btn" id="aiBtn-stresstest" onclick="runTabAI('stresstest')">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+        AI Stress Analysis</button>
+      <div class="tab-ai-response" id="aiRes-stresstest"></div>
+    </div>
   </section>
 
   <!-- ==================== AI ANALYST TAB ==================== -->
@@ -942,6 +954,9 @@ function switchTab(tab) {
   document.querySelectorAll('.tab-btn').forEach(b => {
     if (b.getAttribute('onclick') === "switchTab('" + tab + "')") b.classList.add('active');
   });
+  // Only show risk slider on tabs where it affects output
+  const riskWrap = document.getElementById('riskSliderWrap');
+  if (riskWrap) riskWrap.style.display = ['risk', 'models', 'stresstest'].includes(tab) ? '' : 'none';
   renderActiveTab();
 }
 
@@ -1300,38 +1315,57 @@ function applyDemoGroupFilter() {
   if (selectedGroups.length === 0) {
     filteredPositions = [...portfolioData.positions];
   } else {
-    // Collect institution IDs and names from selected groups
-    const instIds = new Set();
-    const instNames = new Set();
-    selectedGroups.forEach(gid => {
-      const group = availableGroups.find(g => (g._id || g.id) === gid);
-      if (group && group.institutions) {
-        group.institutions.forEach(i => {
-          const iid = typeof i === 'string' ? i : (i._id || i.id);
-          instIds.add(iid);
-        });
-      }
-    });
-    portfolioData.institutions.forEach(inst => {
-      if (instIds.has(inst._id) || instIds.has(inst.id)) {
-        instNames.add(inst.name);
-      }
-    });
-    filteredPositions = portfolioData.positions.filter(p => {
-      const acct = p._accountName || '';
-      // Check if any institution name appears in the account name
-      for (const name of instNames) {
-        if (acct.toLowerCase().includes(name.toLowerCase())) return true;
-      }
-      // Also check _group field if set
-      if (p._group && selectedGroups.includes(p._group)) return true;
-      return false;
-    });
+    // Primary: filter by _group field (set on demo positions)
+    const hasGroupField = portfolioData.positions.some(p => p._group);
+    if (hasGroupField) {
+      filteredPositions = portfolioData.positions.filter(p => p._group && selectedGroups.includes(p._group));
+    } else {
+      // Fallback for live data without _group: match by institution name
+      const instIds = new Set();
+      const instNames = new Set();
+      selectedGroups.forEach(gid => {
+        const group = availableGroups.find(g => (g._id || g.id) === gid);
+        if (group && group.institutions) {
+          group.institutions.forEach(i => {
+            const iid = typeof i === 'string' ? i : (i._id || i.id);
+            instIds.add(iid);
+          });
+        }
+      });
+      portfolioData.institutions.forEach(inst => {
+        if (instIds.has(inst._id) || instIds.has(inst.id)) {
+          instNames.add(inst.name);
+        }
+      });
+      filteredPositions = portfolioData.positions.filter(p => {
+        const acct = p._accountName || '';
+        for (const name of instNames) {
+          if (acct.toLowerCase().includes(name.toLowerCase())) return true;
+        }
+        return false;
+      });
+    }
   }
+  // Regenerate demo history based on filtered positions
+  regenerateDemoHistory();
   // Reset account filter
   document.getElementById('accountFilter').value = 'all';
   populateAccountFilter();
   renderAllTabs();
+}
+
+function regenerateDemoHistory() {
+  const tv = filteredPositions.reduce((s,p) => s + (p.market_value || p.value || 0), 0);
+  portfolioHistory = [];
+  const now = new Date();
+  const startValue = tv * 0.65;
+  for (let i = 24; i >= 0; i--) {
+    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    const progress = (24 - i) / 24;
+    const noise = 1 + (Math.sin(i * 1.3) * 0.04) + (Math.cos(i * 0.7) * 0.02);
+    const val = startValue + (tv - startValue) * progress * noise;
+    portfolioHistory.push({ date: d.toISOString().split('T')[0], value: Math.round(val) });
+  }
 }
 
 // ─── Portfolio Loading ───────────────────────────────────────────────────────
@@ -1388,21 +1422,28 @@ async function fetchHistory(query) {
         console.log('History fallback also failed:', e2);
       }
     }
+    let arr = [];
     if (Array.isArray(history) && history.length > 0) {
-      portfolioHistory = history;
-      console.log('[Wealthica] History loaded:', history.length, 'points. Sample:', JSON.stringify(history.slice(0,2)));
-      if (activeTab === 'performance') renderHistoryChart();
+      arr = history;
     } else if (history && typeof history === 'object' && !Array.isArray(history)) {
-      // History might be an object with a results/data array
-      const arr = history.results || history.data || history.history || [];
-      if (arr.length > 0) {
-        portfolioHistory = arr;
-        console.log('[Wealthica] History (nested) loaded:', arr.length, 'points');
-        if (activeTab === 'performance') renderHistoryChart();
-      } else {
-        console.log('[Wealthica] History response format:', Object.keys(history));
-        portfolioHistory = [];
-      }
+      arr = history.results || history.data || history.history || [];
+      if (arr.length === 0) console.log('[Wealthica] History response format:', Object.keys(history));
+    }
+    if (arr.length > 0) {
+      // Normalize: ensure each entry has a total value (aggregate investments if needed)
+      portfolioHistory = arr.map(h => {
+        const date = h.date || h.d || '';
+        let value = h.value || h.v || h.equity || 0;
+        // If entry has investments object, sum all investment values for total
+        if (h.investments && typeof h.investments === 'object' && !value) {
+          value = Object.values(h.investments).reduce((s, inv) => {
+            return s + (typeof inv === 'number' ? inv : (inv.value || inv.market_value || inv.equity || 0));
+          }, 0);
+        }
+        return { date, value };
+      }).filter(h => h.date);
+      console.log('[Wealthica] History loaded:', portfolioHistory.length, 'points. Sample:', JSON.stringify(portfolioHistory.slice(0,2)));
+      if (activeTab === 'performance') renderHistoryChart();
     } else {
       console.log('[Wealthica] No history data returned');
       portfolioHistory = [];
@@ -1603,6 +1644,7 @@ function applyAccountFilter() {
   } else {
     filteredPositions = portfolioData.positions.filter(p => (p._accountName || 'Account') === val);
   }
+  if (!addon) regenerateDemoHistory();
   renderAllTabs();
 }
 
@@ -1788,7 +1830,7 @@ function inferEquitySector(sym, name, category) {
 
 // ─── Scoring System ──────────────────────────────────────────────────────────
 function computeScores() {
-  const positions = filteredPositions;
+  const positions = aggregatePositions(filteredPositions);
   const totalVal = positions.reduce((s,p) => s + (p.market_value || p.value || 0), 0);
   if (!positions.length || !totalVal) return emptyScores();
 
@@ -1881,8 +1923,9 @@ function computeScores() {
     : 'Negative returns of ' + pct(totalReturn) + '. ' + (posReturns.length - winners) + ' positions with unrealized losses. Review thesis for each loser — harvest tax losses or average down if conviction remains.';
 
   // ── 4. Tax Efficiency (0-100) ──
+  // Tax scoring needs per-account data (not aggregated) to check account placement
   const accounts = {};
-  positions.forEach(p => { const a = p._accountName || ''; accounts[a] = (accounts[a] || []).concat(p); });
+  filteredPositions.forEach(p => { const a = p._accountName || ''; accounts[a] = (accounts[a] || []).concat(p); });
   let taxScore = 80; // base — most portfolios are reasonably placed
   const taxIssues = [];
   Object.entries(accounts).forEach(([name, poss]) => {
@@ -2097,7 +2140,7 @@ function renderSummary() {
   if (scores.taxIssues.length > 0) insights.push({ color: 'var(--yellow)', text: '<strong>' + scores.taxIssues.length + ' tax issue(s):</strong> ' + scores.taxIssues[0] });
   if (scores.sectorCount < 4) insights.push({ color: 'var(--yellow)', text: '<strong>Limited sectors:</strong> Only ' + scores.sectorCount + ' sectors. Consider broad-market ETFs for more diversification.' });
   if (scores.regionCount >= 3 && scores.homeBias <= 60) insights.push({ color: 'var(--green)', text: '<strong>Good geographic spread:</strong> ' + scores.regionCount + ' regions represented with no excessive home bias.' });
-  if (filteredPositions.length >= 10 && scores.diversification >= 60) insights.push({ color: 'var(--green)', text: '<strong>Well diversified:</strong> ' + scores.uniqueSecurities + ' unique securities across ' + scores.sectorCount + ' sectors.' });
+  if (scores.uniqueSecurities >= 10 && scores.diversification >= 60) insights.push({ color: 'var(--green)', text: '<strong>Well diversified:</strong> ' + scores.uniqueSecurities + ' unique securities across ' + scores.sectorCount + ' sectors.' });
 
   const insightsPanel = document.getElementById('insightsPanel');
   const insightsList = document.getElementById('insightsList');
@@ -2173,8 +2216,8 @@ function aggregatePositions(positions) {
         _accounts: [],
       };
     }
-    map[sym].market_value += (p.market_value || p.value || 0);
-    map[sym].book_value += (p.book_value || p.market_value || p.value || 0);
+    map[sym].market_value += (p.market_value != null ? p.market_value : (p.value || 0));
+    map[sym].book_value += (p.book_value != null ? p.book_value : (p.market_value || p.value || 0));
     map[sym].quantity += (p.quantity || 0);
     const acct = p._accountName || '';
     if (acct && !map[sym]._accounts.includes(acct)) map[sym]._accounts.push(acct);
@@ -2190,7 +2233,7 @@ function renderHoldingsTab() {
   let sorted = [...aggregated];
   switch(sortBy) {
     case 'value': sorted.sort((a,b) => (b.market_value||b.value||0) - (a.market_value||a.value||0)); break;
-    case 'gainloss': sorted.sort((a,b) => ((b.market_value||b.value||0)-(b.book_value||0)) - ((a.market_value||a.value||0)-(a.book_value||0))); break;
+    case 'gainloss': sorted.sort((a,b) => ((b.market_value||b.value||0)-(b.book_value||(b.market_value||b.value||0))) - ((a.market_value||a.value||0)-(a.book_value||(a.market_value||a.value||0)))); break;
     case 'return': sorted.sort((a,b) => { const ra = a.book_value ? ((a.market_value||a.value||0)-a.book_value)/a.book_value : 0; const rb = b.book_value ? ((b.market_value||b.value||0)-b.book_value)/b.book_value : 0; return rb - ra; }); break;
     case 'weight': sorted.sort((a,b) => (b.market_value||b.value||0) - (a.market_value||a.value||0)); break;
     case 'name': sorted.sort((a,b) => ((a.security?.symbol||a.symbol||'') ).localeCompare(b.security?.symbol||b.symbol||'')); break;
@@ -2336,7 +2379,11 @@ function renderBenchmarkComparison(portfolioReturn) {
     acctPerf[a].bv += (p.book_value || p.market_value || p.value || 0);
   });
 
-  const winners = aggregated.filter(p => (p.market_value||p.value||0) > (p.book_value||(p.market_value||p.value||0))).length;
+  const winners = aggregated.filter(p => {
+    const mv = p.market_value || p.value || 0;
+    const bv = p.book_value != null ? p.book_value : mv;
+    return mv > bv;
+  }).length;
   const losers = aggregated.length - winners;
 
   const grid = document.getElementById('benchmarkGrid');
@@ -2480,9 +2527,10 @@ function renderRisk() {
 
 // ─── Region Tab ──────────────────────────────────────────────────────────────
 function renderRegion() {
-  const totalVal = filteredPositions.reduce((s,p) => s + (p.market_value || p.value || 0), 0);
+  const regionAgg = aggregatePositions(filteredPositions);
+  const totalVal = regionAgg.reduce((s,p) => s + (p.market_value || p.value || 0), 0);
   const regionMap = {}, currencyMap = {};
-  filteredPositions.forEach(p => {
+  regionAgg.forEach(p => {
     const r = inferRegion(p);
     regionMap[r] = (regionMap[r]||0) + (p.market_value||p.value||0);
     const c = p.security?.currency || p.currency || 'CAD';
@@ -2510,7 +2558,7 @@ function renderRegion() {
   regionDiv.innerHTML = '';
   regionEntries.forEach(([name, value]) => {
     const pctVal = totalVal > 0 ? (value/totalVal*100) : 0;
-    const posCount = filteredPositions.filter(p => inferRegion(p) === name).length;
+    const posCount = regionAgg.filter(p => inferRegion(p) === name).length;
     const d = document.createElement('div');
     d.className = 'region-card';
     d.innerHTML = '<div class="rc-name">' + escapeHtml(name) + '</div><div class="rc-pct">' + pctVal.toFixed(1) + '%</div><div class="rc-value">' + fmt(value) + ' · ' + posCount + ' position' + (posCount!==1?'s':'') + '</div><div class="rc-bar"><div class="rc-bar-fill" style="width:' + pctVal + '%;background:' + (regionColors[name]||'#6366f1') + '"></div></div>';
@@ -2520,9 +2568,10 @@ function renderRegion() {
 
 // ─── Sectors Tab ─────────────────────────────────────────────────────────────
 function renderSectors() {
-  const totalVal = filteredPositions.reduce((s,p) => s + (p.market_value || p.value || 0), 0);
+  const sectorAgg = aggregatePositions(filteredPositions);
+  const totalVal = sectorAgg.reduce((s,p) => s + (p.market_value || p.value || 0), 0);
   const sectorMap = {};
-  filteredPositions.forEach(p => {
+  sectorAgg.forEach(p => {
     const sec = inferAssetClass(p);
     if (!sectorMap[sec]) sectorMap[sec] = { value: 0, count: 0, positions: [] };
     sectorMap[sec].value += (p.market_value || p.value || 0);
@@ -2573,11 +2622,12 @@ function estimateYield(pos) {
 }
 
 function renderDividends() {
-  const totalVal = filteredPositions.reduce((s,p) => s + (p.market_value || p.value || 0), 0);
+  const divAgg = aggregatePositions(filteredPositions);
+  const totalVal = divAgg.reduce((s,p) => s + (p.market_value || p.value || 0), 0);
   const scores = computeScores();
 
   // Classify all positions with estimated yield
-  const allPositions = filteredPositions.map(p => {
+  const allPositions = divAgg.map(p => {
     const sector = inferAssetClass(p);
     const mv = p.market_value || p.value || 0;
     const estYield = estimateYield(p);
@@ -3285,13 +3335,14 @@ function renderRiskRecommendations(stats, scenarioResults, sectorWeights) {
 
 // ─── Small & Big Moves Generator ─────────────────────────────────────────────
 function generateMoves() {
-  const totalVal = filteredPositions.reduce((s,p) => s + (p.market_value || p.value || 0), 0);
-  if (!totalVal || filteredPositions.length === 0) return;
+  const movesAgg = aggregatePositions(filteredPositions);
+  const totalVal = movesAgg.reduce((s,p) => s + (p.market_value || p.value || 0), 0);
+  if (!totalVal || movesAgg.length === 0) return;
   const scores = computeScores();
   const smallMoves = [], bigMoves = [];
 
-  // Analyze positions
-  const sorted = [...filteredPositions].sort((a,b) => (b.market_value||b.value||0) - (a.market_value||a.value||0));
+  // Analyze positions (aggregated)
+  const sorted = [...movesAgg].sort((a,b) => (b.market_value||b.value||0) - (a.market_value||a.value||0));
   const weights = sorted.map(p => ({ sym: p.security?.symbol||p.symbol||'?', w: (p.market_value||p.value||0)/totalVal*100, mv: p.market_value||p.value||0, bv: p.book_value||0, name: p.security?.name||'' }));
 
   // Small moves based on risk tolerance
@@ -3303,15 +3354,17 @@ function generateMoves() {
     }
   });
 
-  // Losses for tax-loss harvesting
-  const losses = sorted.filter(p => (p.book_value||0) > (p.market_value||p.value||0)).map(p => ({ sym: p.security?.symbol||p.symbol, loss: (p.market_value||p.value||0) - p.book_value, acct: p._accountName||'' }));
-  losses.filter(l => !l.acct.includes('TFSA') && !l.acct.includes('RRSP')).forEach(l => {
+  // Losses for tax-loss harvesting (use per-account data for account type check)
+  const losses = filteredPositions.filter(p => (p.book_value||0) > (p.market_value||p.value||0)).map(p => ({ sym: p.security?.symbol||p.symbol, loss: (p.market_value||p.value||0) - p.book_value, acct: p._accountName||'' }));
+  // Deduplicate: only suggest once per symbol
+  const seenLossSym = new Set();
+  losses.filter(l => !l.acct.includes('TFSA') && !l.acct.includes('RRSP')).filter(l => { if (seenLossSym.has(l.sym)) return false; seenLossSym.add(l.sym); return true; }).forEach(l => {
     smallMoves.push({ title: 'Tax-loss harvest ' + l.sym, desc: 'Unrealized loss of ' + fmt(l.loss) + ' in taxable account. Sell and re-buy similar ETF after 30 days.', impact: 'Potential tax savings of ' + fmt(Math.abs(l.loss) * 0.25), color: 'var(--green)' });
   });
 
   // Big moves
   const regionMap = {};
-  filteredPositions.forEach(p => {
+  movesAgg.forEach(p => {
     const r = inferRegion(p);
     regionMap[r] = (regionMap[r]||0) + (p.market_value||p.value||0);
   });
@@ -3321,10 +3374,10 @@ function generateMoves() {
     if (r === 'United States' && pctVal > 70) bigMoves.push({ title: 'Add international exposure', desc: 'US-heavy at ' + pctVal.toFixed(1) + '%. Consider emerging markets or developed international ETFs.', impact: 'Broader geographic coverage' });
   });
 
-  if (filteredPositions.length < 8 && riskTolerance <= 5) bigMoves.push({ title: 'Increase diversification', desc: 'Only ' + filteredPositions.length + ' positions. Consider all-in-one ETFs like XEQT or VGRO for instant diversification.', impact: 'Reduces single-stock risk significantly' });
+  if (movesAgg.length < 8 && riskTolerance <= 5) bigMoves.push({ title: 'Increase diversification', desc: 'Only ' + movesAgg.length + ' holdings. Consider all-in-one ETFs like XEQT or VGRO for instant diversification.', impact: 'Reduces single-stock risk significantly' });
 
   const sectorMap = {};
-  filteredPositions.forEach(p => { const s = inferAssetClass(p); sectorMap[s] = (sectorMap[s]||0) + (p.market_value||p.value||0); });
+  movesAgg.forEach(p => { const s = inferAssetClass(p); sectorMap[s] = (sectorMap[s]||0) + (p.market_value||p.value||0); });
   const hasBonds = sectorMap['Fixed Income'] || 0;
   if (riskTolerance <= 4 && hasBonds/totalVal < 0.1) bigMoves.push({ title: 'Add fixed income allocation', desc: 'Conservative risk profile but less than 10% in bonds. Consider bond ETFs like XBB.TO or ZAG.TO.', impact: 'Reduces portfolio volatility' });
   if (riskTolerance >= 7 && hasBonds/totalVal > 0.3) bigMoves.push({ title: 'Reduce bond allocation', desc: 'Aggressive risk profile but ' + ((hasBonds/totalVal)*100).toFixed(0) + '% in bonds. May be limiting growth potential.', impact: 'Higher expected returns' });
@@ -3357,8 +3410,9 @@ async function ratePositions() {
   btn.disabled = true;
   btn.innerHTML = '<span class="spinner"></span> Rating positions...';
 
-  const totalVal = filteredPositions.reduce((s,p) => s + (p.market_value || p.value || 0), 0);
-  const positionList = filteredPositions.map(p => {
+  const rateAgg = aggregatePositions(filteredPositions);
+  const totalVal = rateAgg.reduce((s,p) => s + (p.market_value || p.value || 0), 0);
+  const positionList = rateAgg.map(p => {
     const mv = p.market_value || p.value || 0;
     const bv = p.book_value || mv;
     return {
@@ -3368,7 +3422,7 @@ async function ratePositions() {
       book_value: Math.round(bv*100)/100,
       weight_pct: totalVal > 0 ? Math.round(mv/totalVal*10000)/100 : 0,
       return_pct: bv > 0 ? Math.round((mv-bv)/bv*10000)/100 : 0,
-      account: p._accountName || 'Unknown',
+      accounts: (p._accounts || [p._accountName || 'Unknown']).join(', '),
       type: p.security?.type || '',
       currency: p.security?.currency || p.currency || 'CAD',
     };
@@ -3797,11 +3851,12 @@ function renderFeeAnalysis() {
   const gridEl = document.getElementById('feesGrid');
   if (!summaryEl || !gridEl) return;
 
-  const totalVal = filteredPositions.reduce((s,p) => s + (p.market_value||p.value||0), 0);
+  const feeAgg = aggregatePositions(filteredPositions);
+  const totalVal = feeAgg.reduce((s,p) => s + (p.market_value||p.value||0), 0);
   let totalFees = 0, etfCount = 0, noFeeCount = 0;
   const feePositions = [];
 
-  filteredPositions.forEach(p => {
+  feeAgg.forEach(p => {
     const sym = (p.security?.symbol || p.symbol || '').toUpperCase();
     const mv = p.market_value || p.value || 0;
     const mer = ETF_MERS[sym];
@@ -3852,14 +3907,15 @@ function renderDivCalendar() {
   const calEl = document.getElementById('divCalendar');
   if (!calEl) return;
 
-  const totalVal = filteredPositions.reduce((s,p) => s + (p.market_value||p.value||0), 0);
+  const calAgg = aggregatePositions(filteredPositions);
+  const totalVal = calAgg.reduce((s,p) => s + (p.market_value||p.value||0), 0);
   const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
   const monthlyIncome = new Array(12).fill(0);
   const monthlyCount = new Array(12).fill(0);
 
   // Quarterly dividend payers pay in Mar/Jun/Sep/Dec by default
   // Monthly payers pay every month
-  filteredPositions.forEach(p => {
+  calAgg.forEach(p => {
     const sym = (p.security?.symbol || p.symbol || '').toUpperCase();
     const mv = p.market_value || p.value || 0;
     const yld = estimateYield(p);
@@ -4026,6 +4082,8 @@ const TAB_AI_PROMPTS = {
   sectors: 'Review the sector allocation. Which sectors are overweight/underweight vs the broad market? Are there any sector-specific risks? Suggest specific rebalancing trades.',
   dividends: 'Analyze the dividend and income characteristics. Estimate the annual income. Which positions contribute most to income? How can income be improved while maintaining growth?',
   tax: 'Review the tax efficiency. Are US dividend payers in RRSP? Are growth assets in TFSA? Identify specific tax-loss harvesting opportunities and account placement improvements.',
+  models: 'Analyze the quantitative risk metrics. Interpret the VaR, Sharpe ratio, beta, and volatility numbers. Is the risk-adjusted return acceptable? What specific portfolio adjustments would improve the Sharpe ratio or reduce tail risk?',
+  stresstest: 'Based on the portfolio composition and stress test scenarios, which historical crisis poses the greatest threat? What hedging strategies or defensive positions should be considered? Suggest specific ETFs or asset allocation changes to improve resilience.',
 };
 
 async function runTabAI(tab) {
