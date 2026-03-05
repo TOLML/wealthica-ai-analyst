@@ -112,6 +112,17 @@
   .settings-panel input:focus { border-color: var(--accent); }
   .settings-panel .hint { font-size: 12px; color: var(--text-muted); margin-top: 8px; line-height: 1.5; }
   .settings-panel .hint a { color: var(--accent); text-decoration: none; }
+  .investor-profile-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 8px; }
+  .profile-field { display: flex; flex-direction: column; gap: 4px; }
+  .profile-label { font-size: 11px; color: var(--text-muted); font-weight: 500; }
+  .profile-field input, .profile-field select { background: var(--bg-primary); border: 1px solid var(--border); color: var(--text-primary); padding: 8px 10px; border-radius: 8px; font-family: inherit; font-size: 13px; outline: none; }
+  .profile-field input:focus, .profile-field select:focus { border-color: var(--accent); }
+  .follow-up-area { display: none; margin-top: 16px; }
+  .follow-up-area.visible { display: flex; gap: 8px; }
+  .follow-up-area input { flex: 1; background: var(--bg-primary); border: 1px solid var(--border); color: var(--text-primary); padding: 10px 14px; border-radius: 8px; font-family: inherit; font-size: 13px; outline: none; }
+  .follow-up-area input:focus { border-color: var(--accent); }
+  .follow-up-area button { white-space: nowrap; }
+  .ai-disclaimer { font-size: 11px; color: var(--text-muted); text-align: center; margin-top: 12px; padding: 8px 16px; background: var(--bg-secondary); border-radius: 8px; line-height: 1.5; }
 
   /* Tab Navigation */
   .tab-nav { display: flex; gap: 2px; margin-bottom: 20px; border-bottom: 1px solid var(--border); overflow-x: auto; -webkit-overflow-scrolling: touch; scrollbar-width: none; }
@@ -540,12 +551,64 @@
     <label>Anthropic API Key</label>
     <div class="input-row">
       <input type="password" id="apiKeyInput" placeholder="sk-ant-api03-..." autocomplete="off" />
-      <button class="btn-primary" onclick="saveApiKey()">Save</button>
+      <button class="btn-primary" onclick="saveSettings()">Save</button>
     </div>
     <div class="hint">
       Your key is stored in Wealthica's add-on data (tied to your account). Get a key from
       <a href="https://console.anthropic.com/settings/keys" target="_blank">console.anthropic.com</a>.
       <br>API calls are billed to your Anthropic account. Each analysis uses ~2-3K tokens.
+    </div>
+    <div style="margin-top:12px;">
+      <label>Claude Model</label>
+      <select id="modelSelect" class="prompt-select" style="width:100%;margin-top:4px;">
+        <option value="claude-sonnet-4-20250514">Claude Sonnet 4 (recommended)</option>
+        <option value="claude-opus-4-20250514">Claude Opus 4 (most capable)</option>
+        <option value="claude-haiku-4-20250514">Claude Haiku 4 (fastest)</option>
+      </select>
+    </div>
+    <hr style="border:none;border-top:1px solid var(--border);margin:16px 0;">
+    <label>Investor Profile <span style="font-weight:400;text-transform:none;letter-spacing:0">(helps the AI give personalized advice)</span></label>
+    <div class="investor-profile-grid">
+      <div class="profile-field">
+        <span class="profile-label">Age</span>
+        <input type="number" id="investorAge" placeholder="e.g. 35" min="18" max="100" />
+      </div>
+      <div class="profile-field">
+        <span class="profile-label">Goal</span>
+        <select id="investorGoal">
+          <option value="">Select...</option>
+          <option value="retirement">Retirement</option>
+          <option value="growth">Long-term Growth</option>
+          <option value="income">Income / Dividends</option>
+          <option value="preservation">Capital Preservation</option>
+          <option value="house">Save for a Home</option>
+          <option value="education">Education (RESP)</option>
+          <option value="fire">Financial Independence (FIRE)</option>
+          <option value="other">Other</option>
+        </select>
+      </div>
+      <div class="profile-field">
+        <span class="profile-label">Timeline</span>
+        <select id="investorTimeline">
+          <option value="">Select...</option>
+          <option value="1-3">1-3 years</option>
+          <option value="3-5">3-5 years</option>
+          <option value="5-10">5-10 years</option>
+          <option value="10-20">10-20 years</option>
+          <option value="20+">20+ years</option>
+        </select>
+      </div>
+      <div class="profile-field">
+        <span class="profile-label">Annual Income</span>
+        <select id="investorIncome">
+          <option value="">Select...</option>
+          <option value="under-50k">Under $50K</option>
+          <option value="50-100k">$50K - $100K</option>
+          <option value="100-150k">$100K - $150K</option>
+          <option value="150-250k">$150K - $250K</option>
+          <option value="250k+">$250K+</option>
+        </select>
+      </div>
     </div>
   </div>
 
@@ -558,7 +621,7 @@
     <button class="tab-btn" onclick="switchTab('risk')">Risk</button>
     <button class="tab-btn" onclick="switchTab('region')">Region</button>
     <button class="tab-btn" onclick="switchTab('models')">Risk Models</button>
-    <button class="tab-btn" onclick="switchTab('ai')">AI Analyst</button>
+    <button class="tab-btn" onclick="switchTab('ai')">AI Planner</button>
   </nav>
 
   <!-- Filter Bar -->
@@ -818,31 +881,44 @@
     <div class="analysis-header">
       <h2>
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>
-        AI Analysis
+        AI Financial Planner
       </h2>
       <div class="analysis-actions">
         <select class="prompt-select" id="promptSelect" onchange="onPromptChange()">
-          <option value="full">Full Analysis</option>
-          <option value="risk">Concentration &amp; Risk</option>
-          <option value="tax">Tax Optimization (Canadian)</option>
-          <option value="rebalance">Rebalancing Suggestions</option>
-          <option value="income">Income &amp; Dividends</option>
-          <option value="custom">Custom Question...</option>
+          <option value="full">Full Financial Plan</option>
+          <option value="risk">Risk Assessment</option>
+          <option value="tax">Tax Strategy (Canadian)</option>
+          <option value="rebalance">Rebalancing Plan</option>
+          <option value="income">Income Strategy</option>
+          <option value="retirement">Retirement Readiness</option>
+          <option value="goalplan">Goal Planning</option>
+          <option value="custom">Ask Your Planner...</option>
         </select>
         <button class="btn-primary" id="btnAnalyze" onclick="runAnalysis()" disabled>
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polygon points="5 3 19 12 5 21 5 3"/></svg>
-          Analyze
+          Get Advice
         </button>
       </div>
     </div>
     <div class="custom-prompt-area" id="customPromptArea">
-      <textarea id="customPrompt" placeholder="Ask anything about your portfolio... e.g. 'What is my exposure to US tech stocks?' or 'How should I rebalance for retirement in 20 years?'"></textarea>
+      <textarea id="customPrompt" placeholder="Ask your financial planner anything... e.g. 'Am I saving enough for retirement?' or 'Should I move my US stocks to my RRSP?'"></textarea>
     </div>
     <div class="ai-response" id="aiResponse">
       <div class="placeholder">
         <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1"><circle cx="12" cy="12" r="10"/><path d="M8 12h8M12 8v8"/></svg>
-        <br>Load your portfolio data, then click <strong>Analyze</strong> to get AI-powered insights.
+        <br>Load your portfolio data, then click <strong>Get Advice</strong> for personalized financial planning.
+        <br><span style="font-size:12px;color:var(--text-muted);margin-top:4px;display:inline-block;">Tip: Set your investor profile in Settings for more personalized advice.</span>
       </div>
+    </div>
+    <div class="follow-up-area" id="followUpArea">
+      <input type="text" id="followUpInput" placeholder="Ask a follow-up question..." onkeydown="if(event.key==='Enter')sendFollowUp()" />
+      <button class="btn-primary" onclick="sendFollowUp()">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+        Follow Up
+      </button>
+    </div>
+    <div class="ai-disclaimer">
+      AI can make mistakes. This is not financial advice and should not replace a qualified financial planner. Use these suggestions as a starting point for your own research and decision-making.
     </div>
   </section>
 </div>
@@ -866,17 +942,22 @@ let activeDateRange = 'all';
 let holdingsView = 'cards';
 let portfolioHistory = [];
 let aiResponseCache = {};
+let conversationHistory = [];
+let lastSystemPrompt = '';
 const charts = {};
+function getSelectedModel() { return document.getElementById('modelSelect')?.value || 'claude-sonnet-4-20250514'; }
 
 const CHART_COLORS = ['#3b82f6','#a855f7','#22c55e','#f59e0b','#ef4444','#06b6d4','#ec4899','#f97316','#14b8a6','#6366f1','#84cc16','#f43f5e'];
 
 // ─── Prompt Templates ────────────────────────────────────────────────────────
 const PROMPTS = {
-  full: `You are a senior portfolio analyst. Analyze this Canadian investor's portfolio and provide:\n\n1. **Portfolio Overview** — Total value, number of positions, asset class breakdown\n2. **Concentration Risk** — Any single positions >10% of portfolio, sector concentration\n3. **Geographic Exposure** — Canadian vs US vs International allocation\n4. **Account Type Optimization** — Are holdings in the right account types (RRSP/TFSA/Non-reg) for tax efficiency?\n5. **Key Risks** — What are the top 3 risks in this portfolio?\n6. **Suggestions** — 3-5 actionable rebalancing suggestions\n\nUse CAD as the default currency. Be specific with numbers and percentages. Format with markdown headers and bullet points.`,
-  risk: `You are a risk analyst. Analyze this portfolio for concentration and risk:\n\n1. **Single Stock Concentration** — Flag any position >5% of total portfolio\n2. **Sector Exposure** — Identify sector tilts vs broad market\n3. **Correlation Risk** — Which holdings are likely highly correlated?\n4. **Downside Scenarios** — What happens if the top 3 holdings drop 30%?\n5. **Diversification Score** — Rate the portfolio's diversification 1-10\n\nBe specific with dollar amounts and percentages. Use CAD.`,
-  tax: `You are a Canadian tax optimization specialist. Analyze this portfolio for tax efficiency:\n\n1. **Account Placement** — Are US dividend payers in RRSP (withholding tax advantage)? Are growth stocks in TFSA?\n2. **Tax-Loss Harvesting** — Any positions with unrealized losses that could be harvested?\n3. **Capital Gains Exposure** — Large unrealized gains that may create future tax events?\n4. **TFSA Optimization** — Is the TFSA being used for highest-growth assets?\n5. **Recommendations** — Specific moves to improve after-tax returns\n\nReference Canadian tax rules. Be specific with numbers.`,
-  rebalance: `You are a portfolio manager. Suggest specific rebalancing moves:\n\n1. **Current Allocation** — Break down by asset class, geography, and sector\n2. **Target vs Actual** — Assuming a balanced growth portfolio, what's over/underweight?\n3. **Specific Trades** — List exact positions to trim or add to\n4. **Priority Order** — Which changes have the highest impact?\n5. **Implementation** — Which accounts should each trade happen in?\n\nBe specific and actionable. Use CAD amounts.`,
-  income: `You are a dividend and income analyst. Analyze this portfolio's income characteristics:\n\n1. **Estimated Annual Dividends** — By position and total\n2. **Yield Analysis** — Portfolio yield vs benchmark\n3. **Dividend Safety** — Any positions with at-risk dividends?\n4. **Growth vs Income** — Current balance and recommendations\n5. **Tax-Efficient Income** — Which account types hold which income producers?\n\nUse CAD. Be specific with dollar amounts.`,
+  full: `You are a certified financial planner (CFP) advising a Canadian client. Based on their portfolio, investor profile, and portfolio health scores, provide a comprehensive financial plan:\n\n1. **Your Portfolio at a Glance** — Summarize their current position (value, gains/losses, health score) in plain language\n2. **What You're Doing Well** — Acknowledge strengths before suggesting changes\n3. **Key Concerns** — The 2-3 most important issues to address, ranked by impact\n4. **My Recommendations** — A prioritized action plan with specific trades, amounts, and which accounts to use\n5. **Next Steps** — What to do this month, this quarter, and this year\n\nSpeak directly to the client using "you/your". Be warm but direct. Use CAD. Ground advice in their specific goals and timeline.`,
+  risk: `You are a certified financial planner reviewing your client's risk exposure. Based on their portfolio and health scores:\n\n1. **Risk Summary** — Explain their risk level in plain language (not just numbers)\n2. **Concentration Risks** — Flag any positions that are too large and what that means for them\n3. **What Could Go Wrong** — 2-3 realistic scenarios and estimated dollar impact\n4. **Is This Right for You?** — Does the risk level match their stated goals and timeline?\n5. **How to Reduce Risk** — Specific, prioritized trades to improve risk-adjusted returns\n\nSpeak directly to the client. Be honest about risks without being alarmist. Use CAD.`,
+  tax: `You are a Canadian financial planner specializing in tax-efficient investing. Review this client's portfolio:\n\n1. **Tax Efficiency Check** — How well are their holdings placed across account types?\n2. **Quick Wins** — Moves that could save tax immediately (account swaps, loss harvesting)\n3. **RRSP vs TFSA Strategy** — Are they using each account optimally for their income level and goals?\n4. **Capital Gains Planning** — Upcoming tax events they should prepare for\n5. **Your Tax Action Plan** — Prioritized list of moves with estimated tax savings\n\nReference Canadian tax rules (withholding tax, TFSA contribution room, marginal rates). Speak directly to the client.`,
+  rebalance: `You are a financial planner creating a rebalancing plan for your client. Based on their portfolio, goals, and timeline:\n\n1. **Where You Are Now** — Current allocation breakdown with context on what it means\n2. **Where You Should Be** — Target allocation based on their specific goals, timeline, and risk tolerance\n3. **The Gap** — What's overweight and underweight, in dollars and percentages\n4. **Your Rebalancing Plan** — Specific trades in priority order, with which account to execute in\n5. **Going Forward** — How often to rebalance and what triggers should prompt action\n\nBe specific with dollar amounts. Speak directly to the client. Use CAD.`,
+  income: `You are a financial planner focused on building your client's income stream. Review their portfolio:\n\n1. **Current Income Picture** — Estimated annual dividends/distributions and yield\n2. **Income vs Growth Balance** — Is the mix right for their goals and life stage?\n3. **Income Safety** — Which dividend payers are reliable vs at risk?\n4. **Tax-Smart Income** — Are income producers in the right account types?\n5. **Income Growth Plan** — How to increase income over time while managing risk\n\nUse CAD. Speak directly to the client. Tie recommendations to their specific goals and timeline.`,
+  retirement: `You are a financial planner helping your client assess retirement readiness. Based on their portfolio and profile:\n\n1. **Retirement Snapshot** — Current portfolio value vs estimated retirement needs\n2. **Are You On Track?** — Honest assessment based on their age, timeline, and portfolio size\n3. **Savings Gap** — If behind, how much more to save monthly/annually\n4. **Portfolio Adjustments** — Should the asset mix shift as retirement approaches?\n5. **Your Retirement Action Plan** — 3-5 specific steps to improve retirement readiness\n\nUse the 4% rule and Canadian retirement benchmarks. Account for CPP and OAS. Be specific with numbers. Speak directly to the client.`,
+  goalplan: `You are a financial planner creating a personalized investment plan. Based on the client's portfolio, goals, and profile:\n\n1. **Goal Assessment** — Restate their goal and assess whether the current portfolio supports it\n2. **What's Working** — Parts of the portfolio aligned with their goal\n3. **What Needs to Change** — Specific misalignments between portfolio and goal\n4. **Your Personalized Plan** — Step-by-step investment strategy tailored to their goal and timeline\n5. **Milestones** — Checkpoints to track progress toward their goal\n\nBe specific and actionable. Speak directly to the client. Use CAD.`,
 };
 
 // ─── Tab Management ──────────────────────────────────────────────────────────
@@ -1066,6 +1147,12 @@ if (typeof Addon === 'undefined') {
         apiKey = options.data.apiKey;
         document.getElementById('apiKeyInput').value = apiKey;
         updateStatus('connected', 'API key loaded');
+      }
+      if (options.data && options.data.investorProfile) {
+        loadInvestorProfile(options.data.investorProfile);
+      }
+      if (options.data && options.data.model) {
+        document.getElementById('modelSelect').value = options.data.model;
       }
       // Sync group filter if Wealthica has one active
       if (options.groupsFilter) {
@@ -3221,7 +3308,7 @@ async function ratePositions() {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'x-api-key': apiKey, 'anthropic-version': '2023-06-01', 'anthropic-dangerous-direct-browser-access': 'true' },
       body: JSON.stringify({
-        model: 'claude-sonnet-4-20250514',
+        model: getSelectedModel(),
         max_tokens: 4096,
         system: 'You are a senior portfolio analyst rating positions for a Canadian investor with a ' + riskLabel + ' risk profile (risk tolerance ' + riskTolerance + '/10). Rate each position 1-10 based on quality, portfolio fit, sizing, and suitability for their risk profile. Respond with ONLY valid JSON, no markdown, no explanation outside JSON.',
         messages: [{ role: 'user', content: 'Rate each position:\n\n' + JSON.stringify(positionList, null, 2) + '\n\nRespond with ONLY this JSON format:\n{"positions":[{"symbol":"...","score":8,"recommendation":"Hold","reasoning":"one sentence"}],"portfolio_score":72,"summary":"2-3 sentence assessment"}\n\nRecommendation must be: "Strong Buy", "Buy", "Hold", "Trim", or "Sell".\nScores: 1-3=Poor, 4-5=Below Avg, 6-7=Good, 8-9=Very Good, 10=Excellent.' }],
@@ -3261,41 +3348,36 @@ async function ratePositions() {
   btn.innerHTML = 'Get AI Position Ratings';
 }
 
-// ─── AI Analysis ─────────────────────────────────────────────────────────────
-async function runAnalysis() {
-  if (!apiKey) { showToast('Set your API key first', 'error'); toggleSettings(); return; }
-  if (filteredPositions.length === 0) { showToast('No portfolio data', 'error'); return; }
-
-  const btn = document.getElementById('btnAnalyze');
-  const responseEl = document.getElementById('aiResponse');
-  const promptType = document.getElementById('promptSelect').value;
-
-  btn.disabled = true;
-  btn.innerHTML = '<span class="spinner"></span> Analyzing...';
-  responseEl.classList.add('loading');
-  responseEl.innerHTML = '<div class="ai-content streaming-cursor"></div>';
-
-  const portfolioSummary = buildPortfolioSummary();
+// ─── AI Financial Planner ────────────────────────────────────────────────────
+function buildPlannerSystemPrompt(promptType) {
   let systemPrompt = PROMPTS[promptType];
   if (promptType === 'custom') {
-    const customQ = document.getElementById('customPrompt').value.trim();
-    if (!customQ) { showToast('Enter a question', 'error'); resetAnalyzeBtn(); return; }
-    systemPrompt = 'You are a senior portfolio analyst helping a Canadian investor. Answer their specific question. Be specific with numbers, percentages, and actionable advice. Use CAD. Format with markdown.';
-    portfolioSummary.customQuestion = customQ;
+    systemPrompt = 'You are a certified financial planner (CFP) advising a Canadian client. Answer their specific question with personalized, actionable advice. Be specific with numbers, percentages, and concrete steps. Use CAD. Format with markdown. Speak directly to the client using "you/your".';
   }
 
   const riskLabel = riskTolerance <= 3 ? 'conservative' : riskTolerance <= 5 ? 'moderate' : riskTolerance <= 7 ? 'growth' : 'aggressive';
-  systemPrompt += '\n\nThe investor has a ' + riskLabel + ' risk profile (tolerance: ' + riskTolerance + '/10). Tailor your advice accordingly.';
+  systemPrompt += '\n\nThe client has a ' + riskLabel + ' risk profile (tolerance: ' + riskTolerance + '/10). Tailor your advice accordingly.';
 
-  const userMessage = promptType === 'custom'
-    ? 'Portfolio:\n\n' + JSON.stringify(portfolioSummary, null, 2) + '\n\nQuestion: ' + portfolioSummary.customQuestion
-    : 'Portfolio:\n\n' + JSON.stringify(portfolioSummary, null, 2) + '\n\nAnalyze this portfolio.';
+  const profile = getInvestorProfile();
+  if (profile.age) systemPrompt += '\nClient age: ' + profile.age + '.';
+  if (profile.goal) systemPrompt += '\nPrimary investment goal: ' + profile.goal + '.';
+  if (profile.timeline) systemPrompt += '\nInvestment timeline: ' + profile.timeline + ' years.';
+  if (profile.income) systemPrompt += '\nAnnual income range: ' + profile.income + '.';
+
+  systemPrompt += '\n\nIMPORTANT: You are their personal financial planner. Use a warm, professional tone. Address them directly. Lead with what matters most to THEM based on their goals and situation. End with clear next steps.';
+
+  return systemPrompt;
+}
+
+async function streamAIResponse(systemPrompt, messages, responseEl, onComplete) {
+  responseEl.classList.add('loading');
+  responseEl.innerHTML = '<div class="ai-content streaming-cursor"></div>';
 
   try {
     const response = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'x-api-key': apiKey, 'anthropic-version': '2023-06-01', 'anthropic-dangerous-direct-browser-access': 'true' },
-      body: JSON.stringify({ model: 'claude-sonnet-4-20250514', max_tokens: 4096, system: systemPrompt, messages: [{ role: 'user', content: userMessage }], stream: true }),
+      body: JSON.stringify({ model: getSelectedModel(), max_tokens: 4096, system: systemPrompt, messages: messages, stream: true }),
     });
 
     if (!response.ok) { const err = await response.json().catch(()=>({})); throw new Error(err.error?.message || 'API error: ' + response.status); }
@@ -3327,19 +3409,75 @@ async function runAnalysis() {
     const el = responseEl.querySelector('.ai-content');
     if (el) { el.innerHTML = renderMarkdown(fullText); el.classList.remove('streaming-cursor'); }
     responseEl.classList.remove('loading');
+    if (onComplete) onComplete(fullText);
   } catch(err) {
     console.error('Analysis error:', err);
     responseEl.innerHTML = '<div class="ai-content" style="color:var(--red)"><strong>Error:</strong> ' + escapeHtml(err.message) + '</div>';
     responseEl.classList.remove('loading');
     showToast('Analysis failed: ' + err.message, 'error');
   }
+}
+
+async function runAnalysis() {
+  if (!apiKey) { showToast('Set your API key first', 'error'); toggleSettings(); return; }
+  if (filteredPositions.length === 0) { showToast('No portfolio data', 'error'); return; }
+
+  const btn = document.getElementById('btnAnalyze');
+  const responseEl = document.getElementById('aiResponse');
+  const promptType = document.getElementById('promptSelect').value;
+
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span> Planning...';
+
+  const portfolioSummary = buildPortfolioSummary();
+  if (promptType === 'custom') {
+    const customQ = document.getElementById('customPrompt').value.trim();
+    if (!customQ) { showToast('Enter a question', 'error'); resetAnalyzeBtn(); return; }
+    portfolioSummary.customQuestion = customQ;
+  }
+
+  const systemPrompt = buildPlannerSystemPrompt(promptType);
+  lastSystemPrompt = systemPrompt;
+
+  const userMessage = promptType === 'custom'
+    ? 'Here is my portfolio:\n\n' + JSON.stringify(portfolioSummary, null, 2) + '\n\nMy question: ' + portfolioSummary.customQuestion
+    : 'Here is my portfolio:\n\n' + JSON.stringify(portfolioSummary, null, 2) + '\n\nPlease review my portfolio and give me your advice.';
+
+  // Reset conversation for new analysis
+  conversationHistory = [{ role: 'user', content: userMessage }];
+
+  await streamAIResponse(systemPrompt, conversationHistory, responseEl, function(fullText) {
+    conversationHistory.push({ role: 'assistant', content: fullText });
+    document.getElementById('followUpArea').classList.add('visible');
+  });
+
   resetAnalyzeBtn();
+}
+
+async function sendFollowUp() {
+  const input = document.getElementById('followUpInput');
+  const question = input.value.trim();
+  if (!question) return;
+  if (!apiKey || conversationHistory.length === 0) { showToast('Run an analysis first', 'error'); return; }
+
+  input.value = '';
+  const responseEl = document.getElementById('aiResponse');
+
+  // Keep only last 3 exchanges (6 messages) + new question to manage token usage
+  if (conversationHistory.length > 6) {
+    conversationHistory = conversationHistory.slice(-6);
+  }
+  conversationHistory.push({ role: 'user', content: question });
+
+  await streamAIResponse(lastSystemPrompt, conversationHistory, responseEl, function(fullText) {
+    conversationHistory.push({ role: 'assistant', content: fullText });
+  });
 }
 
 function resetAnalyzeBtn() {
   const btn = document.getElementById('btnAnalyze');
   btn.disabled = !apiKey || filteredPositions.length === 0;
-  btn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polygon points="5 3 19 12 5 21 5 3"/></svg> Analyze';
+  btn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polygon points="5 3 19 12 5 21 5 3"/></svg> Get Advice';
 }
 
 function buildPortfolioSummary() {
@@ -3357,15 +3495,80 @@ function buildPortfolioSummary() {
       market_value: Math.round((pos.market_value||pos.value||0)*100)/100,
       currency: pos.security?.currency || pos.currency || 'CAD',
       type: pos.security?.type || '',
+      asset_class: inferAssetClass(pos),
+      region: inferRegion(pos),
     });
   });
-  return {
+
+  // Asset class breakdown
+  const assetClasses = {};
+  const regions = {};
+  filteredPositions.forEach(pos => {
+    const mv = pos.market_value || pos.value || 0;
+    const ac = inferAssetClass(pos);
+    const rg = inferRegion(pos);
+    assetClasses[ac] = (assetClasses[ac] || 0) + mv;
+    regions[rg] = (regions[rg] || 0) + mv;
+  });
+  const assetClassPct = {};
+  Object.entries(assetClasses).forEach(([k,v]) => { assetClassPct[k] = Math.round(v / totalValue * 1000) / 10; });
+  const regionPct = {};
+  Object.entries(regions).forEach(([k,v]) => { regionPct[k] = Math.round(v / totalValue * 1000) / 10; });
+
+  // Portfolio health scores
+  const scores = computeScores();
+
+  // Investor profile
+  const profile = getInvestorProfile();
+
+  const summary = {
     total_market_value_cad: Math.round(totalValue*100)/100,
     total_book_value_cad: Math.round(totalBook*100)/100,
     unrealized_gain_loss: Math.round((totalValue-totalBook)*100)/100,
+    unrealized_gain_loss_pct: totalBook > 0 ? Math.round((totalValue-totalBook)/totalBook*1000)/10 : 0,
     number_of_accounts: [...new Set(filteredPositions.map(p => p._accountName))].length,
     number_of_holdings: aggregatePositions(filteredPositions).length,
+    asset_class_breakdown_pct: assetClassPct,
+    geographic_breakdown_pct: regionPct,
+    portfolio_scores: {
+      overall_health: scores.health,
+      diversification: scores.diversification,
+      risk_management: scores.riskManagement,
+      performance: scores.performance,
+      tax_efficiency: scores.taxEfficiency,
+      income: scores.income,
+    },
+    score_details: {
+      health: scores.healthDetail,
+      diversification: scores.diversificationDetail,
+      risk: scores.riskDetail,
+      tax: scores.taxDetail,
+      income: scores.incomeDetail,
+    },
+    key_metrics: {
+      top_holding_weight_pct: scores.maxConcentration ? Math.round(scores.maxConcentration*10)/10 : 0,
+      top3_weight_pct: scores.top3Concentration ? Math.round(scores.top3Concentration*10)/10 : 0,
+      canadian_home_bias_pct: scores.homeBias ? Math.round(scores.homeBias*10)/10 : 0,
+      total_return_pct: scores.totalReturn ? Math.round(scores.totalReturn*10)/10 : 0,
+      win_rate_pct: scores.winRate ? Math.round(scores.winRate*10)/10 : 0,
+      crypto_weight_pct: scores.cryptoWeight ? Math.round(scores.cryptoWeight*10)/10 : 0,
+    },
     accounts: byAccount,
+  };
+
+  if (profile.age || profile.goal || profile.timeline || profile.income) {
+    summary.investor_profile = profile;
+  }
+
+  return summary;
+}
+
+function getInvestorProfile() {
+  return {
+    age: document.getElementById('investorAge')?.value ? parseInt(document.getElementById('investorAge').value) : null,
+    goal: document.getElementById('investorGoal')?.value || null,
+    timeline: document.getElementById('investorTimeline')?.value || null,
+    income: document.getElementById('investorIncome')?.value || null,
   };
 }
 
@@ -3410,21 +3613,34 @@ function toggleSettings() {
   if (panel.classList.contains('visible')) document.getElementById('apiKeyInput').focus();
 }
 
-function saveApiKey() {
+function saveSettings() {
   const key = document.getElementById('apiKeyInput').value.trim();
   if (!key) { showToast('Enter an API key', 'error'); return; }
   apiKey = key;
+  const profile = getInvestorProfile();
+  const selectedModel = getSelectedModel();
   if (addon) {
-    addon.saveData({ apiKey: key }).then(() => { showToast('API key saved', 'success'); updateStatus('connected', 'API key saved'); }).catch(err => { showToast('Key set for session', 'error'); });
-  } else { showToast('API key set for session', 'success'); updateStatus('connected', 'API key set'); }
+    addon.saveData({ apiKey: key, investorProfile: profile, model: selectedModel }).then(() => { showToast('Settings saved', 'success'); updateStatus('connected', 'Settings saved'); }).catch(err => { showToast('Settings set for session', 'error'); });
+  } else { showToast('Settings set for session', 'success'); updateStatus('connected', 'Settings set'); }
   document.getElementById('settingsPanel').classList.remove('visible');
   document.getElementById('btnAnalyze').disabled = filteredPositions.length === 0;
+}
+
+function loadInvestorProfile(profile) {
+  if (!profile) return;
+  if (profile.age) document.getElementById('investorAge').value = profile.age;
+  if (profile.goal) document.getElementById('investorGoal').value = profile.goal;
+  if (profile.timeline) document.getElementById('investorTimeline').value = profile.timeline;
+  if (profile.income) document.getElementById('investorIncome').value = profile.income;
 }
 
 function onPromptChange() {
   const val = document.getElementById('promptSelect').value;
   document.getElementById('customPromptArea').classList.toggle('visible', val === 'custom');
   if (val === 'custom') document.getElementById('customPrompt').focus();
+  // Hide follow-up when switching analysis type
+  document.getElementById('followUpArea').classList.remove('visible');
+  conversationHistory = [];
 }
 
 // ─── Loading Skeletons ───────────────────────────────────────────────────────
@@ -3739,14 +3955,14 @@ async function runTabAI(tab) {
 
   const summary = buildPortfolioSummary();
   const riskLabel = riskTolerance <= 3 ? 'conservative' : riskTolerance <= 5 ? 'moderate' : riskTolerance <= 7 ? 'growth' : 'aggressive';
-  const systemPrompt = 'You are a senior portfolio analyst helping a Canadian investor with a ' + riskLabel + ' risk profile (tolerance ' + riskTolerance + '/10). Be specific with numbers, percentages, and actionable advice. Use CAD. Format with markdown. Keep response focused and under 400 words.';
+  const systemPrompt = 'You are a certified financial planner advising a Canadian client with a ' + riskLabel + ' risk profile (tolerance ' + riskTolerance + '/10). Be specific with numbers, percentages, and actionable advice. Speak directly to the client using "you/your". Use a warm, professional tone. Use CAD. Format with markdown. Keep response focused and under 400 words.';
   const userMsg = 'Portfolio:\n' + JSON.stringify(summary, null, 2) + '\n\n' + (TAB_AI_PROMPTS[tab] || 'Analyze this portfolio.');
 
   try {
     const response = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'x-api-key': apiKey, 'anthropic-version': '2023-06-01', 'anthropic-dangerous-direct-browser-access': 'true' },
-      body: JSON.stringify({ model: 'claude-sonnet-4-20250514', max_tokens: 2048, system: systemPrompt, messages: [{ role: 'user', content: userMsg }], stream: true }),
+      body: JSON.stringify({ model: getSelectedModel(), max_tokens: 2048, system: systemPrompt, messages: [{ role: 'user', content: userMsg }], stream: true }),
     });
 
     if (!response.ok) { const err = await response.json().catch(()=>({})); throw new Error(err.error?.message || 'API error: ' + response.status); }
@@ -3861,7 +4077,7 @@ function loadDemoData() {
 }
 
 // ─── Event Listeners ─────────────────────────────────────────────────────────
-document.getElementById('apiKeyInput').addEventListener('keydown', function(e) { if (e.key === 'Enter') saveApiKey(); });
+document.getElementById('apiKeyInput').addEventListener('keydown', function(e) { if (e.key === 'Enter') saveSettings(); });
 document.getElementById('customPrompt').addEventListener('keydown', function(e) { if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') runAnalysis(); });
 </script>
 </body>
