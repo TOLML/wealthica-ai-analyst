@@ -151,23 +151,6 @@
   .stat .stat-val { font-family: 'JetBrains Mono', monospace; font-size: 13px; font-weight: 700; white-space: nowrap; }
   .stat .stat-label { font-size: 9px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.2px; margin-top: 1px; }
 
-  /* Alert Bar */
-  .alert-bar {
-    background: var(--bg-card);
-    border: 1px solid var(--border);
-    border-radius: 8px;
-    padding: 6px 10px;
-    margin-bottom: 6px;
-    font-size: 11px;
-    color: var(--text-secondary);
-    box-shadow: var(--shadow);
-    display: none;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-  .alert-bar.visible { display: block; }
-  .alert-bar .alert-icon { margin-right: 4px; }
 
   /* Open Full App Button */
   .open-app-btn {
@@ -272,11 +255,6 @@
     </div>
   </div>
 
-  <!-- Alert Bar -->
-  <div class="alert-bar" id="alertBar">
-    <span class="alert-icon">&#9888;</span>
-    <span id="alertText"></span>
-  </div>
 
   <!-- Open Full App -->
   <button class="open-app-btn" id="openAppBtn" onclick="openFullApp()">
@@ -551,13 +529,6 @@ function render(scores) {
   document.getElementById('statWinRate').style.color = scores.winRate >= 50 ? 'var(--green)' : 'var(--red)';
   document.getElementById('statReturn').textContent = pct(scores.totalReturn);
   document.getElementById('statReturn').style.color = scores.totalReturn >= 0 ? 'var(--green)' : 'var(--red)';
-
-  // Alert
-  if (scores.weakAreas.length > 0) {
-    const alertBar = document.getElementById('alertBar');
-    alertBar.classList.add('visible');
-    document.getElementById('alertText').textContent = 'Focus areas: ' + scores.weakAreas.join(', ');
-  }
 
   // Update iframe height so Wealthica doesn't cut off the widget
   updateWidgetHeight();
