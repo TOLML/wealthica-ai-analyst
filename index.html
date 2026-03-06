@@ -1796,16 +1796,31 @@ async function fetchHistory(query) {
         return { date, value };
       }).filter(h => h.date && h.value > 0);
 
-      // Remove spike outliers: drop points that deviate >60% from their neighbors
+      // Remove spike outliers using rolling median approach
+      // First, compute the median value to establish a baseline
+      const sortedVals = raw.map(h => h.value).sort((a, b) => a - b);
+      const median = sortedVals[Math.floor(sortedVals.length / 2)];
+      // Remove extreme outliers: anything >5x or <0.15x the median
+      const cleaned = raw.filter(h => h.value >= median * 0.15 && h.value <= median * 5);
+      // Second pass: remove remaining spikes that deviate >80% from neighbors
       portfolioHistory = [];
-      for (let i = 0; i < raw.length; i++) {
-        if (raw.length >= 3 && i > 0 && i < raw.length - 1) {
-          const prev = raw[i - 1].value, curr = raw[i].value, next = raw[i + 1].value;
+      for (let i = 0; i < cleaned.length; i++) {
+        if (cleaned.length >= 3 && i > 0 && i < cleaned.length - 1) {
+          const prev = cleaned[i - 1].value, curr = cleaned[i].value, next = cleaned[i + 1].value;
           const avg = (prev + next) / 2;
-          if (avg > 0 && (curr < avg * 0.4 || curr > avg * 2.5)) continue; // skip outlier
+          if (avg > 0 && (curr < avg * 0.2 || curr > avg * 4)) continue; // skip outlier
         }
-        portfolioHistory.push(raw[i]);
+        portfolioHistory.push(cleaned[i]);
       }
+      // Deduplicate: if multiple points on same date, keep the one closest to median
+      const byDate = {};
+      portfolioHistory.forEach(h => {
+        const d = (h.date || '').slice(0, 10);
+        if (!byDate[d] || Math.abs(h.value - median) < Math.abs(byDate[d].value - median)) {
+          byDate[d] = h;
+        }
+      });
+      portfolioHistory = Object.values(byDate).sort((a, b) => new Date(a.date) - new Date(b.date));
       console.log('[Wealthica] History loaded:', portfolioHistory.length, 'of', raw.length, 'points. Sample:', JSON.stringify(portfolioHistory.slice(0,3)));
       if (activeTab === 'performance') renderHistoryChart();
     } else {
