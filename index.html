@@ -137,7 +137,7 @@
   .tab-nav::-webkit-scrollbar { display: none; }
   .tab-btn { padding: 8px 16px; background: none; border: none; border-radius: 8px; color: var(--text-muted); font-family: inherit; font-size: 13px; font-weight: 500; cursor: pointer; white-space: nowrap; transition: all 0.2s; }
   .tab-btn:hover { color: var(--text-primary); background: rgba(59,130,246,0.06); }
-  .tab-btn.active { color: white; background: var(--accent); box-shadow: 0 2px 8px rgba(59,130,246,0.3); }
+  .tab-btn.active { color: white; background: var(--accent); box-shadow: 0 2px 8px rgba(59,130,246,0.3); transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1); transform: scale(1.02); }
 
   /* Filter Bar */
   .filter-bar { display: flex; align-items: center; gap: 12px; margin-bottom: 20px; flex-wrap: wrap; }
@@ -175,7 +175,8 @@
   .tab-ai-response li { margin: 3px 0; }
 
   /* Model Conclusion */
-  .model-conclusion { background: var(--bg-card); border: 1px solid var(--accent); border-radius: 12px; padding: 20px; margin-top: 20px; }
+  .model-conclusion { background: var(--bg-card); border: 1px solid var(--accent); border-radius: 12px; padding: 20px; margin-top: 20px; position: relative; overflow: hidden; }
+  .model-conclusion::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px; background: linear-gradient(90deg, var(--accent), var(--purple), var(--cyan)); }
   .model-conclusion h3 { color: var(--accent); font-size: 14px; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 12px; font-weight: 600; }
   .model-conclusion .mc-grade { display: flex; align-items: center; gap: 16px; margin-bottom: 16px; }
   .model-conclusion .mc-grade-badge { font-family: 'JetBrains Mono', monospace; font-size: 28px; font-weight: 700; padding: 8px 16px; border-radius: 10px; min-width: 60px; text-align: center; }
@@ -203,10 +204,15 @@
   .btn-accent:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
 
   /* Tab Panels */
-  .tab-panel { display: none; animation: slideUp 0.4s cubic-bezier(0.16, 1, 0.3, 1); }
+  .tab-panel { display: none; animation: tabFlipIn 0.5s cubic-bezier(0.16, 1, 0.3, 1); }
   .tab-panel.active { display: block; }
   @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
   @keyframes slideUp { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
+  @keyframes tabFlipIn {
+    0% { opacity: 0; transform: perspective(800px) rotateY(-8deg) translateX(30px) scale(0.97); }
+    60% { opacity: 1; transform: perspective(800px) rotateY(2deg) translateX(-5px) scale(1.005); }
+    100% { opacity: 1; transform: perspective(800px) rotateY(0deg) translateX(0) scale(1); }
+  }
   @keyframes countUp { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
   @keyframes shimmer { 0% { background-position: -200% 0; } 100% { background-position: 200% 0; } }
   @keyframes pulse-glow { 0%, 100% { box-shadow: 0 0 0 0 rgba(99,102,241,0); } 50% { box-shadow: 0 0 20px 4px rgba(99,102,241,0.15); } }
@@ -242,7 +248,8 @@
   .negative { color: var(--red); }
 
   /* Score Banner */
-  .score-banner { display: flex; align-items: center; gap: 24px; background: linear-gradient(135deg, var(--bg-card) 0%, rgba(59,130,246,0.04) 100%); border: 1px solid var(--border); border-radius: 16px; padding: 28px; margin-bottom: 24px; box-shadow: 0 2px 12px rgba(0,0,0,0.04); }
+  .score-banner { display: flex; align-items: center; gap: 24px; background: linear-gradient(135deg, var(--bg-card) 0%, rgba(59,130,246,0.04) 100%); border: 1px solid var(--border); border-radius: 16px; padding: 28px; margin-bottom: 24px; box-shadow: 0 2px 12px rgba(0,0,0,0.04); position: relative; overflow: hidden; }
+  .score-banner::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px; background: linear-gradient(90deg, var(--accent), var(--purple), var(--cyan)); }
   .score-ring { position: relative; width: 100px; height: 100px; flex-shrink: 0; }
   .score-ring .ring-bg { fill: none; stroke: var(--border); stroke-width: 8; }
   .score-ring .ring-fill { fill: none; stroke-width: 8; stroke-linecap: round; transition: stroke-dashoffset 1s ease, stroke 0.5s; }
@@ -274,7 +281,8 @@
 
   /* Holdings Grid */
   .holdings-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 12px; }
-  .position-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 12px; padding: 16px; transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1); }
+  .position-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 12px; padding: 16px; transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1); position: relative; overflow: hidden; }
+  .position-card::before { content: ''; position: absolute; top: 0; left: 0; bottom: 0; width: 3px; background: linear-gradient(180deg, var(--accent), var(--purple)); border-radius: 3px 0 0 3px; }
   .position-card:hover { border-color: var(--accent); transform: translateY(-3px); box-shadow: 0 8px 24px rgba(99,102,241,0.1); }
   .pos-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 8px; }
   .pos-symbol { font-family: 'JetBrains Mono', monospace; font-weight: 600; font-size: 15px; }
@@ -302,7 +310,9 @@
 
   /* Score Cards */
   .score-cards-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 12px; margin-bottom: 20px; }
-  .score-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 12px; padding: 20px; text-align: center; }
+  .score-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 12px; padding: 20px; text-align: center; position: relative; overflow: hidden; transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1); }
+  .score-card::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px; background: linear-gradient(90deg, var(--accent), var(--purple), var(--cyan)); opacity: 0.5; }
+  .score-card:hover { border-color: var(--accent); transform: translateY(-2px); box-shadow: 0 6px 20px rgba(99,102,241,0.08); }
   .score-card .sc-value { font-family: 'JetBrains Mono', monospace; font-size: 32px; font-weight: 700; margin-bottom: 4px; }
   .score-card .sc-label { font-size: 11px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; }
   .score-card .sc-bar { height: 4px; background: var(--bg-primary); border-radius: 2px; margin-top: 10px; overflow: hidden; }
@@ -310,7 +320,8 @@
 
   /* Score Breakdown Section */
   .score-breakdown { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 12px; margin-bottom: 20px; }
-  .score-breakdown-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 14px; padding: 18px; transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1); cursor: default; }
+  .score-breakdown-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 14px; padding: 18px; transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1); cursor: default; position: relative; overflow: hidden; }
+  .score-breakdown-card::before { content: ''; position: absolute; top: 0; left: 0; bottom: 0; width: 3px; background: linear-gradient(180deg, var(--accent), var(--purple)); border-radius: 3px 0 0 3px; }
   .score-breakdown-card:hover { border-color: var(--accent); transform: translateY(-2px); box-shadow: 0 6px 20px rgba(99,102,241,0.08); }
   .score-breakdown-card .sbc-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
   .score-breakdown-card .sbc-label { font-size: 13px; font-weight: 600; color: var(--text-primary); }
@@ -324,7 +335,9 @@
   .score-breakdown-card .sbc-desc { font-size: 12px; color: var(--text-secondary); line-height: 1.5; }
 
   /* Insights Panel */
-  .insights-panel { background: var(--bg-card); border: 1px solid var(--border); border-radius: 12px; padding: 20px; margin-bottom: 20px; }
+  .insights-panel { background: var(--bg-card); border: 1px solid var(--border); border-radius: 12px; padding: 20px; margin-bottom: 20px; position: relative; overflow: hidden; transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1); }
+  .insights-panel::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px; background: linear-gradient(90deg, var(--accent), var(--purple), var(--cyan)); opacity: 0.5; }
+  .insights-panel:hover { border-color: var(--accent); box-shadow: 0 4px 20px rgba(99,102,241,0.08); }
   .insights-panel h3 { font-size: 13px; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-muted); margin-bottom: 14px; font-weight: 500; }
   .insight-item { display: flex; align-items: flex-start; gap: 10px; padding: 8px 0; border-bottom: 1px solid var(--border); }
   .insight-item:last-child { border-bottom: none; }
@@ -334,7 +347,9 @@
 
   /* Risk Factors */
   .risk-factors { display: grid; gap: 10px; margin-top: 20px; }
-  .risk-factor { background: var(--bg-card); border: 1px solid var(--border); border-radius: 10px; padding: 14px 18px; display: flex; align-items: center; gap: 12px; }
+  .risk-factor { background: var(--bg-card); border: 1px solid var(--border); border-radius: 10px; padding: 14px 18px; display: flex; align-items: center; gap: 12px; position: relative; overflow: hidden; transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1); }
+  .risk-factor::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px; background: linear-gradient(90deg, var(--accent), var(--purple)); opacity: 0.4; }
+  .risk-factor:hover { border-color: var(--accent); transform: translateY(-2px); box-shadow: 0 6px 20px rgba(99,102,241,0.08); }
   .risk-factor .severity { width: 4px; height: 36px; border-radius: 2px; flex-shrink: 0; }
   .risk-factor .severity.high { background: var(--red); }
   .risk-factor .severity.medium { background: var(--yellow); }
@@ -344,7 +359,9 @@
 
   /* Region Cards */
   .region-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 12px; margin-top: 20px; }
-  .region-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 10px; padding: 16px; }
+  .region-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 10px; padding: 16px; position: relative; overflow: hidden; transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1); }
+  .region-card::before { content: ''; position: absolute; top: 0; left: 0; bottom: 0; width: 3px; background: linear-gradient(180deg, var(--accent), var(--cyan)); border-radius: 3px 0 0 3px; }
+  .region-card:hover { border-color: var(--accent); transform: translateY(-2px); box-shadow: 0 6px 20px rgba(99,102,241,0.08); }
   .region-card .rc-name { font-weight: 600; font-size: 14px; margin-bottom: 4px; }
   .region-card .rc-pct { font-family: 'JetBrains Mono', monospace; font-size: 24px; font-weight: 700; color: var(--accent); }
   .region-card .rc-value { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
@@ -355,7 +372,9 @@
   .actions-section { margin-top: 20px; }
   .actions-section h3 { font-size: 14px; font-weight: 600; margin-bottom: 12px; display: flex; align-items: center; gap: 8px; }
   .action-cards { display: grid; gap: 10px; }
-  .action-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 10px; padding: 14px 18px; display: flex; align-items: flex-start; gap: 12px; }
+  .action-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 10px; padding: 14px 18px; display: flex; align-items: flex-start; gap: 12px; position: relative; overflow: hidden; transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1); }
+  .action-card::before { content: ''; position: absolute; top: 0; left: 0; bottom: 0; width: 3px; background: linear-gradient(180deg, var(--accent), var(--purple)); border-radius: 3px 0 0 3px; }
+  .action-card:hover { border-color: var(--accent); transform: translateY(-2px); box-shadow: 0 6px 20px rgba(99,102,241,0.08); }
   .action-card .action-icon { width: 32px; height: 32px; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 14px; flex-shrink: 0; font-weight: 700; }
   .action-card .action-icon.small { background: var(--green-bg); color: var(--green); }
   .action-card .action-icon.big { background: var(--purple-bg); color: var(--purple); }
@@ -401,6 +420,27 @@
   .streaming-cursor::after { content: '\25CA'; color: var(--accent); animation: blink 0.8s step-end infinite; }
   @keyframes blink { 50% { opacity: 0; } }
 
+  /* Interactive Tilt on Hover */
+  .tilt-card { transition: transform 0.15s ease-out, box-shadow 0.25s ease; will-change: transform; }
+
+  /* Stagger fade-in for grid children */
+  @keyframes staggerIn {
+    from { opacity: 0; transform: translateY(16px) scale(0.97); }
+    to { opacity: 1; transform: translateY(0) scale(1); }
+  }
+  .summary-grid > *, .charts-row > *, .benchmark-grid > *, .score-cards-grid > *,
+  .score-breakdown > *, .holdings-grid > *, .region-cards > *, .scenario-grid > *,
+  .model-results > *, .metric-gauge-row > *, .accounts-grid > *, .rec-cards > *,
+  .risk-factors > *, .action-cards > * {
+    animation: staggerIn 0.4s cubic-bezier(0.16, 1, 0.3, 1) backwards;
+  }
+  .summary-grid > *:nth-child(1), .benchmark-grid > *:nth-child(1), .score-cards-grid > *:nth-child(1) { animation-delay: 0.05s; }
+  .summary-grid > *:nth-child(2), .benchmark-grid > *:nth-child(2), .score-cards-grid > *:nth-child(2) { animation-delay: 0.1s; }
+  .summary-grid > *:nth-child(3), .benchmark-grid > *:nth-child(3), .score-cards-grid > *:nth-child(3) { animation-delay: 0.15s; }
+  .summary-grid > *:nth-child(4), .benchmark-grid > *:nth-child(4), .score-cards-grid > *:nth-child(4) { animation-delay: 0.2s; }
+  .summary-grid > *:nth-child(5), .score-cards-grid > *:nth-child(5) { animation-delay: 0.25s; }
+  .summary-grid > *:nth-child(6), .score-cards-grid > *:nth-child(6) { animation-delay: 0.3s; }
+
   /* Spinner */
   .spinner { display: inline-block; width: 16px; height: 16px; border: 2px solid rgba(255,255,255,0.2); border-top-color: white; border-radius: 50%; animation: spin 0.7s linear infinite; }
   @keyframes spin { to { transform: rotate(360deg); } }
@@ -431,7 +471,8 @@
 
   /* Benchmark Comparison */
   .benchmark-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; margin-bottom: 20px; }
-  .benchmark-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 10px; padding: 16px; position: relative; overflow: hidden; }
+  .benchmark-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 10px; padding: 16px; position: relative; overflow: hidden; transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1); }
+  .benchmark-card:hover { border-color: var(--accent); transform: translateY(-2px); box-shadow: 0 6px 20px rgba(99,102,241,0.08); }
   .benchmark-card::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px; }
   .benchmark-card.portfolio::before { background: var(--accent); }
   .benchmark-card.sp500::before { background: var(--green); }
@@ -447,15 +488,18 @@
   .model-section h3 { font-size: 14px; font-weight: 600; margin-bottom: 6px; display: flex; align-items: center; gap: 8px; padding-left: 12px; border-left: 3px solid var(--accent); }
   .model-section .model-desc { font-size: 12px; color: var(--text-secondary); margin-bottom: 14px; line-height: 1.5; }
   .model-results { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; margin-bottom: 16px; }
-  .model-result-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 10px; padding: 16px; text-align: center; }
+  .model-result-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 10px; padding: 16px; text-align: center; position: relative; overflow: hidden; transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1); }
+  .model-result-card::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px; background: linear-gradient(90deg, var(--accent), var(--purple)); opacity: 0.5; }
+  .model-result-card:hover { border-color: var(--accent); transform: translateY(-2px); box-shadow: 0 6px 20px rgba(99,102,241,0.08); }
   .model-result-card .mr-value { font-family: 'JetBrains Mono', monospace; font-size: 24px; font-weight: 700; margin-bottom: 4px; }
   .model-result-card .mr-label { font-size: 11px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; }
   .model-result-card .mr-sub { font-size: 12px; color: var(--text-secondary); margin-top: 6px; line-height: 1.4; }
 
   /* Scenario / Stress Test Cards */
   .scenario-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 12px; margin-bottom: 20px; }
-  .scenario-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 10px; padding: 18px; transition: border-color 0.2s; }
-  .scenario-card:hover { border-color: var(--border-accent); }
+  .scenario-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 10px; padding: 18px; transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1); position: relative; overflow: hidden; }
+  .scenario-card::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px; background: linear-gradient(90deg, var(--accent), var(--purple), var(--cyan)); opacity: 0.5; }
+  .scenario-card:hover { border-color: var(--accent); transform: translateY(-2px); box-shadow: 0 6px 20px rgba(99,102,241,0.08); }
   .scenario-card .sc-name { font-size: 14px; font-weight: 600; margin-bottom: 4px; }
   .scenario-card .sc-desc { font-size: 12px; color: var(--text-secondary); margin-bottom: 12px; line-height: 1.4; }
   .scenario-card .sc-impact { font-family: 'JetBrains Mono', monospace; font-size: 20px; font-weight: 700; margin-bottom: 4px; }
@@ -469,7 +513,9 @@
 
   /* Recommendation Cards */
   .rec-cards { display: grid; gap: 12px; }
-  .rec-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 10px; padding: 16px 18px; display: flex; gap: 14px; }
+  .rec-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 10px; padding: 16px 18px; display: flex; gap: 14px; position: relative; overflow: hidden; transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1); }
+  .rec-card::before { content: ''; position: absolute; top: 0; left: 0; bottom: 0; width: 3px; background: linear-gradient(180deg, var(--accent), var(--purple)); border-radius: 3px 0 0 3px; }
+  .rec-card:hover { border-color: var(--accent); transform: translateY(-2px); box-shadow: 0 6px 20px rgba(99,102,241,0.08); }
   .rec-card .rec-icon { width: 40px; height: 40px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 18px; flex-shrink: 0; }
   .rec-card .rec-title { font-size: 14px; font-weight: 600; margin-bottom: 4px; }
   .rec-card .rec-body { font-size: 13px; color: var(--text-secondary); line-height: 1.5; }
@@ -477,7 +523,9 @@
 
   /* Metric Gauge */
   .metric-gauge-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; margin-bottom: 20px; }
-  .metric-gauge { background: var(--bg-card); border: 1px solid var(--border); border-radius: 10px; padding: 18px; }
+  .metric-gauge { background: var(--bg-card); border: 1px solid var(--border); border-radius: 10px; padding: 18px; position: relative; overflow: hidden; transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1); }
+  .metric-gauge::before { content: ''; position: absolute; top: 0; left: 0; bottom: 0; width: 3px; background: linear-gradient(180deg, var(--accent), var(--purple)); border-radius: 3px 0 0 3px; }
+  .metric-gauge:hover { border-color: var(--accent); transform: translateY(-2px); box-shadow: 0 6px 20px rgba(99,102,241,0.08); }
   .metric-gauge .mg-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
   .metric-gauge .mg-label { font-size: 13px; font-weight: 500; }
   .metric-gauge .mg-value { font-family: 'JetBrains Mono', monospace; font-size: 18px; font-weight: 700; }
@@ -730,7 +778,6 @@
     <button class="tab-btn" onclick="switchTab('region')">Region</button>
     <button class="tab-btn" onclick="switchTab('risk')">Risk</button>
     <button class="tab-btn" onclick="switchTab('models')">Risk Models</button>
-    <button class="tab-btn" onclick="switchTab('transactions')">Activity</button>
     <button class="tab-btn" onclick="switchTab('insights')">Insights</button>
     <button class="tab-btn" onclick="switchTab('ai')">AI Planner</button>
   </nav>
@@ -871,7 +918,7 @@
   <section class="tab-panel" id="panel-performance">
     <div class="tab-description">
       <h2>Performance Analysis</h2>
-      <p>Track your portfolio's returns, view historical portfolio value over time, and identify your best and worst performers. The history chart uses data from your Wealthica account when available.</p>
+      <p>Track your portfolio's returns, compare benchmark performance, and identify your best and worst performers across all positions.</p>
     </div>
     <div class="date-filter" style="margin-bottom:16px">
       <label style="margin-right:4px">Period</label>
@@ -884,10 +931,6 @@
       <button class="date-btn" onclick="setDateRange('5y')">5Y</button>
       <button class="date-btn active" onclick="setDateRange('all')">All</button>
     </div>
-    <h3 class="section-title"><span class="st-icon blue">&#9650;</span> Portfolio History</h3>
-    <div class="chart-card" id="historyChartWrap" style="margin-bottom:20px"><h3>Portfolio Value Over Time</h3><canvas id="historyChart"></canvas><div id="historyChartEmpty" style="display:none;text-align:center;padding:30px 0;color:var(--text-muted);font-size:13px">History data not available. Connect to Wealthica to see portfolio value over time.</div></div>
-
-    <hr class="section-divider">
     <h3 class="section-title"><span class="st-icon green">&#9733;</span> Performance Summary</h3>
     <div class="summary-grid" id="perfSummaryGrid"></div>
 
@@ -1048,35 +1091,6 @@
     </div>
   </section>
 
-  <!-- ==================== TRANSACTIONS TAB ==================== -->
-  <section class="tab-panel" id="panel-transactions">
-    <div class="tab-description">
-      <h2>Activity & Transactions</h2>
-      <p>View simulated transaction history including buys, sells, dividends, and contributions. Connect to Wealthica for real transaction data.</p>
-    </div>
-    <div class="date-range-bar" style="margin-bottom:12px">
-      <button class="date-btn" onclick="setTxnPeriod('1m')">1M</button>
-      <button class="date-btn" onclick="setTxnPeriod('3m')">3M</button>
-      <button class="date-btn" onclick="setTxnPeriod('6m')">6M</button>
-      <button class="date-btn active" onclick="setTxnPeriod('1y')">1Y</button>
-      <button class="date-btn" onclick="setTxnPeriod('all')">All</button>
-    </div>
-    <h3 class="section-title"><span class="st-icon blue">&#9776;</span> Transaction Summary</h3>
-    <div class="summary-grid" id="txnSummaryGrid"></div>
-
-    <hr class="section-divider">
-    <h3 class="section-title"><span class="st-icon green">&#9650;</span> Monthly Activity</h3>
-    <div class="chart-card" style="margin-bottom:16px"><canvas id="txnChart"></canvas></div>
-
-    <hr class="section-divider">
-    <h3 class="section-title"><span class="st-icon purple">&#9776;</span> Transaction History</h3>
-    <div style="overflow-x:auto">
-      <table class="txn-table" id="txnTable">
-        <thead><tr><th>Date</th><th>Type</th><th>Symbol</th><th>Account</th><th>Shares</th><th style="text-align:right">Amount</th></tr></thead>
-        <tbody id="txnBody"></tbody>
-      </table>
-    </div>
-  </section>
 
 
   <!-- ==================== AI ANALYST TAB ==================== -->
@@ -1206,11 +1220,10 @@ function renderActiveTab() {
     case 'overview': renderOverview(); break;
     case 'holdings': renderHoldingsTab(); if (holdingsView === 'table') renderHoldingsTable(); break;
     case 'sectors': renderSectors(); break;
-    case 'performance': renderPerformance(); renderHistoryChart(); break;
+    case 'performance': renderPerformance(); break;
     case 'risk': renderRisk(); renderCorrelationMatrix(); break;
     case 'region': renderRegion(); break;
     case 'models': renderModels(); renderStressTest(); break;
-    case 'transactions': renderTransactions(); break;
     case 'insights': renderInsightsTab(); break;
   }
 }
@@ -1225,6 +1238,36 @@ function onRiskChange() {
   else { label.textContent = 'Aggressive'; label.style.color = 'var(--red)'; }
   generateMoves();
 }
+
+// ─── Interactive Tilt Effect ─────────────────────────────────────────────────
+(function() {
+  const TILT_SELECTORS = '.summary-card, .chart-card, .score-card, .score-breakdown-card, .benchmark-card, .position-card, .region-card, .scenario-card, .model-result-card, .metric-gauge, .rec-card, .risk-factor, .action-card, .account-chip, .insights-panel, .score-banner';
+  document.addEventListener('mousemove', function(e) {
+    const cards = document.querySelectorAll(TILT_SELECTORS);
+    cards.forEach(function(card) {
+      const rect = card.getBoundingClientRect();
+      const inView = rect.top < window.innerHeight && rect.bottom > 0;
+      if (!inView) return;
+      const cx = rect.left + rect.width / 2;
+      const cy = rect.top + rect.height / 2;
+      const dx = (e.clientX - cx) / rect.width;
+      const dy = (e.clientY - cy) / rect.height;
+      const dist = Math.sqrt(dx * dx + dy * dy);
+      if (dist < 2.5) {
+        const factor = Math.max(0, 1 - dist / 2.5);
+        const rotX = -dy * 3 * factor;
+        const rotY = dx * 3 * factor;
+        const lift = factor * 2;
+        card.style.transform = 'perspective(600px) rotateX(' + rotX.toFixed(2) + 'deg) rotateY(' + rotY.toFixed(2) + 'deg) translateY(-' + lift.toFixed(1) + 'px)';
+      } else {
+        card.style.transform = '';
+      }
+    });
+  });
+  document.addEventListener('mouseleave', function() {
+    document.querySelectorAll(TILT_SELECTORS).forEach(function(c) { c.style.transform = ''; });
+  });
+})();
 
 // ─── Theme Detection ─────────────────────────────────────────────────────────
 function applyTheme(theme) {
@@ -1753,16 +1796,31 @@ async function fetchHistory(query) {
         return { date, value };
       }).filter(h => h.date && h.value > 0);
 
-      // Remove spike outliers: drop points that deviate >60% from their neighbors
+      // Remove spike outliers using rolling median approach
+      // First, compute the median value to establish a baseline
+      const sortedVals = raw.map(h => h.value).sort((a, b) => a - b);
+      const median = sortedVals[Math.floor(sortedVals.length / 2)];
+      // Remove extreme outliers: anything >5x or <0.15x the median
+      const cleaned = raw.filter(h => h.value >= median * 0.15 && h.value <= median * 5);
+      // Second pass: remove remaining spikes that deviate >80% from neighbors
       portfolioHistory = [];
-      for (let i = 0; i < raw.length; i++) {
-        if (raw.length >= 3 && i > 0 && i < raw.length - 1) {
-          const prev = raw[i - 1].value, curr = raw[i].value, next = raw[i + 1].value;
+      for (let i = 0; i < cleaned.length; i++) {
+        if (cleaned.length >= 3 && i > 0 && i < cleaned.length - 1) {
+          const prev = cleaned[i - 1].value, curr = cleaned[i].value, next = cleaned[i + 1].value;
           const avg = (prev + next) / 2;
-          if (avg > 0 && (curr < avg * 0.4 || curr > avg * 2.5)) continue; // skip outlier
+          if (avg > 0 && (curr < avg * 0.2 || curr > avg * 4)) continue; // skip outlier
         }
-        portfolioHistory.push(raw[i]);
+        portfolioHistory.push(cleaned[i]);
       }
+      // Deduplicate: if multiple points on same date, keep the one closest to median
+      const byDate = {};
+      portfolioHistory.forEach(h => {
+        const d = (h.date || '').slice(0, 10);
+        if (!byDate[d] || Math.abs(h.value - median) < Math.abs(byDate[d].value - median)) {
+          byDate[d] = h;
+        }
+      });
+      portfolioHistory = Object.values(byDate).sort((a, b) => new Date(a.date) - new Date(b.date));
       console.log('[Wealthica] History loaded:', portfolioHistory.length, 'of', raw.length, 'points. Sample:', JSON.stringify(portfolioHistory.slice(0,3)));
       if (activeTab === 'performance') renderHistoryChart();
     } else {
@@ -2720,7 +2778,7 @@ function renderPerformance() {
       datasets: [
         { label: 'Book Value', data: assetEntries.map(e => e[1].bv), backgroundColor: 'rgba(99,102,241,0.25)', borderRadius: 6 },
         { label: 'Market Value', data: assetEntries.map(e => e[1].mv), backgroundColor: '#6366f1', borderRadius: 6 },
-        { label: 'Gain/Loss', data: assetEntries.map(e => e[1].mv - e[1].bv), backgroundColor: assetEntries.map(e => e[1].mv >= e[1].bv ? 'rgba(20,184,166,0.7)' : 'rgba(244,63,94,0.7)'), borderRadius: 6 },
+        { label: 'Gain/Loss', data: assetEntries.map(e => e[1].mv - e[1].bv), backgroundColor: assetEntries.map(e => e[1].mv >= e[1].bv ? '#10b981' : '#f43f5e'), borderRadius: 6 },
       ]
     },
     options: { responsive: true, plugins: { datalabels: barLabels('', '$'), legend: { position: 'bottom', labels: { usePointStyle: true, pointStyleWidth: 8 } } }, scales: { y: { grid: { color: 'var(--chart-grid, rgba(148,163,184,0.15))' }, ticks: { callback: v => '$' + (v/1000).toFixed(0) + 'k' } }, x: { grid: { display: false } } } }
@@ -2784,7 +2842,7 @@ function renderBenchmarkComparison(portfolioReturn) {
       labels: returnData.map(d => d.sym),
       datasets: [{
         data: returnData.map(d => d.ret),
-        backgroundColor: returnData.map(d => d.ret >= 0 ? '#22c55e' : '#ef4444'),
+        backgroundColor: returnData.map(d => d.ret >= 0 ? '#10b981' : '#f43f5e'),
         borderRadius: 4,
       }]
     },
