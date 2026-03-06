@@ -609,6 +609,38 @@
           <option value="250k+">$250K+</option>
         </select>
       </div>
+      <div class="profile-field">
+        <span class="profile-label">Volatility Comfort</span>
+        <select id="investorVolatility">
+          <option value="">Select...</option>
+          <option value="very-low">Very Low — I panic at any loss</option>
+          <option value="low">Low — 5% drops concern me</option>
+          <option value="moderate">Moderate — 10-15% drops are OK</option>
+          <option value="high">High — 20-30% drops are acceptable</option>
+          <option value="very-high">Very High — 40%+ swings are fine</option>
+        </select>
+      </div>
+      <div class="profile-field">
+        <span class="profile-label">Monthly Contributions</span>
+        <select id="investorContributions">
+          <option value="">Select...</option>
+          <option value="none">None currently</option>
+          <option value="under-500">Under $500/mo</option>
+          <option value="500-1000">$500 - $1,000/mo</option>
+          <option value="1000-2500">$1,000 - $2,500/mo</option>
+          <option value="2500+">$2,500+/mo</option>
+        </select>
+      </div>
+      <div class="profile-field">
+        <span class="profile-label">Investing Experience</span>
+        <select id="investorExperience">
+          <option value="">Select...</option>
+          <option value="beginner">Beginner (0-2 years)</option>
+          <option value="intermediate">Intermediate (2-5 years)</option>
+          <option value="experienced">Experienced (5-10 years)</option>
+          <option value="expert">Expert (10+ years)</option>
+        </select>
+      </div>
     </div>
   </div>
 
@@ -744,16 +776,20 @@
     </div>
     <div class="date-filter" style="margin-bottom:16px">
       <label style="margin-right:4px">Period</label>
-      <button class="date-btn active" onclick="setDateRange('all')">All Time</button>
+      <button class="date-btn" onclick="setDateRange('1m')">1M</button>
+      <button class="date-btn" onclick="setDateRange('3m')">3M</button>
+      <button class="date-btn" onclick="setDateRange('6m')">6M</button>
       <button class="date-btn" onclick="setDateRange('ytd')">YTD</button>
       <button class="date-btn" onclick="setDateRange('1y')">1Y</button>
+      <button class="date-btn" onclick="setDateRange('3y')">3Y</button>
       <button class="date-btn" onclick="setDateRange('5y')">5Y</button>
+      <button class="date-btn active" onclick="setDateRange('all')">All</button>
     </div>
     <div class="chart-card" id="historyChartWrap" style="margin-bottom:20px"><h3>Portfolio Value Over Time</h3><canvas id="historyChart"></canvas><div id="historyChartEmpty" style="display:none;text-align:center;padding:30px 0;color:var(--text-muted);font-size:13px">History data not available. Connect to Wealthica to see portfolio value over time.</div></div>
     <div class="summary-grid" id="perfSummaryGrid"></div>
     <div class="benchmark-grid" id="benchmarkGrid"></div>
     <div class="chart-card"><h3>Gain/Loss by Position</h3><canvas id="gainLossChart"></canvas></div>
-    <div class="chart-card" style="margin-top:20px"><h3>Performance by Account</h3><canvas id="accountPerfChart"></canvas></div>
+    <div class="chart-card" style="margin-top:20px"><h3>Portfolio Performance Summary</h3><canvas id="accountPerfChart"></canvas></div>
     <div class="chart-card" style="margin-top:20px"><h3>Return by Position</h3><canvas id="benchmarkChart"></canvas></div>
     <div style="margin-top:20px">
       <button class="tab-ai-btn" id="aiBtn-performance" onclick="runTabAI('performance')">
@@ -892,6 +928,10 @@
           <option value="income">Income Strategy</option>
           <option value="retirement">Retirement Readiness</option>
           <option value="goalplan">Goal Planning</option>
+          <option value="contribution">Contribution Strategy</option>
+          <option value="downturn">Market Downturn Prep</option>
+          <option value="fees">Fee Analysis</option>
+          <option value="esg">ESG / Responsible Investing</option>
           <option value="custom">Ask Your Planner...</option>
         </select>
         <button class="btn-primary" id="btnAnalyze" onclick="runAnalysis()" disabled>
@@ -958,6 +998,10 @@ const PROMPTS = {
   income: `You are a financial planner focused on building your client's income stream. Review their portfolio:\n\n1. **Current Income Picture** — Estimated annual dividends/distributions and yield\n2. **Income vs Growth Balance** — Is the mix right for their goals and life stage?\n3. **Income Safety** — Which dividend payers are reliable vs at risk?\n4. **Tax-Smart Income** — Are income producers in the right account types?\n5. **Income Growth Plan** — How to increase income over time while managing risk\n\nUse CAD. Speak directly to the client. Tie recommendations to their specific goals and timeline.`,
   retirement: `You are a financial planner helping your client assess retirement readiness. Based on their portfolio and profile:\n\n1. **Retirement Snapshot** — Current portfolio value vs estimated retirement needs\n2. **Are You On Track?** — Honest assessment based on their age, timeline, and portfolio size\n3. **Savings Gap** — If behind, how much more to save monthly/annually\n4. **Portfolio Adjustments** — Should the asset mix shift as retirement approaches?\n5. **Your Retirement Action Plan** — 3-5 specific steps to improve retirement readiness\n\nUse the 4% rule and Canadian retirement benchmarks. Account for CPP and OAS. Be specific with numbers. Speak directly to the client.`,
   goalplan: `You are a financial planner creating a personalized investment plan. Based on the client's portfolio, goals, and profile:\n\n1. **Goal Assessment** — Restate their goal and assess whether the current portfolio supports it\n2. **What's Working** — Parts of the portfolio aligned with their goal\n3. **What Needs to Change** — Specific misalignments between portfolio and goal\n4. **Your Personalized Plan** — Step-by-step investment strategy tailored to their goal and timeline\n5. **Milestones** — Checkpoints to track progress toward their goal\n\nBe specific and actionable. Speak directly to the client. Use CAD.`,
+  downturn: `You are a financial planner helping your client prepare for a market downturn. Based on their portfolio and risk profile:\n\n1. **Vulnerability Assessment** — How would a 20-30% market correction impact this specific portfolio in dollar terms?\n2. **Most Exposed Positions** — Which holdings would suffer most and why?\n3. **Defensive Moves** — Specific trades to reduce downside risk before a correction\n4. **Cash & Liquidity** — Is there enough cash or near-cash to weather a 12-18 month downturn without selling at a loss?\n5. **Opportunity Plan** — What to buy if the market drops 20%+ (shopping list with target prices)\n\nBe specific with dollar amounts. Factor in the client's volatility comfort and experience level. Speak directly to the client. Use CAD.`,
+  fees: `You are a financial planner specializing in cost optimization. Review this client's portfolio for hidden and explicit costs:\n\n1. **MER Analysis** — Estimate total annual management fees based on known ETF/fund MERs\n2. **Fee Impact** — How much are fees costing over 10, 20, 30 years (compound drag)?\n3. **Cheaper Alternatives** — For each high-cost holding, suggest a lower-cost equivalent\n4. **Trading Costs** — Are there too many small positions creating unnecessary trading friction?\n5. **Fee Reduction Plan** — Prioritized list of swaps that would save the most in fees\n\nEstimate MERs for known Canadian ETFs and funds. Speak directly to the client. Use CAD.`,
+  esg: `You are a financial planner specializing in responsible investing. Review this portfolio for ESG (Environmental, Social, Governance) alignment:\n\n1. **Current ESG Profile** — Which holdings are ESG-aligned, neutral, or concerning?\n2. **Sector Exposure** — Any significant exposure to fossil fuels, weapons, tobacco, etc.?\n3. **ESG Alternatives** — For each non-ESG holding, suggest a responsible alternative with similar returns\n4. **Performance Trade-offs** — Honest assessment of return impact of switching to ESG options\n5. **Your ESG Transition Plan** — Step-by-step plan to make the portfolio more responsible without sacrificing too much performance\n\nBe balanced — acknowledge both ESG benefits and trade-offs. Speak directly to the client. Use CAD.`,
+  contribution: `You are a financial planner advising on contribution strategy. Based on the client's portfolio, income, and goals:\n\n1. **Current Contribution Room** — Estimate RRSP and TFSA room based on income bracket and age\n2. **Optimal Split** — How should new money be split between RRSP, TFSA, and non-registered?\n3. **Tax Impact** — What is the tax refund from RRSP contributions at their income level?\n4. **Dollar-Cost Averaging Plan** — Monthly contribution targets for each account\n5. **What to Buy** — Specific investments for new contributions based on current portfolio gaps\n\nReference current Canadian contribution limits. Factor in their monthly contribution capacity. Speak directly to the client. Use CAD.`,
 };
 
 // ─── Tab Management ──────────────────────────────────────────────────────────
@@ -1041,7 +1085,11 @@ function getDateFrom(range) {
   if (range === 'all') return null;
   const now = new Date();
   if (range === 'ytd') return new Date(now.getFullYear(), 0, 1).toISOString().split('T')[0];
+  if (range === '1m') { now.setMonth(now.getMonth() - 1); return now.toISOString().split('T')[0]; }
+  if (range === '3m') { now.setMonth(now.getMonth() - 3); return now.toISOString().split('T')[0]; }
+  if (range === '6m') { now.setMonth(now.getMonth() - 6); return now.toISOString().split('T')[0]; }
   if (range === '1y') { now.setFullYear(now.getFullYear() - 1); return now.toISOString().split('T')[0]; }
+  if (range === '3y') { now.setFullYear(now.getFullYear() - 3); return now.toISOString().split('T')[0]; }
   if (range === '5y') { now.setFullYear(now.getFullYear() - 5); return now.toISOString().split('T')[0]; }
   return null;
 }
@@ -1399,16 +1447,40 @@ function applyDemoGroupFilter() {
 
 function regenerateDemoHistory() {
   const tv = filteredPositions.reduce((s,p) => s + (p.market_value || p.value || 0), 0);
-  portfolioHistory = [];
+  portfolioHistory = generateDemoHistory(tv);
+}
+
+function generateDemoHistory(currentValue) {
+  const history = [];
   const now = new Date();
-  const startValue = tv * 0.65;
-  for (let i = 24; i >= 0; i--) {
-    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
-    const progress = (24 - i) / 24;
-    const noise = 1 + (Math.sin(i * 1.3) * 0.04) + (Math.cos(i * 0.7) * 0.02);
-    const val = startValue + (tv - startValue) * progress * noise;
-    portfolioHistory.push({ date: d.toISOString().split('T')[0], value: Math.round(val) });
+  const totalWeeks = 260; // ~5 years of weekly data
+  const startValue = currentValue * 0.45; // portfolio grew from 45% of current over 5 years
+  // Simulate realistic market with trends, corrections, and recovery
+  let value = startValue;
+  const annualGrowth = Math.pow(currentValue / startValue, 1/5) - 1; // implied CAGR
+  const weeklyGrowth = annualGrowth / 52;
+  for (let i = totalWeeks; i >= 0; i--) {
+    const d = new Date(now.getTime() - i * 7 * 24 * 60 * 60 * 1000);
+    const weekNum = totalWeeks - i;
+    // Base trend
+    const trend = 1 + weeklyGrowth;
+    // Market volatility: mix of frequencies for realistic movement
+    const vol1 = Math.sin(weekNum * 0.15) * 0.012;
+    const vol2 = Math.cos(weekNum * 0.37) * 0.008;
+    const vol3 = Math.sin(weekNum * 0.73) * 0.005;
+    // Simulate a correction around week 100 (~2 years ago) and week 200 (~1 year ago)
+    let correction = 1;
+    if (weekNum >= 95 && weekNum <= 115) correction = 1 - 0.008 * Math.sin((weekNum - 95) * Math.PI / 20);
+    if (weekNum >= 190 && weekNum <= 205) correction = 1 - 0.005 * Math.sin((weekNum - 190) * Math.PI / 15);
+    // Random-ish weekly noise (deterministic from week number)
+    const noise = Math.sin(weekNum * 2.71828) * 0.004 + Math.cos(weekNum * 3.14159) * 0.003;
+    value = value * (trend + vol1 + vol2 + vol3 + noise) * correction;
+    value = Math.max(value, startValue * 0.7); // floor at 70% of start
+    history.push({ date: d.toISOString().split('T')[0], value: Math.round(value) });
   }
+  // Ensure last point matches current value closely
+  if (history.length > 0) history[history.length - 1].value = Math.round(currentValue);
+  return history;
 }
 
 // ─── Portfolio Loading ───────────────────────────────────────────────────────
@@ -2113,8 +2185,12 @@ function makeChart(key, ctx, config) {
 
 // ─── Overview Rendering ──────────────────────────────────────────────────────
 function getPeriodLabel() {
+  if (activeDateRange === '1m') return '1 Month';
+  if (activeDateRange === '3m') return '3 Month';
+  if (activeDateRange === '6m') return '6 Month';
   if (activeDateRange === 'ytd') return 'YTD';
   if (activeDateRange === '1y') return '1 Year';
+  if (activeDateRange === '3y') return '3 Year';
   if (activeDateRange === '5y') return '5 Year';
   return 'Total';
 }
@@ -2410,22 +2486,24 @@ function renderPerformance() {
     options: { responsive: true, plugins: { datalabels: barLabels('', '$'), legend: { display: false } }, scales: { y: { grid: { color: 'var(--chart-grid, rgba(148,163,184,0.15))' }, ticks: { callback: v => '$' + (v/1000).toFixed(1) + 'k' } }, x: { grid: { display: false } } } }
   });
 
-  // By account
-  const acctPerf = {};
-  filteredPositions.forEach(p => {
-    const a = p._accountName || 'Unknown';
-    if (!acctPerf[a]) acctPerf[a] = { mv: 0, bv: 0 };
-    acctPerf[a].mv += (p.market_value || p.value || 0);
-    acctPerf[a].bv += (p.book_value || p.market_value || p.value || 0);
+  // Portfolio performance summary — combined totals across all accounts
+  const assetPerf = {};
+  const agg = aggregatePositions(filteredPositions);
+  agg.forEach(p => {
+    const ac = inferAssetClass(p);
+    if (!assetPerf[ac]) assetPerf[ac] = { mv: 0, bv: 0 };
+    assetPerf[ac].mv += (p.market_value || p.value || 0);
+    assetPerf[ac].bv += (p.book_value || p.market_value || p.value || 0);
   });
-  const acctEntries = Object.entries(acctPerf).sort((a,b) => (b[1].mv-b[1].bv) - (a[1].mv-a[1].bv));
+  const assetEntries = Object.entries(assetPerf).sort((a,b) => (b[1].mv-b[1].bv) - (a[1].mv-a[1].bv));
   makeChart('accountPerf', document.getElementById('accountPerfChart'), {
     type: 'bar',
     data: {
-      labels: acctEntries.map(e => e[0]),
+      labels: assetEntries.map(e => e[0]),
       datasets: [
-        { label: 'Book Value', data: acctEntries.map(e => e[1].bv), backgroundColor: 'rgba(59,130,246,0.3)', borderRadius: 4 },
-        { label: 'Market Value', data: acctEntries.map(e => e[1].mv), backgroundColor: '#3b82f6', borderRadius: 4 },
+        { label: 'Book Value', data: assetEntries.map(e => e[1].bv), backgroundColor: 'rgba(59,130,246,0.3)', borderRadius: 4 },
+        { label: 'Market Value', data: assetEntries.map(e => e[1].mv), backgroundColor: '#3b82f6', borderRadius: 4 },
+        { label: 'Gain/Loss', data: assetEntries.map(e => e[1].mv - e[1].bv), backgroundColor: assetEntries.map(e => e[1].mv >= e[1].bv ? 'rgba(34,197,94,0.7)' : 'rgba(239,68,68,0.7)'), borderRadius: 4 },
       ]
     },
     options: { responsive: true, plugins: { datalabels: barLabels('', '$'), legend: { position: 'bottom', labels: { usePointStyle: true, pointStyleWidth: 8 } } }, scales: { y: { grid: { color: 'var(--chart-grid, rgba(148,163,184,0.15))' }, ticks: { callback: v => '$' + (v/1000).toFixed(0) + 'k' } }, x: { grid: { display: false } } } }
@@ -3363,8 +3441,11 @@ function buildPlannerSystemPrompt(promptType) {
   if (profile.goal) systemPrompt += '\nPrimary investment goal: ' + profile.goal + '.';
   if (profile.timeline) systemPrompt += '\nInvestment timeline: ' + profile.timeline + ' years.';
   if (profile.income) systemPrompt += '\nAnnual income range: ' + profile.income + '.';
+  if (profile.volatility_comfort) systemPrompt += '\nVolatility comfort level: ' + profile.volatility_comfort + '.';
+  if (profile.monthly_contributions) systemPrompt += '\nMonthly contribution capacity: ' + profile.monthly_contributions + '.';
+  if (profile.experience) systemPrompt += '\nInvesting experience: ' + profile.experience + '.';
 
-  systemPrompt += '\n\nIMPORTANT: You are their personal financial planner. Use a warm, professional tone. Address them directly. Lead with what matters most to THEM based on their goals and situation. End with clear next steps.';
+  systemPrompt += '\n\nIMPORTANT: You are their personal financial planner. Use a warm, professional tone. Address them directly. Lead with what matters most to THEM based on their goals, risk sensitivity, and situation. Tailor complexity of explanations to their experience level. End with clear next steps.';
 
   return systemPrompt;
 }
@@ -3569,6 +3650,9 @@ function getInvestorProfile() {
     goal: document.getElementById('investorGoal')?.value || null,
     timeline: document.getElementById('investorTimeline')?.value || null,
     income: document.getElementById('investorIncome')?.value || null,
+    volatility_comfort: document.getElementById('investorVolatility')?.value || null,
+    monthly_contributions: document.getElementById('investorContributions')?.value || null,
+    experience: document.getElementById('investorExperience')?.value || null,
   };
 }
 
@@ -3632,6 +3716,9 @@ function loadInvestorProfile(profile) {
   if (profile.goal) document.getElementById('investorGoal').value = profile.goal;
   if (profile.timeline) document.getElementById('investorTimeline').value = profile.timeline;
   if (profile.income) document.getElementById('investorIncome').value = profile.income;
+  if (profile.volatility_comfort) document.getElementById('investorVolatility').value = profile.volatility_comfort;
+  if (profile.monthly_contributions) document.getElementById('investorContributions').value = profile.monthly_contributions;
+  if (profile.experience) document.getElementById('investorExperience').value = profile.experience;
 }
 
 function onPromptChange() {
@@ -4058,22 +4145,148 @@ function loadDemoData() {
   portfolioData.totalValue = tv;
   portfolioData.totalBook = tb;
 
-  // Generate mock portfolio history (24 months of data)
-  portfolioHistory = [];
-  const now = new Date();
-  const startValue = tv * 0.65;
-  for (let i = 24; i >= 0; i--) {
-    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
-    const progress = (24 - i) / 24;
-    const noise = 1 + (Math.sin(i * 1.3) * 0.04) + (Math.cos(i * 0.7) * 0.02);
-    const val = startValue + (tv - startValue) * progress * noise;
-    portfolioHistory.push({ date: d.toISOString().split('T')[0], value: Math.round(val) });
-  }
+  // Generate mock portfolio history (5 years / 60 months with weekly data points)
+  portfolioHistory = generateDemoHistory(tv);
 
   filteredPositions = [...portfolioData.positions];
   populateAccountFilter();
   renderAllTabs();
   document.getElementById('btnAnalyze').disabled = !apiKey;
+}
+
+// ─── Test Portfolios (10 diverse scenarios) ─────────────────────────────────
+const TEST_PORTFOLIOS = {
+  // 1. Young tech worker — concentrated in US growth, TFSA only
+  'young-tech': [
+    { class: 'equity', category: 'US Stocks', security: { symbol: 'QQQ', name: 'Invesco QQQ Trust', currency: 'USD', type: 'etf' }, quantity: 100, book_value: 35000, market_value: 52000, _accountName: 'TFSA - Wealthsimple' },
+    { class: 'equity', category: 'US Stocks', security: { symbol: 'NVDA', name: 'NVIDIA Corporation', currency: 'USD', type: 'equity' }, quantity: 50, book_value: 8000, market_value: 42000, _accountName: 'TFSA - Wealthsimple' },
+    { class: 'equity', category: 'US Stocks', security: { symbol: 'AAPL', name: 'Apple Inc', currency: 'USD', type: 'equity' }, quantity: 80, book_value: 12000, market_value: 17600, _accountName: 'TFSA - Wealthsimple' },
+    { class: 'crypto', category: 'Crypto', security: { symbol: 'ETH', name: 'Ethereum', currency: 'USD', type: 'crypto' }, quantity: 5, book_value: 8000, market_value: 15000, _accountName: 'Shakepay' },
+  ],
+  // 2. Retiree — income-focused, dividend heavy
+  'retiree-income': [
+    { class: 'equity', category: 'Canadian Stocks', security: { symbol: 'ENB.TO', name: 'Enbridge Inc', currency: 'CAD', type: 'equity' }, quantity: 1000, book_value: 45000, market_value: 56000, _accountName: 'RRIF - TD DI' },
+    { class: 'equity', category: 'Canadian Stocks', security: { symbol: 'BCE.TO', name: 'BCE Inc', currency: 'CAD', type: 'equity' }, quantity: 800, book_value: 40000, market_value: 28000, _accountName: 'RRIF - TD DI' },
+    { class: 'equity', category: 'Canadian Stocks', security: { symbol: 'T.TO', name: 'TELUS Corporation', currency: 'CAD', type: 'equity' }, quantity: 600, book_value: 15000, market_value: 14400, _accountName: 'RRIF - TD DI' },
+    { class: 'fixed-income', category: 'Canadian Bonds', security: { symbol: 'XBB.TO', name: 'iShares Core Canadian Bond ETF', currency: 'CAD', type: 'etf' }, quantity: 500, book_value: 15000, market_value: 14200, _accountName: 'TFSA - TD DI' },
+    { class: 'equity', category: 'Canadian Stocks', security: { symbol: 'FTS.TO', name: 'Fortis Inc', currency: 'CAD', type: 'equity' }, quantity: 300, book_value: 16000, market_value: 17700, _accountName: 'TFSA - TD DI' },
+    { class: 'equity', category: 'Canadian REITs', security: { symbol: 'REI-UN.TO', name: 'RioCan REIT', currency: 'CAD', type: 'equity' }, quantity: 500, book_value: 9000, market_value: 8500, _accountName: 'Non-Reg - TD DI' },
+  ],
+  // 3. Balanced couple — well-diversified, multiple account types
+  'balanced-couple': [
+    { class: 'equity', category: 'Global Stocks', security: { symbol: 'XEQT.TO', name: 'iShares Core Equity ETF Portfolio', currency: 'CAD', type: 'etf' }, quantity: 1500, book_value: 35000, market_value: 42000, _accountName: 'RRSP - Questrade' },
+    { class: 'equity', category: 'US Stocks', security: { symbol: 'VFV.TO', name: 'Vanguard S&P 500 Index ETF', currency: 'CAD', type: 'etf' }, quantity: 400, book_value: 34000, market_value: 44000, _accountName: 'TFSA - Questrade' },
+    { class: 'fixed-income', category: 'Canadian Bonds', security: { symbol: 'ZAG.TO', name: 'BMO Aggregate Bond Index ETF', currency: 'CAD', type: 'etf' }, quantity: 800, book_value: 12000, market_value: 11200, _accountName: 'RRSP - Questrade' },
+    { class: 'equity', category: 'International Stocks', security: { symbol: 'XEF.TO', name: 'iShares Core MSCI EAFE IMI ETF', currency: 'CAD', type: 'etf' }, quantity: 600, book_value: 19000, market_value: 21000, _accountName: 'TFSA - Questrade' },
+    { class: 'equity', category: 'Canadian Stocks', security: { symbol: 'XIU.TO', name: 'iShares S&P/TSX 60 Index ETF', currency: 'CAD', type: 'etf' }, quantity: 300, book_value: 10000, market_value: 10800, _accountName: 'Non-Reg - Questrade' },
+    { class: 'equity', category: 'Emerging Markets', security: { symbol: 'XEC.TO', name: 'iShares Core MSCI Emerging Markets ETF', currency: 'CAD', type: 'etf' }, quantity: 400, book_value: 8000, market_value: 7600, _accountName: 'RRSP - Questrade' },
+  ],
+  // 4. Single stock gambler — extremely concentrated, high risk
+  'concentrated': [
+    { class: 'equity', category: 'Canadian Stocks', security: { symbol: 'SHOP.TO', name: 'Shopify Inc', currency: 'CAD', type: 'equity' }, quantity: 500, book_value: 20000, market_value: 55000, _accountName: 'TFSA - BMO IL' },
+    { class: 'equity', category: 'US Stocks', security: { symbol: 'TSLA', name: 'Tesla Inc', currency: 'USD', type: 'equity' }, quantity: 100, book_value: 25000, market_value: 35000, _accountName: 'Non-Reg - BMO IL' },
+    { class: 'crypto', category: 'Crypto', security: { symbol: 'BTC', name: 'Bitcoin', currency: 'USD', type: 'crypto' }, quantity: 1.5, book_value: 30000, market_value: 97000, _accountName: 'Newton' },
+  ],
+  // 5. All-in-one simple — single ETF portfolio (ideal for beginners)
+  'simple-allinone': [
+    { class: 'equity', category: 'Global Stocks', security: { symbol: 'VGRO.TO', name: 'Vanguard Growth ETF Portfolio', currency: 'CAD', type: 'etf' }, quantity: 2000, book_value: 50000, market_value: 62000, _accountName: 'TFSA - Wealthsimple' },
+    { class: 'equity', category: 'Global Stocks', security: { symbol: 'VGRO.TO', name: 'Vanguard Growth ETF Portfolio', currency: 'CAD', type: 'etf' }, quantity: 3000, book_value: 75000, market_value: 93000, _accountName: 'RRSP - Wealthsimple' },
+  ],
+  // 6. Heavy Canadian home bias
+  'home-bias': [
+    { class: 'equity', category: 'Canadian Stocks', security: { symbol: 'RY.TO', name: 'Royal Bank of Canada', currency: 'CAD', type: 'equity' }, quantity: 200, book_value: 24000, market_value: 31000, _accountName: 'TFSA - CIBC IE' },
+    { class: 'equity', category: 'Canadian Stocks', security: { symbol: 'TD.TO', name: 'Toronto-Dominion Bank', currency: 'CAD', type: 'equity' }, quantity: 300, book_value: 24000, market_value: 24600, _accountName: 'TFSA - CIBC IE' },
+    { class: 'equity', category: 'Canadian Stocks', security: { symbol: 'BNS.TO', name: 'Bank of Nova Scotia', currency: 'CAD', type: 'equity' }, quantity: 400, book_value: 26000, market_value: 24800, _accountName: 'RRSP - CIBC IE' },
+    { class: 'equity', category: 'Canadian Stocks', security: { symbol: 'CM.TO', name: 'Canadian Imperial Bank of Commerce', currency: 'CAD', type: 'equity' }, quantity: 250, book_value: 14000, market_value: 18750, _accountName: 'RRSP - CIBC IE' },
+    { class: 'equity', category: 'Canadian Stocks', security: { symbol: 'BMO.TO', name: 'Bank of Montreal', currency: 'CAD', type: 'equity' }, quantity: 150, book_value: 18000, market_value: 20100, _accountName: 'Non-Reg - CIBC IE' },
+    { class: 'equity', category: 'Canadian Stocks', security: { symbol: 'NA.TO', name: 'National Bank of Canada', currency: 'CAD', type: 'equity' }, quantity: 200, book_value: 17000, market_value: 22400, _accountName: 'Non-Reg - CIBC IE' },
+  ],
+  // 7. RESP education saver — conservative with growth component
+  'resp-education': [
+    { class: 'equity', category: 'Global Stocks', security: { symbol: 'XBAL.TO', name: 'iShares Core Balanced ETF Portfolio', currency: 'CAD', type: 'etf' }, quantity: 500, book_value: 13000, market_value: 14500, _accountName: 'RESP - RBC DI' },
+    { class: 'fixed-income', category: 'Canadian Bonds', security: { symbol: 'ZST.TO', name: 'BMO Ultra Short-Term Bond ETF', currency: 'CAD', type: 'etf' }, quantity: 300, book_value: 14700, market_value: 14850, _accountName: 'RESP - RBC DI' },
+    { class: 'equity', category: 'Global Stocks', security: { symbol: 'VCNS.TO', name: 'Vanguard Conservative ETF Portfolio', currency: 'CAD', type: 'etf' }, quantity: 200, book_value: 5200, market_value: 5400, _accountName: 'RESP - RBC DI' },
+  ],
+  // 8. Crypto-heavy millennial
+  'crypto-heavy': [
+    { class: 'crypto', category: 'Crypto', security: { symbol: 'BTC', name: 'Bitcoin', currency: 'USD', type: 'crypto' }, quantity: 2, book_value: 40000, market_value: 130000, _accountName: 'Coinbase' },
+    { class: 'crypto', category: 'Crypto', security: { symbol: 'ETH', name: 'Ethereum', currency: 'USD', type: 'crypto' }, quantity: 20, book_value: 25000, market_value: 60000, _accountName: 'Coinbase' },
+    { class: 'crypto', category: 'Crypto', security: { symbol: 'SOL', name: 'Solana', currency: 'USD', type: 'crypto' }, quantity: 200, book_value: 8000, market_value: 28000, _accountName: 'Coinbase' },
+    { class: 'equity', category: 'US Stocks', security: { symbol: 'VOO', name: 'Vanguard S&P 500 ETF', currency: 'USD', type: 'etf' }, quantity: 30, book_value: 10000, market_value: 15000, _accountName: 'TFSA - Wealthsimple' },
+  ],
+  // 9. New investor — small portfolio, all cash-like holdings
+  'new-investor': [
+    { class: 'equity', category: 'Global Stocks', security: { symbol: 'XGRO.TO', name: 'iShares Core Growth ETF Portfolio', currency: 'CAD', type: 'etf' }, quantity: 50, book_value: 1250, market_value: 1360, _accountName: 'TFSA - Wealthsimple' },
+    { class: 'cash', category: 'Cash', security: { symbol: 'CSAV.TO', name: 'CI High Interest Savings ETF', currency: 'CAD', type: 'etf' }, quantity: 100, book_value: 5000, market_value: 5020, _accountName: 'TFSA - Wealthsimple' },
+    { class: 'cash', category: 'Cash', security: { symbol: 'PSA.TO', name: 'Purpose High Interest Savings Fund', currency: 'CAD', type: 'etf' }, quantity: 100, book_value: 5000, market_value: 5010, _accountName: 'RRSP - Wealthsimple' },
+  ],
+  // 10. Tax-inefficient — US dividends outside RRSP, growth in RRSP
+  'tax-inefficient': [
+    { class: 'equity', category: 'US Stocks', security: { symbol: 'AAPL', name: 'Apple Inc', currency: 'USD', type: 'equity' }, quantity: 100, book_value: 15000, market_value: 22000, _accountName: 'TFSA - National Bank DI' },
+    { class: 'equity', category: 'US Stocks', security: { symbol: 'JNJ', name: 'Johnson & Johnson', currency: 'USD', type: 'equity' }, quantity: 100, book_value: 15000, market_value: 16500, _accountName: 'TFSA - National Bank DI' },
+    { class: 'equity', category: 'US Stocks', security: { symbol: 'KO', name: 'Coca-Cola Company', currency: 'USD', type: 'equity' }, quantity: 200, book_value: 11000, market_value: 12400, _accountName: 'Non-Reg - National Bank DI' },
+    { class: 'crypto', category: 'Crypto', security: { symbol: 'BTCC-B.TO', name: 'Purpose Bitcoin ETF', currency: 'CAD', type: 'etf' }, quantity: 500, book_value: 25000, market_value: 38000, _accountName: 'RRSP - National Bank DI' },
+    { class: 'equity', category: 'Canadian Stocks', security: { symbol: 'SHOP.TO', name: 'Shopify Inc', currency: 'CAD', type: 'equity' }, quantity: 30, book_value: 3000, market_value: 3300, _accountName: 'RRSP - National Bank DI' },
+  ],
+};
+
+// Test function: load a test portfolio by name
+function loadTestPortfolio(name) {
+  const positions = TEST_PORTFOLIOS[name];
+  if (!positions) {
+    console.log('Available portfolios:', Object.keys(TEST_PORTFOLIOS).join(', '));
+    return;
+  }
+  portfolioData = {
+    positions: positions.map(p => ({...p})),
+    institutions: [],
+    totalValue: 0, totalBook: 0,
+  };
+  buildGroupsFromData();
+  let tv = 0, tb = 0;
+  portfolioData.positions.forEach(p => { tv += p.market_value || 0; tb += p.book_value || 0; });
+  portfolioData.totalValue = tv;
+  portfolioData.totalBook = tb;
+  portfolioHistory = generateDemoHistory(tv);
+  filteredPositions = [...portfolioData.positions];
+  populateAccountFilter();
+  renderAllTabs();
+  document.getElementById('btnAnalyze').disabled = !apiKey;
+  console.log('Loaded test portfolio: ' + name + ' (' + positions.length + ' positions, $' + tv.toLocaleString() + ' total)');
+}
+
+// Run all 10 test portfolios and log any rendering issues
+function runAllTests() {
+  const names = Object.keys(TEST_PORTFOLIOS);
+  const results = [];
+  names.forEach(name => {
+    try {
+      loadTestPortfolio(name);
+      const scores = computeScores();
+      const summary = buildPortfolioSummary();
+      results.push({
+        name: name,
+        positions: portfolioData.positions.length,
+        totalValue: portfolioData.totalValue,
+        health: scores.health,
+        diversification: scores.diversification,
+        risk: scores.riskManagement,
+        performance: scores.performance,
+        tax: scores.taxEfficiency,
+        income: scores.income,
+        historyPoints: portfolioHistory.length,
+        assetClasses: Object.keys(summary.asset_class_breakdown_pct).length,
+        regions: Object.keys(summary.geographic_breakdown_pct).length,
+        status: 'OK'
+      });
+    } catch(err) {
+      results.push({ name: name, status: 'ERROR: ' + err.message });
+    }
+  });
+  console.table(results);
+  // Reload the default demo at the end
+  loadDemoData();
+  return results;
 }
 
 // ─── Event Listeners ─────────────────────────────────────────────────────────
