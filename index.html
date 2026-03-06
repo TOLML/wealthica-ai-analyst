@@ -2772,8 +2772,8 @@ function renderRisk() {
   if (restVal > 0) { concLabels.push('Others (' + rest.length + ')'); concData.push(restVal); }
   makeChart('concentration', document.getElementById('concentrationChart'), {
     type: 'doughnut',
-    data: { labels: concLabels, datasets: [{ data: concData, backgroundColor: CHART_COLORS.slice(0, concLabels.length), borderWidth: 0 }] },
-    options: { responsive: true, cutout: '55%', plugins: { datalabels: doughnutLabels(totalVal), legend: { position: 'bottom', labels: { padding: 8, usePointStyle: true, pointStyleWidth: 8, font: { size: 11 } } } } }
+    data: { labels: concLabels, datasets: [{ data: concData, backgroundColor: CHART_COLORS.slice(0, concLabels.length), borderWidth: 2, borderColor: 'var(--bg-card)', hoverBorderWidth: 0, hoverOffset: 12 }] },
+    options: { responsive: true, cutout: '60%', plugins: { datalabels: doughnutLabels(totalVal), legend: { position: 'bottom', labels: { padding: 10, usePointStyle: true, pointStyleWidth: 8, font: { size: 11 } } } } }
   });
 
   // Weight distribution
@@ -2843,16 +2843,16 @@ function renderRegion() {
   const geoTotal = regionEntries.reduce((s,e)=>s+e[1],0);
   makeChart('geo', document.getElementById('geoChart'), {
     type: 'doughnut',
-    data: { labels: regionEntries.map(e=>e[0]), datasets: [{ data: regionEntries.map(e=>e[1]), backgroundColor: regionEntries.map(e => regionColors[e[0]] || '#6366f1'), borderWidth: 0 }] },
-    options: { responsive: true, cutout: '60%', plugins: { datalabels: doughnutLabels(geoTotal), legend: { position: 'bottom', labels: { padding: 10, usePointStyle: true, pointStyleWidth: 8 } } } }
+    data: { labels: regionEntries.map(e=>e[0]), datasets: [{ data: regionEntries.map(e=>e[1]), backgroundColor: regionEntries.map(e => regionColors[e[0]] || '#6366f1'), borderWidth: 2, borderColor: 'var(--bg-card)', hoverBorderWidth: 0, hoverOffset: 12 }] },
+    options: { responsive: true, cutout: '60%', plugins: { datalabels: doughnutLabels(geoTotal), legend: { position: 'bottom', labels: { padding: 10, usePointStyle: true, pointStyleWidth: 8, font: { size: 11 } } } } }
   });
 
   const currEntries = Object.entries(currencyMap).sort((a,b) => b[1] - a[1]);
   const currTotal = currEntries.reduce((s,e) => s + e[1], 0);
   makeChart('currency', document.getElementById('currencyChart'), {
     type: 'doughnut',
-    data: { labels: currEntries.map(e=>e[0]), datasets: [{ data: currEntries.map(e=>e[1]), backgroundColor: ['#6366f1','#14b8a6','#f59e0b','#f43f5e','#8b5cf6'], borderWidth: 2, borderColor: 'var(--bg-card)', hoverOffset: 8 }] },
-    options: { responsive: true, cutout: '60%', plugins: { datalabels: doughnutLabels(currTotal), legend: { position: 'bottom', labels: { padding: 10, usePointStyle: true, pointStyleWidth: 8 } } } }
+    data: { labels: currEntries.map(e=>e[0]), datasets: [{ data: currEntries.map(e=>e[1]), backgroundColor: ['#6366f1','#14b8a6','#f59e0b','#f43f5e','#8b5cf6'], borderWidth: 2, borderColor: 'var(--bg-card)', hoverBorderWidth: 0, hoverOffset: 12 }] },
+    options: { responsive: true, cutout: '60%', plugins: { datalabels: doughnutLabels(currTotal), legend: { position: 'bottom', labels: { padding: 10, usePointStyle: true, pointStyleWidth: 8, font: { size: 11 } } } } }
   });
 
   const regionDiv = document.getElementById('regionCards');
@@ -2885,8 +2885,8 @@ function renderSectors() {
   const secTotal = sectorEntries.reduce((s,e) => s + e[1].value, 0);
   makeChart('sectorDetail', document.getElementById('sectorDetailChart'), {
     type: 'doughnut',
-    data: { labels: sectorEntries.map(e=>e[0]), datasets: [{ data: sectorEntries.map(e=>e[1].value), backgroundColor: CHART_COLORS.slice(0, sectorEntries.length), borderWidth: 0 }] },
-    options: { responsive: true, cutout: '55%', plugins: { datalabels: doughnutLabels(secTotal), legend: { position: 'bottom', labels: { padding: 8, usePointStyle: true, pointStyleWidth: 8, font: { size: 11 } } } } }
+    data: { labels: sectorEntries.map(e=>e[0]), datasets: [{ data: sectorEntries.map(e=>e[1].value), backgroundColor: CHART_COLORS.slice(0, sectorEntries.length), borderWidth: 2, borderColor: 'var(--bg-card)', hoverBorderWidth: 0, hoverOffset: 12 }] },
+    options: { responsive: true, cutout: '60%', plugins: { datalabels: doughnutLabels(secTotal), legend: { position: 'bottom', labels: { padding: 10, usePointStyle: true, pointStyleWidth: 8, font: { size: 11 } } } } }
   });
 
   // Bar chart
