@@ -517,6 +517,13 @@
     .holdings-table th, .holdings-table td { padding: 6px 8px; }
     .corr-table { font-size: 8px; }
     .corr-table th, .corr-table td { padding: 3px 2px; }
+    .investor-profile-grid { grid-template-columns: 1fr; }
+    .follow-up-area.visible { flex-direction: column; }
+    .date-filter { flex-wrap: wrap; }
+    .whatif-controls { flex-direction: column; }
+    .watchlist-grid { grid-template-columns: 1fr; }
+    .quick-actions { flex-direction: column; }
+    .ai-response { max-height: 500px; padding: 16px; }
   }
   @media (max-width: 480px) {
     .summary-grid { grid-template-columns: 1fr 1fr; }
@@ -526,7 +533,53 @@
     .model-results { grid-template-columns: 1fr; }
     .metric-gauge-row { grid-template-columns: 1fr; }
     .div-calendar { grid-template-columns: 1fr 1fr; }
+    .investor-profile-grid { grid-template-columns: 1fr; }
   }
+
+  /* Watchlist */
+  .watchlist-controls { display: flex; gap: 8px; margin-bottom: 16px; flex-wrap: wrap; }
+  .watchlist-controls input { flex: 1; min-width: 150px; background: var(--bg-primary); border: 1px solid var(--border); color: var(--text-primary); padding: 8px 12px; border-radius: 8px; font-family: inherit; font-size: 13px; outline: none; }
+  .watchlist-controls input:focus { border-color: var(--accent); }
+  .watchlist-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 12px; }
+  .watchlist-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 12px; padding: 16px; display: flex; justify-content: space-between; align-items: center; }
+  .watchlist-card .wl-info { flex: 1; }
+  .watchlist-card .wl-symbol { font-family: 'JetBrains Mono', monospace; font-weight: 600; font-size: 14px; color: var(--text-primary); }
+  .watchlist-card .wl-name { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
+  .watchlist-card .wl-actions { display: flex; gap: 6px; }
+  .watchlist-card .wl-btn { background: none; border: 1px solid var(--border); color: var(--text-muted); padding: 4px 8px; border-radius: 6px; font-size: 11px; cursor: pointer; font-family: inherit; }
+  .watchlist-card .wl-btn:hover { border-color: var(--accent); color: var(--accent); }
+  .watchlist-card .wl-btn.remove { color: var(--red); }
+  .watchlist-card .wl-btn.remove:hover { border-color: var(--red); }
+
+  /* What-If */
+  .whatif-controls { display: flex; gap: 8px; margin-bottom: 16px; flex-wrap: wrap; align-items: flex-end; }
+  .whatif-field { display: flex; flex-direction: column; gap: 4px; }
+  .whatif-field label { font-size: 11px; color: var(--text-muted); font-weight: 500; }
+  .whatif-field input, .whatif-field select { background: var(--bg-primary); border: 1px solid var(--border); color: var(--text-primary); padding: 8px 10px; border-radius: 8px; font-family: inherit; font-size: 13px; outline: none; min-width: 100px; }
+  .whatif-field input:focus, .whatif-field select:focus { border-color: var(--accent); }
+  .whatif-comparison { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 16px; }
+  .whatif-col { background: var(--bg-card); border: 1px solid var(--border); border-radius: 12px; padding: 16px; }
+  .whatif-col h4 { font-size: 13px; font-weight: 600; margin-bottom: 12px; color: var(--text-primary); }
+  .whatif-col .score-row { display: flex; justify-content: space-between; padding: 6px 0; border-bottom: 1px solid var(--border); font-size: 13px; }
+  .whatif-col .score-row:last-child { border-bottom: none; }
+  .whatif-col .score-change { font-weight: 600; font-family: 'JetBrains Mono', monospace; font-size: 12px; }
+
+  /* Quick Actions */
+  .quick-actions { display: flex; gap: 8px; margin-top: 16px; flex-wrap: wrap; }
+  .quick-actions button { background: var(--bg-card); border: 1px solid var(--border); color: var(--text-secondary); padding: 8px 14px; border-radius: 8px; font-family: inherit; font-size: 12px; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; transition: all 0.2s; }
+  .quick-actions button:hover { border-color: var(--accent); color: var(--accent); }
+
+  /* Transactions */
+  .txn-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  .txn-table th { text-align: left; padding: 10px 8px; border-bottom: 2px solid var(--border); font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-muted); font-weight: 500; }
+  .txn-table td { padding: 10px 8px; border-bottom: 1px solid var(--border); }
+  .txn-table tr:hover { background: var(--bg-card-hover); }
+  .txn-badge { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 10px; font-weight: 600; text-transform: uppercase; }
+  .txn-badge.buy { background: rgba(34,197,94,0.15); color: var(--green); }
+  .txn-badge.sell { background: rgba(239,68,68,0.15); color: var(--red); }
+  .txn-badge.dividend { background: rgba(59,130,246,0.15); color: var(--accent); }
+  .txn-badge.contribution { background: rgba(168,85,247,0.15); color: var(--purple); }
+  .txn-badge.fee { background: rgba(245,158,11,0.15); color: var(--yellow); }
 </style>
 </head>
 <body>
@@ -653,6 +706,9 @@
     <button class="tab-btn" onclick="switchTab('risk')">Risk</button>
     <button class="tab-btn" onclick="switchTab('region')">Region</button>
     <button class="tab-btn" onclick="switchTab('models')">Risk Models</button>
+    <button class="tab-btn" onclick="switchTab('transactions')">Activity</button>
+    <button class="tab-btn" onclick="switchTab('watchlist')">Watchlist</button>
+    <button class="tab-btn" onclick="switchTab('whatif')">What-If</button>
     <button class="tab-btn" onclick="switchTab('ai')">AI Planner</button>
   </nav>
 
@@ -791,6 +847,8 @@
     <div class="chart-card"><h3>Gain/Loss by Position</h3><canvas id="gainLossChart"></canvas></div>
     <div class="chart-card" style="margin-top:20px"><h3>Portfolio Performance Summary</h3><canvas id="accountPerfChart"></canvas></div>
     <div class="chart-card" style="margin-top:20px"><h3>Return by Position</h3><canvas id="benchmarkChart"></canvas></div>
+    <div class="chart-card" style="margin-top:20px"><h3>Contributions vs Growth</h3><canvas id="contribGrowthChart"></canvas></div>
+    <div class="chart-card" style="margin-top:20px"><h3>Position Correlation (Top 10)</h3><div id="perfCorrMatrix"></div></div>
     <div style="margin-top:20px">
       <button class="tab-ai-btn" id="aiBtn-performance" onclick="runTabAI('performance')">
         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polygon points="5 3 19 12 5 21 5 3"/></svg>
@@ -912,6 +970,79 @@
     </div>
   </section>
 
+  <!-- ==================== TRANSACTIONS TAB ==================== -->
+  <section class="tab-panel" id="panel-transactions">
+    <div class="tab-description">
+      <h2>Activity & Transactions</h2>
+      <p>View simulated transaction history including buys, sells, dividends, and contributions. Connect to Wealthica for real transaction data.</p>
+    </div>
+    <div class="summary-grid" id="txnSummaryGrid"></div>
+    <div class="chart-card" style="margin:16px 0"><h3>Monthly Activity</h3><canvas id="txnChart"></canvas></div>
+    <div style="overflow-x:auto">
+      <table class="txn-table" id="txnTable">
+        <thead><tr><th>Date</th><th>Type</th><th>Symbol</th><th>Account</th><th>Shares</th><th style="text-align:right">Amount</th></tr></thead>
+        <tbody id="txnBody"></tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- ==================== WATCHLIST TAB ==================== -->
+  <section class="tab-panel" id="panel-watchlist">
+    <div class="tab-description">
+      <h2>Watchlist</h2>
+      <p>Track stocks and ETFs you're considering. Compare them against your current holdings.</p>
+    </div>
+    <div class="watchlist-controls">
+      <input type="text" id="watchlistInput" placeholder="Add symbol (e.g. AAPL, VFV.TO, XEF.TO)..." onkeydown="if(event.key==='Enter')addToWatchlist()" />
+      <button class="btn-primary" onclick="addToWatchlist()">Add</button>
+      <button class="btn-export" onclick="loadSuggestedWatchlist()">Load Suggestions</button>
+    </div>
+    <div class="watchlist-grid" id="watchlistGrid">
+      <div style="text-align:center;color:var(--text-muted);padding:40px;grid-column:1/-1">
+        Add symbols above to start building your watchlist, or click <strong>Load Suggestions</strong> for ideas based on your portfolio gaps.
+      </div>
+    </div>
+  </section>
+
+  <!-- ==================== WHAT-IF TAB ==================== -->
+  <section class="tab-panel" id="panel-whatif">
+    <div class="tab-description">
+      <h2>What-If Analysis</h2>
+      <p>Simulate adding or removing positions to see how it would change your portfolio scores.</p>
+    </div>
+    <div class="whatif-controls" id="whatifControls">
+      <div class="whatif-field">
+        <label>Action</label>
+        <select id="whatifAction">
+          <option value="add">Add Position</option>
+          <option value="remove">Remove Position</option>
+        </select>
+      </div>
+      <div class="whatif-field">
+        <label>Symbol</label>
+        <input type="text" id="whatifSymbol" placeholder="e.g. VFV.TO" />
+      </div>
+      <div class="whatif-field">
+        <label>Amount (CAD)</label>
+        <input type="number" id="whatifAmount" placeholder="e.g. 10000" min="0" />
+      </div>
+      <div class="whatif-field">
+        <label>Account</label>
+        <select id="whatifAccount">
+          <option value="TFSA">TFSA</option>
+          <option value="RRSP">RRSP</option>
+          <option value="Non-Reg">Non-Registered</option>
+          <option value="RESP">RESP</option>
+        </select>
+      </div>
+      <button class="btn-primary" onclick="runWhatIf()" style="align-self:flex-end;padding:8px 16px">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+        Simulate
+      </button>
+    </div>
+    <div id="whatifResults"></div>
+  </section>
+
   <!-- ==================== AI ANALYST TAB ==================== -->
   <section class="tab-panel" id="panel-ai">
     <div class="analysis-header">
@@ -955,6 +1086,20 @@
       <button class="btn-primary" onclick="sendFollowUp()">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
         Follow Up
+      </button>
+    </div>
+    <div class="quick-actions" id="quickActions" style="display:none">
+      <button onclick="copyAIResponse()">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+        Copy Response
+      </button>
+      <button onclick="exportAIResponse()">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
+        Export as Text
+      </button>
+      <button onclick="extractTrades()">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+        Extract Trade Ideas
       </button>
     </div>
     <div class="ai-disclaimer">
@@ -1025,10 +1170,13 @@ function renderActiveTab() {
     case 'overview': renderOverview(); break;
     case 'holdings': renderHoldingsTab(); if (holdingsView === 'table') renderHoldingsTable(); break;
     case 'sectors': renderSectors(); break;
-    case 'performance': renderPerformance(); renderHistoryChart(); break;
+    case 'performance': renderPerformance(); renderHistoryChart(); renderContribGrowthChart(); renderPerfCorrelation(); break;
     case 'risk': renderRisk(); renderCorrelationMatrix(); break;
     case 'region': renderRegion(); break;
     case 'models': renderModels(); renderStressTest(); break;
+    case 'transactions': renderTransactions(); break;
+    case 'watchlist': renderWatchlist(); break;
+    case 'whatif': break;
   }
 }
 
@@ -3530,6 +3678,7 @@ async function runAnalysis() {
   await streamAIResponse(systemPrompt, conversationHistory, responseEl, function(fullText) {
     conversationHistory.push({ role: 'assistant', content: fullText });
     document.getElementById('followUpArea').classList.add('visible');
+    document.getElementById('quickActions').style.display = '';
   });
 
   resetAnalyzeBtn();
@@ -3829,9 +3978,13 @@ function renderHistoryChart() {
   });
   const values = filtered.map(h => h.value || h.v || 0);
 
-  // Compute y-axis min to avoid starting from 0 (which makes the line flat)
-  const minVal = Math.min(...values);
-  const maxVal = Math.max(...values);
+  // Generate benchmark overlays (normalized to start at same value as portfolio)
+  const startVal = values[0] || 1;
+  const sp500Data = generateBenchmarkCurve(filtered.length, 0.10, 0.16, startVal); // ~10% annual, 16% vol
+  const tsxData = generateBenchmarkCurve(filtered.length, 0.07, 0.14, startVal);   // ~7% annual, 14% vol
+
+  const minVal = Math.min(...values, ...sp500Data, ...tsxData);
+  const maxVal = Math.max(...values, ...sp500Data, ...tsxData);
   const yPadding = (maxVal - minVal) * 0.1 || maxVal * 0.05;
   const yMin = Math.max(0, minVal - yPadding);
 
@@ -3840,7 +3993,7 @@ function renderHistoryChart() {
     data: {
       labels: labels,
       datasets: [{
-        label: 'Portfolio Value',
+        label: 'Portfolio',
         data: values,
         borderColor: '#3b82f6',
         backgroundColor: function(context) {
@@ -3858,12 +4011,33 @@ function renderHistoryChart() {
         pointHoverRadius: 5,
         borderWidth: 2.5,
         pointBackgroundColor: '#3b82f6',
+      }, {
+        label: 'S&P 500 (simulated)',
+        data: sp500Data,
+        borderColor: 'rgba(168,85,247,0.6)',
+        borderWidth: 1.5,
+        borderDash: [5, 3],
+        tension: 0.35,
+        pointRadius: 0,
+        pointHoverRadius: 3,
+        fill: false,
+      }, {
+        label: 'TSX (simulated)',
+        data: tsxData,
+        borderColor: 'rgba(34,197,94,0.5)',
+        borderWidth: 1.5,
+        borderDash: [3, 3],
+        tension: 0.35,
+        pointRadius: 0,
+        pointHoverRadius: 3,
+        fill: false,
       }]
     },
     options: {
       responsive: true,
-      plugins: { datalabels: { display: false }, legend: { display: false },
-        tooltip: { callbacks: { label: function(ctx) { return 'Portfolio: $' + ctx.parsed.y.toLocaleString(); } } }
+      plugins: { datalabels: { display: false },
+        legend: { display: true, position: 'bottom', labels: { usePointStyle: true, pointStyleWidth: 8, font: { size: 11 } } },
+        tooltip: { callbacks: { label: function(ctx) { return ctx.dataset.label + ': $' + ctx.parsed.y.toLocaleString(); } } }
       },
       scales: {
         y: { min: yMin, grid: { color: 'var(--chart-grid, rgba(148,163,184,0.15))' }, ticks: { callback: v => '$' + (v/1000).toFixed(0) + 'k' } },
@@ -3872,6 +4046,19 @@ function renderHistoryChart() {
       interaction: { intersect: false, mode: 'index' },
     }
   });
+}
+
+function generateBenchmarkCurve(points, annualReturn, annualVol, startValue) {
+  const weeklyReturn = annualReturn / 52;
+  const weeklyVol = annualVol / Math.sqrt(52);
+  const data = [startValue];
+  let val = startValue;
+  for (let i = 1; i < points; i++) {
+    const noise = Math.sin(i * 1.618) * weeklyVol + Math.cos(i * 2.236) * weeklyVol * 0.5;
+    val = val * (1 + weeklyReturn + noise);
+    data.push(Math.round(val));
+  }
+  return data;
 }
 
 // ─── Correlation Heatmap ─────────────────────────────────────────────────────
@@ -4152,6 +4339,453 @@ function loadDemoData() {
   populateAccountFilter();
   renderAllTabs();
   document.getElementById('btnAnalyze').disabled = !apiKey;
+}
+
+// ─── Contributions vs Growth Chart ───────────────────────────────────────────
+function renderContribGrowthChart() {
+  const canvas = document.getElementById('contribGrowthChart');
+  if (!canvas) return;
+
+  const filtered = getFilteredHistory();
+  if (filtered.length < 2) return;
+
+  const totalBook = filteredPositions.reduce((s,p) => s + (p.book_value || p.market_value || p.value || 0), 0);
+  const totalVal = filteredPositions.reduce((s,p) => s + (p.market_value || p.value || 0), 0);
+  const startVal = filtered[0].value || filtered[0].v || 0;
+
+  // Simulate contributions as a steady accumulation line from start book to current book
+  // Growth is the difference between portfolio value and estimated contributions
+  const n = filtered.length;
+  const labels = filtered.map(h => {
+    const d = new Date(h.date || h.d);
+    return d.toLocaleDateString('en-CA', { month: 'short', year: '2-digit' });
+  });
+
+  const contribs = [];
+  const growth = [];
+  const estimatedStartBook = startVal * 0.85; // estimate starting book at 85% of starting value
+  for (let i = 0; i < n; i++) {
+    const progress = i / (n - 1);
+    const contribAtPoint = estimatedStartBook + (totalBook - estimatedStartBook) * progress;
+    const valueAtPoint = filtered[i].value || filtered[i].v || 0;
+    contribs.push(Math.round(contribAtPoint));
+    growth.push(Math.round(valueAtPoint - contribAtPoint));
+  }
+
+  makeChart('contribGrowth', canvas, {
+    type: 'line',
+    data: {
+      labels: labels,
+      datasets: [{
+        label: 'Estimated Contributions',
+        data: contribs,
+        borderColor: 'rgba(59,130,246,0.7)',
+        backgroundColor: 'rgba(59,130,246,0.1)',
+        fill: true,
+        tension: 0.3,
+        pointRadius: 0,
+        borderWidth: 2,
+      }, {
+        label: 'Market Growth',
+        data: growth,
+        borderColor: 'rgba(34,197,94,0.7)',
+        backgroundColor: 'rgba(34,197,94,0.1)',
+        fill: true,
+        tension: 0.3,
+        pointRadius: 0,
+        borderWidth: 2,
+      }]
+    },
+    options: {
+      responsive: true,
+      plugins: {
+        datalabels: { display: false },
+        legend: { position: 'bottom', labels: { usePointStyle: true, pointStyleWidth: 8 } },
+        tooltip: { callbacks: { label: function(ctx) { return ctx.dataset.label + ': $' + ctx.parsed.y.toLocaleString(); } } }
+      },
+      scales: {
+        y: { grid: { color: 'var(--chart-grid, rgba(148,163,184,0.15))' }, ticks: { callback: v => '$' + (v/1000).toFixed(0) + 'k' } },
+        x: { grid: { display: false }, ticks: { maxTicksLimit: 8, font: { size: 10 } } }
+      },
+      interaction: { intersect: false, mode: 'index' },
+    }
+  });
+}
+
+// ─── Performance Correlation Matrix (simplified) ─────────────────────────────
+function renderPerfCorrelation() {
+  const wrap = document.getElementById('perfCorrMatrix');
+  if (!wrap) return;
+  const agg = aggregatePositions(filteredPositions);
+  const top = [...agg].sort((a,b) => (b.market_value||b.value||0) - (a.market_value||a.value||0)).slice(0, 10);
+  if (top.length < 2) { wrap.innerHTML = '<div style="text-align:center;color:var(--text-muted);padding:20px;font-size:13px">Need at least 2 positions.</div>'; return; }
+
+  const isEquity = c => /Technology|Financials|Energy|Healthcare|Industrials|Materials|Communications|Consumer|Utilities|Equity|Diversified/.test(c);
+  const isBond = c => /Fixed Income|Cash|Preferred/.test(c);
+  const isCrypto = c => c === 'Crypto';
+
+  function estCorr(c1, c2) {
+    if (c1 === c2) return 0.95;
+    if (isEquity(c1) && isEquity(c2)) return 0.70;
+    if ((isEquity(c1) && isBond(c2)) || (isBond(c1) && isEquity(c2))) return -0.20;
+    if (isCrypto(c1) && isCrypto(c2)) return 0.85;
+    if ((isEquity(c1) && isCrypto(c2)) || (isCrypto(c1) && isEquity(c2))) return 0.35;
+    if (c1 === 'Real Estate' && isEquity(c2) || c2 === 'Real Estate' && isEquity(c1)) return 0.55;
+    return 0.30;
+  }
+
+  function corrColor(v) {
+    if (v >= 0.8) return 'rgba(239,68,68,0.3)';
+    if (v >= 0.5) return 'rgba(245,158,11,0.2)';
+    if (v >= 0.2) return 'rgba(59,130,246,0.1)';
+    if (v >= -0.1) return 'transparent';
+    return 'rgba(34,197,94,0.15)';
+  }
+
+  const syms = top.map(p => (p.security?.symbol || p.symbol || '?').replace(/\.(TO|TSX)$/, ''));
+  const classes = top.map(p => inferAssetClass(p));
+  let html = '<div style="overflow-x:auto"><table style="border-collapse:collapse;font-size:11px;width:100%"><thead><tr><th style="padding:6px 4px"></th>';
+  syms.forEach(s => { html += '<th style="padding:6px 4px;text-align:center;font-family:\'JetBrains Mono\',monospace;font-size:10px;writing-mode:vertical-rl;transform:rotate(180deg);height:60px">' + s + '</th>'; });
+  html += '</tr></thead><tbody>';
+  for (let i = 0; i < syms.length; i++) {
+    html += '<tr><td style="padding:6px 4px;font-weight:600;font-family:\'JetBrains Mono\',monospace;font-size:10px;white-space:nowrap">' + syms[i] + '</td>';
+    for (let j = 0; j < syms.length; j++) {
+      const corr = i === j ? 1.0 : estCorr(classes[i], classes[j]);
+      html += '<td style="padding:4px;text-align:center;background:' + corrColor(corr) + ';font-family:\'JetBrains Mono\',monospace;font-size:10px;min-width:36px">' + (i === j ? '1.00' : corr.toFixed(2)) + '</td>';
+    }
+    html += '</tr>';
+  }
+  html += '</tbody></table></div>';
+  html += '<div style="font-size:10px;color:var(--text-muted);margin-top:8px">Estimated correlations based on asset class. Green = low correlation (good diversification). Red = high correlation (concentrated risk).</div>';
+  wrap.innerHTML = html;
+}
+
+// ─── Transactions / Activity ─────────────────────────────────────────────────
+function generateDemoTransactions() {
+  const txns = [];
+  const agg = aggregatePositions(filteredPositions);
+  const now = new Date();
+  const types = ['buy', 'buy', 'buy', 'sell', 'dividend', 'dividend', 'contribution'];
+
+  for (let i = 0; i < 30; i++) {
+    const daysAgo = Math.floor(Math.random() * 365);
+    const d = new Date(now.getTime() - daysAgo * 86400000);
+    const pos = agg[Math.floor(Math.random() * agg.length)];
+    const sym = pos.security?.symbol || pos.symbol || 'N/A';
+    const acct = pos._accountName || pos._accounts?.[0] || 'Account';
+    const type = types[Math.floor(Math.random() * types.length)];
+    let amount = 0, shares = 0;
+    if (type === 'buy') {
+      shares = Math.ceil(Math.random() * 50);
+      amount = -(shares * (50 + Math.random() * 200));
+    } else if (type === 'sell') {
+      shares = Math.ceil(Math.random() * 20);
+      amount = shares * (50 + Math.random() * 200);
+    } else if (type === 'dividend') {
+      amount = 10 + Math.random() * 200;
+    } else {
+      amount = -(500 + Math.random() * 5000);
+    }
+    txns.push({ date: d.toISOString().split('T')[0], type, symbol: type === 'contribution' ? '--' : sym, account: acct, shares: type === 'dividend' || type === 'contribution' ? '--' : shares, amount: Math.round(amount * 100) / 100 });
+  }
+  return txns.sort((a, b) => b.date.localeCompare(a.date));
+}
+
+function renderTransactions() {
+  const txns = generateDemoTransactions();
+  const body = document.getElementById('txnBody');
+  body.innerHTML = '';
+  txns.forEach(t => {
+    const tr = document.createElement('tr');
+    tr.innerHTML = '<td>' + t.date + '</td>' +
+      '<td><span class="txn-badge ' + t.type + '">' + t.type + '</span></td>' +
+      '<td style="font-family:\'JetBrains Mono\',monospace;font-weight:600">' + t.symbol + '</td>' +
+      '<td style="font-size:12px;color:var(--text-muted)">' + t.account + '</td>' +
+      '<td>' + t.shares + '</td>' +
+      '<td style="text-align:right;font-family:\'JetBrains Mono\',monospace;color:' + (t.amount >= 0 ? 'var(--green)' : 'var(--red)') + '">' + (t.amount >= 0 ? '+' : '') + '$' + Math.abs(t.amount).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2}) + '</td>';
+    body.appendChild(tr);
+  });
+
+  // Summary cards
+  const buys = txns.filter(t => t.type === 'buy');
+  const sells = txns.filter(t => t.type === 'sell');
+  const divs = txns.filter(t => t.type === 'dividend');
+  const contribs = txns.filter(t => t.type === 'contribution');
+  const grid = document.getElementById('txnSummaryGrid');
+  grid.innerHTML = '';
+  const cards = [
+    { label: 'Total Buys', value: buys.length + ' trades', sub: '$' + Math.abs(buys.reduce((s,t) => s + t.amount, 0)).toLocaleString(undefined,{maximumFractionDigits:0}) },
+    { label: 'Total Sells', value: sells.length + ' trades', sub: '$' + sells.reduce((s,t) => s + t.amount, 0).toLocaleString(undefined,{maximumFractionDigits:0}) },
+    { label: 'Dividends Received', value: divs.length + ' payments', sub: '$' + divs.reduce((s,t) => s + t.amount, 0).toLocaleString(undefined,{maximumFractionDigits:0}) },
+    { label: 'Contributions', value: contribs.length, sub: '$' + Math.abs(contribs.reduce((s,t) => s + t.amount, 0)).toLocaleString(undefined,{maximumFractionDigits:0}) },
+  ];
+  cards.forEach(c => {
+    const d = document.createElement('div');
+    d.className = 'summary-card';
+    d.innerHTML = '<div class="label">' + c.label + '</div><div class="value" style="font-size:16px">' + c.value + '</div><div class="sub">' + c.sub + '</div>';
+    grid.appendChild(d);
+  });
+
+  // Monthly activity chart
+  const monthly = {};
+  txns.forEach(t => {
+    const m = t.date.substring(0, 7);
+    if (!monthly[m]) monthly[m] = { buys: 0, sells: 0, divs: 0 };
+    if (t.type === 'buy') monthly[m].buys += Math.abs(t.amount);
+    if (t.type === 'sell') monthly[m].sells += t.amount;
+    if (t.type === 'dividend') monthly[m].divs += t.amount;
+  });
+  const months = Object.keys(monthly).sort();
+  makeChart('txnChart', document.getElementById('txnChart'), {
+    type: 'bar',
+    data: {
+      labels: months,
+      datasets: [
+        { label: 'Buys', data: months.map(m => monthly[m].buys), backgroundColor: 'rgba(239,68,68,0.6)', borderRadius: 4 },
+        { label: 'Sells', data: months.map(m => monthly[m].sells), backgroundColor: 'rgba(34,197,94,0.6)', borderRadius: 4 },
+        { label: 'Dividends', data: months.map(m => monthly[m].divs), backgroundColor: 'rgba(59,130,246,0.6)', borderRadius: 4 },
+      ]
+    },
+    options: {
+      responsive: true,
+      plugins: { datalabels: { display: false }, legend: { position: 'bottom', labels: { usePointStyle: true, pointStyleWidth: 8 } } },
+      scales: { y: { stacked: false, grid: { color: 'var(--chart-grid, rgba(148,163,184,0.15))' }, ticks: { callback: v => '$' + (v/1000).toFixed(1) + 'k' } }, x: { grid: { display: false } } }
+    }
+  });
+}
+
+// ─── Watchlist ────────────────────────────────────────────────────────────────
+let watchlist = [];
+
+function addToWatchlist() {
+  const input = document.getElementById('watchlistInput');
+  const sym = input.value.trim().toUpperCase();
+  if (!sym) return;
+  if (watchlist.find(w => w.symbol === sym)) { showToast(sym + ' already in watchlist', 'error'); return; }
+  watchlist.push({ symbol: sym, addedAt: new Date().toISOString() });
+  input.value = '';
+  renderWatchlist();
+  showToast(sym + ' added to watchlist', 'success');
+}
+
+function removeFromWatchlist(sym) {
+  watchlist = watchlist.filter(w => w.symbol !== sym);
+  renderWatchlist();
+}
+
+function loadSuggestedWatchlist() {
+  const agg = aggregatePositions(filteredPositions);
+  const existingSyms = new Set(agg.map(p => (p.security?.symbol || p.symbol || '').toUpperCase()));
+
+  // Suggest based on what's missing from portfolio
+  const suggestions = [];
+  const sectors = {};
+  agg.forEach(p => { const s = inferAssetClass(p); sectors[s] = (sectors[s]||0) + (p.market_value||p.value||0); });
+  const totalVal = agg.reduce((s,p) => s + (p.market_value||p.value||0), 0);
+
+  // Common suggestions based on portfolio gaps
+  const allSuggestions = [
+    { symbol: 'XEQT.TO', name: 'iShares All Equity ETF', reason: 'Instant global diversification' },
+    { symbol: 'VFV.TO', name: 'Vanguard S&P 500 ETF', reason: 'US large cap exposure' },
+    { symbol: 'XEF.TO', name: 'iShares EAFE ETF', reason: 'International developed markets' },
+    { symbol: 'ZAG.TO', name: 'BMO Aggregate Bond ETF', reason: 'Fixed income stability' },
+    { symbol: 'XRE.TO', name: 'iShares REIT ETF', reason: 'Real estate diversification' },
+    { symbol: 'XEC.TO', name: 'iShares Emerging Markets ETF', reason: 'Emerging market growth' },
+    { symbol: 'VDY.TO', name: 'Vanguard Dividend ETF', reason: 'Canadian dividend income' },
+    { symbol: 'TEC.TO', name: 'TD Global Tech Leaders ETF', reason: 'Technology sector exposure' },
+  ];
+
+  allSuggestions.forEach(s => {
+    if (!existingSyms.has(s.symbol)) {
+      suggestions.push(s);
+    }
+  });
+
+  watchlist = suggestions.slice(0, 6).map(s => ({ symbol: s.symbol, name: s.name, reason: s.reason, addedAt: new Date().toISOString() }));
+  renderWatchlist();
+  showToast('Loaded ' + watchlist.length + ' suggestions based on portfolio gaps', 'success');
+}
+
+function renderWatchlist() {
+  const grid = document.getElementById('watchlistGrid');
+  if (watchlist.length === 0) {
+    grid.innerHTML = '<div style="text-align:center;color:var(--text-muted);padding:40px;grid-column:1/-1">Add symbols above to start building your watchlist, or click <strong>Load Suggestions</strong> for ideas based on your portfolio gaps.</div>';
+    return;
+  }
+
+  const existingSyms = new Set(aggregatePositions(filteredPositions).map(p => (p.security?.symbol || p.symbol || '').toUpperCase()));
+
+  grid.innerHTML = '';
+  watchlist.forEach(w => {
+    const inPortfolio = existingSyms.has(w.symbol);
+    const card = document.createElement('div');
+    card.className = 'watchlist-card';
+    card.innerHTML = '<div class="wl-info">' +
+      '<div class="wl-symbol">' + w.symbol + (inPortfolio ? ' <span style="font-size:10px;color:var(--green);font-weight:400">✓ owned</span>' : '') + '</div>' +
+      '<div class="wl-name">' + (w.name || '') + '</div>' +
+      (w.reason ? '<div style="font-size:11px;color:var(--accent);margin-top:4px">' + w.reason + '</div>' : '') +
+      '</div>' +
+      '<div class="wl-actions">' +
+      '<button class="wl-btn" onclick="whatifFromWatchlist(\'' + w.symbol + '\')">What-If</button>' +
+      '<button class="wl-btn remove" onclick="removeFromWatchlist(\'' + w.symbol + '\')">Remove</button>' +
+      '</div>';
+    grid.appendChild(card);
+  });
+}
+
+function whatifFromWatchlist(symbol) {
+  switchTab('whatif');
+  document.getElementById('whatifSymbol').value = symbol;
+  document.getElementById('whatifAction').value = 'add';
+  document.getElementById('whatifAmount').value = '10000';
+}
+
+// ─── What-If Analysis ────────────────────────────────────────────────────────
+function runWhatIf() {
+  const action = document.getElementById('whatifAction').value;
+  const symbol = document.getElementById('whatifSymbol').value.trim().toUpperCase();
+  const amount = parseFloat(document.getElementById('whatifAmount').value) || 0;
+  const account = document.getElementById('whatifAccount').value;
+
+  if (!symbol) { showToast('Enter a symbol', 'error'); return; }
+  if (amount <= 0 && action === 'add') { showToast('Enter an amount', 'error'); return; }
+
+  // Current scores
+  const currentScores = computeScores();
+
+  // Create modified positions
+  let modifiedPositions = [...filteredPositions];
+
+  if (action === 'add') {
+    modifiedPositions.push({
+      class: 'equity',
+      security: { symbol: symbol, name: symbol, currency: 'CAD', type: 'etf' },
+      quantity: 1,
+      book_value: amount,
+      market_value: amount,
+      _accountName: account,
+    });
+  } else {
+    // Remove position by symbol
+    const before = modifiedPositions.length;
+    modifiedPositions = modifiedPositions.filter(p => {
+      const s = (p.security?.symbol || p.symbol || '').toUpperCase();
+      return s !== symbol;
+    });
+    if (modifiedPositions.length === before) { showToast('Symbol ' + symbol + ' not found in portfolio', 'error'); return; }
+  }
+
+  // Temporarily swap to compute new scores
+  const originalPositions = filteredPositions;
+  filteredPositions = modifiedPositions;
+  const newScores = computeScores();
+  filteredPositions = originalPositions;
+
+  // Display comparison
+  const resultsEl = document.getElementById('whatifResults');
+  const metrics = [
+    { label: 'Overall Health', current: currentScores.health, new: newScores.health },
+    { label: 'Diversification', current: currentScores.diversification, new: newScores.diversification },
+    { label: 'Risk Management', current: currentScores.riskManagement, new: newScores.riskManagement },
+    { label: 'Performance', current: currentScores.performance, new: newScores.performance },
+    { label: 'Tax Efficiency', current: currentScores.taxEfficiency, new: newScores.taxEfficiency },
+    { label: 'Income Score', current: currentScores.income, new: newScores.income },
+  ];
+
+  const currentTotal = filteredPositions.reduce((s,p) => s + (p.market_value || p.value || 0), 0);
+  const newTotal = modifiedPositions.reduce((s,p) => s + (p.market_value || p.value || 0), 0);
+
+  let html = '<div class="whatif-comparison">';
+  html += '<div class="whatif-col"><h4>Current Portfolio</h4>';
+  html += '<div class="score-row"><span>Portfolio Value</span><span class="score-change">' + fmt(currentTotal) + '</span></div>';
+  html += '<div class="score-row"><span>Positions</span><span class="score-change">' + aggregatePositions(filteredPositions).length + '</span></div>';
+  metrics.forEach(m => {
+    html += '<div class="score-row"><span>' + m.label + '</span><span class="score-change" style="color:' + scoreColor(m.current) + '">' + m.current + '/100</span></div>';
+  });
+  html += '</div>';
+
+  html += '<div class="whatif-col"><h4>After ' + (action === 'add' ? 'Adding ' + symbol : 'Removing ' + symbol) + '</h4>';
+  html += '<div class="score-row"><span>Portfolio Value</span><span class="score-change">' + fmt(newTotal) + '</span></div>';
+  html += '<div class="score-row"><span>Positions</span><span class="score-change">' + aggregatePositions(modifiedPositions).length + '</span></div>';
+  metrics.forEach(m => {
+    const diff = m.new - m.current;
+    const arrow = diff > 0 ? ' ↑' : diff < 0 ? ' ↓' : '';
+    const diffColor = diff > 0 ? 'var(--green)' : diff < 0 ? 'var(--red)' : 'var(--text-muted)';
+    html += '<div class="score-row"><span>' + m.label + '</span><span class="score-change" style="color:' + scoreColor(m.new) + '">' + m.new + '/100 <span style="color:' + diffColor + ';font-size:11px">' + (diff > 0 ? '+' : '') + diff + arrow + '</span></span></div>';
+  });
+  html += '</div></div>';
+
+  // Summary
+  const healthDiff = newScores.health - currentScores.health;
+  html += '<div style="margin-top:16px;padding:12px 16px;background:var(--bg-secondary);border-radius:8px;font-size:13px">';
+  if (healthDiff > 5) html += '<strong style="color:var(--green)">Positive impact:</strong> ';
+  else if (healthDiff < -5) html += '<strong style="color:var(--red)">Negative impact:</strong> ';
+  else html += '<strong>Minimal impact:</strong> ';
+  html += (action === 'add' ? 'Adding' : 'Removing') + ' ' + symbol + ' would move your health score from ' + currentScores.health + ' to ' + newScores.health + '. ';
+  if (action === 'add' && newScores.diversification > currentScores.diversification) html += 'Diversification improves. ';
+  if (action === 'add' && newScores.riskManagement > currentScores.riskManagement) html += 'Risk profile improves. ';
+  if (action === 'remove' && newScores.diversification < currentScores.diversification) html += 'Warning: diversification decreases. ';
+  html += '</div>';
+
+  resultsEl.innerHTML = html;
+}
+
+// ─── Quick Actions (AI Response) ─────────────────────────────────────────────
+function copyAIResponse() {
+  const el = document.querySelector('#aiResponse .ai-content');
+  if (!el) return;
+  const text = el.innerText || el.textContent;
+  navigator.clipboard.writeText(text).then(() => {
+    showToast('Response copied to clipboard', 'success');
+  }).catch(() => {
+    showToast('Failed to copy', 'error');
+  });
+}
+
+function exportAIResponse() {
+  const el = document.querySelector('#aiResponse .ai-content');
+  if (!el) return;
+  const text = el.innerText || el.textContent;
+  const blob = new Blob([text], { type: 'text/plain' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'financial-plan-' + new Date().toISOString().split('T')[0] + '.txt';
+  a.click();
+  URL.revokeObjectURL(url);
+  showToast('Exported financial plan', 'success');
+}
+
+function extractTrades() {
+  const el = document.querySelector('#aiResponse .ai-content');
+  if (!el) return;
+  const text = el.innerText || el.textContent;
+  // Extract lines that look like trade recommendations
+  const lines = text.split('\n');
+  const tradeKeywords = /\b(buy|sell|add|trim|reduce|increase|switch|move|transfer|rebalance|reallocate)\b/i;
+  const trades = lines.filter(line => tradeKeywords.test(line) && line.length > 15 && line.length < 300);
+
+  if (trades.length === 0) {
+    showToast('No specific trade ideas found in the response', 'error');
+    return;
+  }
+
+  let tradeText = 'Trade Ideas Extracted from AI Financial Planner\n';
+  tradeText += 'Date: ' + new Date().toLocaleDateString() + '\n';
+  tradeText += '='.repeat(50) + '\n\n';
+  trades.forEach((t, i) => {
+    tradeText += (i + 1) + '. ' + t.trim() + '\n\n';
+  });
+  tradeText += '\nDisclaimer: These are AI-generated suggestions, not financial advice.';
+
+  const blob = new Blob([tradeText], { type: 'text/plain' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'trade-ideas-' + new Date().toISOString().split('T')[0] + '.txt';
+  a.click();
+  URL.revokeObjectURL(url);
+  showToast('Extracted ' + trades.length + ' trade ideas', 'success');
 }
 
 // ─── Test Portfolios (10 diverse scenarios) ─────────────────────────────────
