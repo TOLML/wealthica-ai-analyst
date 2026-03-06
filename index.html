@@ -125,11 +125,11 @@
   .ai-disclaimer { font-size: 11px; color: var(--text-muted); text-align: center; margin-top: 12px; padding: 8px 16px; background: var(--bg-secondary); border-radius: 8px; line-height: 1.5; }
 
   /* Tab Navigation */
-  .tab-nav { display: flex; gap: 2px; margin-bottom: 20px; border-bottom: 1px solid var(--border); overflow-x: auto; -webkit-overflow-scrolling: touch; scrollbar-width: none; }
+  .tab-nav { display: flex; gap: 4px; margin-bottom: 24px; background: var(--bg-card); border: 1px solid var(--border); border-radius: 12px; padding: 4px; overflow-x: auto; -webkit-overflow-scrolling: touch; scrollbar-width: none; }
   .tab-nav::-webkit-scrollbar { display: none; }
-  .tab-btn { padding: 10px 18px; background: none; border: none; border-bottom: 2px solid transparent; color: var(--text-muted); font-family: inherit; font-size: 13px; font-weight: 500; cursor: pointer; white-space: nowrap; transition: all 0.2s; }
-  .tab-btn:hover { color: var(--text-primary); }
-  .tab-btn.active { color: var(--accent); border-bottom-color: var(--accent); }
+  .tab-btn { padding: 8px 16px; background: none; border: none; border-radius: 8px; color: var(--text-muted); font-family: inherit; font-size: 13px; font-weight: 500; cursor: pointer; white-space: nowrap; transition: all 0.2s; }
+  .tab-btn:hover { color: var(--text-primary); background: rgba(59,130,246,0.06); }
+  .tab-btn.active { color: white; background: var(--accent); box-shadow: 0 2px 8px rgba(59,130,246,0.3); }
 
   /* Filter Bar */
   .filter-bar { display: flex; align-items: center; gap: 12px; margin-bottom: 20px; flex-wrap: wrap; }
@@ -201,8 +201,12 @@
 
   /* Summary Cards */
   .summary-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 12px; margin-bottom: 20px; }
-  .summary-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 10px; padding: 16px; transition: border-color 0.2s; }
+  .summary-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 10px; padding: 16px; transition: border-color 0.2s, transform 0.15s, box-shadow 0.2s; position: relative; }
   .summary-card:hover { border-color: var(--border-accent); }
+  .summary-card.clickable-card { cursor: pointer; }
+  .summary-card.clickable-card:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,0,0,0.1); border-color: var(--accent); }
+  .summary-card .card-arrow { position: absolute; top: 12px; right: 12px; font-size: 14px; color: var(--text-muted); opacity: 0; transition: opacity 0.2s, transform 0.2s; }
+  .summary-card.clickable-card:hover .card-arrow { opacity: 1; transform: translateX(2px); }
   .summary-card .label { font-size: 11px; font-weight: 500; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-muted); margin-bottom: 6px; }
   .summary-card .value { font-size: 20px; font-weight: 700; letter-spacing: -0.5px; font-family: 'JetBrains Mono', monospace; }
   .summary-card .sub { font-size: 12px; color: var(--text-secondary); margin-top: 4px; }
@@ -210,7 +214,7 @@
   .negative { color: var(--red); }
 
   /* Score Banner */
-  .score-banner { display: flex; align-items: center; gap: 24px; background: var(--bg-card); border: 1px solid var(--border); border-radius: 12px; padding: 24px; margin-bottom: 20px; }
+  .score-banner { display: flex; align-items: center; gap: 24px; background: linear-gradient(135deg, var(--bg-card) 0%, rgba(59,130,246,0.04) 100%); border: 1px solid var(--border); border-radius: 16px; padding: 28px; margin-bottom: 24px; box-shadow: 0 2px 12px rgba(0,0,0,0.04); }
   .score-ring { position: relative; width: 100px; height: 100px; flex-shrink: 0; }
   .score-ring .ring-bg { fill: none; stroke: var(--border); stroke-width: 8; }
   .score-ring .ring-fill { fill: none; stroke-width: 8; stroke-linecap: round; transition: stroke-dashoffset 1s ease, stroke 0.5s; }
@@ -220,7 +224,8 @@
 
   /* Chart Cards */
   .charts-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 20px; }
-  .chart-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 12px; padding: 20px; }
+  .chart-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 12px; padding: 20px; transition: border-color 0.2s, transform 0.15s, box-shadow 0.2s; }
+  .chart-card.clickable-card:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,0,0,0.1); border-color: var(--accent); cursor: pointer; }
   .chart-card h3 { font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-muted); margin-bottom: 16px; font-weight: 500; }
   .chart-card canvas { max-height: 280px; }
 
@@ -520,8 +525,6 @@
     .investor-profile-grid { grid-template-columns: 1fr; }
     .follow-up-area.visible { flex-direction: column; }
     .date-filter { flex-wrap: wrap; }
-    .whatif-controls { flex-direction: column; }
-    .watchlist-grid { grid-template-columns: 1fr; }
     .quick-actions { flex-direction: column; }
     .ai-response { max-height: 500px; padding: 16px; }
   }
@@ -537,32 +540,8 @@
   }
 
   /* Watchlist */
-  .watchlist-controls { display: flex; gap: 8px; margin-bottom: 16px; flex-wrap: wrap; }
-  .watchlist-controls input { flex: 1; min-width: 150px; background: var(--bg-primary); border: 1px solid var(--border); color: var(--text-primary); padding: 8px 12px; border-radius: 8px; font-family: inherit; font-size: 13px; outline: none; }
-  .watchlist-controls input:focus { border-color: var(--accent); }
-  .watchlist-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 12px; }
-  .watchlist-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 12px; padding: 16px; display: flex; justify-content: space-between; align-items: center; }
-  .watchlist-card .wl-info { flex: 1; }
-  .watchlist-card .wl-symbol { font-family: 'JetBrains Mono', monospace; font-weight: 600; font-size: 14px; color: var(--text-primary); }
-  .watchlist-card .wl-name { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
-  .watchlist-card .wl-actions { display: flex; gap: 6px; }
-  .watchlist-card .wl-btn { background: none; border: 1px solid var(--border); color: var(--text-muted); padding: 4px 8px; border-radius: 6px; font-size: 11px; cursor: pointer; font-family: inherit; }
-  .watchlist-card .wl-btn:hover { border-color: var(--accent); color: var(--accent); }
-  .watchlist-card .wl-btn.remove { color: var(--red); }
-  .watchlist-card .wl-btn.remove:hover { border-color: var(--red); }
 
   /* What-If */
-  .whatif-controls { display: flex; gap: 8px; margin-bottom: 16px; flex-wrap: wrap; align-items: flex-end; }
-  .whatif-field { display: flex; flex-direction: column; gap: 4px; }
-  .whatif-field label { font-size: 11px; color: var(--text-muted); font-weight: 500; }
-  .whatif-field input, .whatif-field select { background: var(--bg-primary); border: 1px solid var(--border); color: var(--text-primary); padding: 8px 10px; border-radius: 8px; font-family: inherit; font-size: 13px; outline: none; min-width: 100px; }
-  .whatif-field input:focus, .whatif-field select:focus { border-color: var(--accent); }
-  .whatif-comparison { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 16px; }
-  .whatif-col { background: var(--bg-card); border: 1px solid var(--border); border-radius: 12px; padding: 16px; }
-  .whatif-col h4 { font-size: 13px; font-weight: 600; margin-bottom: 12px; color: var(--text-primary); }
-  .whatif-col .score-row { display: flex; justify-content: space-between; padding: 6px 0; border-bottom: 1px solid var(--border); font-size: 13px; }
-  .whatif-col .score-row:last-child { border-bottom: none; }
-  .whatif-col .score-change { font-weight: 600; font-family: 'JetBrains Mono', monospace; font-size: 12px; }
 
   /* Quick Actions */
   .quick-actions { display: flex; gap: 8px; margin-top: 16px; flex-wrap: wrap; }
@@ -701,14 +680,13 @@
   <nav class="tab-nav" id="tabNav">
     <button class="tab-btn active" onclick="switchTab('overview')">Overview</button>
     <button class="tab-btn" onclick="switchTab('holdings')">Holdings</button>
-    <button class="tab-btn" onclick="switchTab('sectors')">Sectors</button>
     <button class="tab-btn" onclick="switchTab('performance')">Performance</button>
-    <button class="tab-btn" onclick="switchTab('risk')">Risk</button>
+    <button class="tab-btn" onclick="switchTab('sectors')">Sectors</button>
     <button class="tab-btn" onclick="switchTab('region')">Region</button>
+    <button class="tab-btn" onclick="switchTab('risk')">Risk</button>
     <button class="tab-btn" onclick="switchTab('models')">Risk Models</button>
     <button class="tab-btn" onclick="switchTab('transactions')">Activity</button>
-    <button class="tab-btn" onclick="switchTab('watchlist')">Watchlist</button>
-    <button class="tab-btn" onclick="switchTab('whatif')">What-If</button>
+    <button class="tab-btn" onclick="switchTab('insights')">Insights</button>
     <button class="tab-btn" onclick="switchTab('ai')">AI Planner</button>
   </nav>
 
@@ -752,27 +730,36 @@
     </div>
 
     <div class="summary-grid" id="summaryGrid">
-      <div class="summary-card"><div class="label">Total Value</div><div class="value" id="totalValue">--</div><div class="sub" id="totalAccounts"></div></div>
-      <div class="summary-card"><div class="label">Positions</div><div class="value" id="totalPositions">--</div><div class="sub" id="positionsSub"></div></div>
-      <div class="summary-card"><div class="label" id="gainLossLabel">Total Gain/Loss</div><div class="value" id="totalGainLoss">--</div><div class="sub" id="gainLossPct"></div></div>
-      <div class="summary-card"><div class="label">Top Holding</div><div class="value" id="topHolding" style="font-size:16px">--</div><div class="sub" id="topHoldingPct"></div></div>
+      <div class="summary-card clickable-card" onclick="switchTab('performance')" title="View Performance"><div class="label">Total Value</div><div class="value" id="totalValue">--</div><div class="sub" id="totalAccounts"></div><div class="card-arrow">&#8594;</div></div>
+      <div class="summary-card clickable-card" onclick="switchTab('holdings')" title="View Holdings"><div class="label">Positions</div><div class="value" id="totalPositions">--</div><div class="sub" id="positionsSub"></div><div class="card-arrow">&#8594;</div></div>
+      <div class="summary-card clickable-card" onclick="switchTab('performance')" title="View Performance"><div class="label" id="gainLossLabel">Total Gain/Loss</div><div class="value" id="totalGainLoss">--</div><div class="sub" id="gainLossPct"></div><div class="card-arrow">&#8594;</div></div>
+      <div class="summary-card clickable-card" onclick="switchTab('holdings')" title="View Holdings"><div class="label">Top Holding</div><div class="value" id="topHolding" style="font-size:16px">--</div><div class="sub" id="topHoldingPct"></div><div class="card-arrow">&#8594;</div></div>
     </div>
 
     <!-- Score Breakdown Cards -->
     <div class="score-breakdown" id="scoreBreakdown"></div>
+
+    <div class="charts-row">
+      <div class="chart-card clickable-card" onclick="switchTab('sectors')" style="cursor:pointer" title="View Sectors"><h3>Asset Allocation <span class="card-arrow" style="opacity:0.4;font-size:12px">&#8594;</span></h3><canvas id="allocationChart"></canvas></div>
+      <div class="chart-card clickable-card" onclick="switchTab('holdings')" style="cursor:pointer" title="View Holdings"><h3>Top Holdings <span class="card-arrow" style="opacity:0.4;font-size:12px">&#8594;</span></h3><canvas id="topHoldingsChart"></canvas></div>
+    </div>
+
+    <div class="accounts-grid" id="accountsGrid"></div>
+
+  </section>
+
+  <!-- ==================== INSIGHTS TAB ==================== -->
+  <section class="tab-panel" id="panel-insights">
+    <div class="tab-description">
+      <h2>Insights & Suggestions</h2>
+      <p>Actionable recommendations to improve your portfolio based on your current holdings, allocation, and risk profile.</p>
+    </div>
 
     <!-- Key Insights -->
     <div class="insights-panel" id="insightsPanel" style="display:none">
       <h3>Key Insights</h3>
       <div id="insightsList"></div>
     </div>
-
-    <div class="charts-row">
-      <div class="chart-card"><h3>Asset Allocation</h3><canvas id="allocationChart"></canvas></div>
-      <div class="chart-card"><h3>Top Holdings</h3><canvas id="topHoldingsChart"></canvas></div>
-    </div>
-
-    <div class="accounts-grid" id="accountsGrid"></div>
 
     <!-- Small & Big Moves -->
     <div class="actions-section" id="smallMovesSection" style="display:none">
@@ -819,9 +806,9 @@
         Get AI Position Ratings
       </button>
     </div>
+    <div class="chart-card" style="margin-bottom:20px"><h3>Portfolio Weights</h3><canvas id="holdingsWeightChart"></canvas></div>
     <div class="holdings-grid" id="holdingsGrid"></div>
     <div id="holdingsTableWrap" style="display:none;overflow-x:auto"></div>
-    <div class="chart-card" style="margin-top:20px"><h3>Portfolio Weights</h3><canvas id="holdingsWeightChart"></canvas></div>
   </section>
 
   <!-- ==================== PERFORMANCE TAB ==================== -->
@@ -847,8 +834,6 @@
     <div class="chart-card"><h3>Gain/Loss by Position</h3><canvas id="gainLossChart"></canvas></div>
     <div class="chart-card" style="margin-top:20px"><h3>Portfolio Performance Summary</h3><canvas id="accountPerfChart"></canvas></div>
     <div class="chart-card" style="margin-top:20px"><h3>Return by Position</h3><canvas id="benchmarkChart"></canvas></div>
-    <div class="chart-card" style="margin-top:20px"><h3>Contributions vs Growth</h3><canvas id="contribGrowthChart"></canvas></div>
-    <div class="chart-card" style="margin-top:20px"><h3>Position Correlation (Top 10)</h3><div id="perfCorrMatrix"></div></div>
     <div style="margin-top:20px">
       <button class="tab-ai-btn" id="aiBtn-performance" onclick="runTabAI('performance')">
         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polygon points="5 3 19 12 5 21 5 3"/></svg>
@@ -976,6 +961,13 @@
       <h2>Activity & Transactions</h2>
       <p>View simulated transaction history including buys, sells, dividends, and contributions. Connect to Wealthica for real transaction data.</p>
     </div>
+    <div class="date-range-bar" style="margin-bottom:12px">
+      <button class="date-btn" onclick="setTxnPeriod('1m')">1M</button>
+      <button class="date-btn" onclick="setTxnPeriod('3m')">3M</button>
+      <button class="date-btn" onclick="setTxnPeriod('6m')">6M</button>
+      <button class="date-btn active" onclick="setTxnPeriod('1y')">1Y</button>
+      <button class="date-btn" onclick="setTxnPeriod('all')">All</button>
+    </div>
     <div class="summary-grid" id="txnSummaryGrid"></div>
     <div class="chart-card" style="margin:16px 0"><h3>Monthly Activity</h3><canvas id="txnChart"></canvas></div>
     <div style="overflow-x:auto">
@@ -986,62 +978,6 @@
     </div>
   </section>
 
-  <!-- ==================== WATCHLIST TAB ==================== -->
-  <section class="tab-panel" id="panel-watchlist">
-    <div class="tab-description">
-      <h2>Watchlist</h2>
-      <p>Track stocks and ETFs you're considering. Compare them against your current holdings.</p>
-    </div>
-    <div class="watchlist-controls">
-      <input type="text" id="watchlistInput" placeholder="Add symbol (e.g. AAPL, VFV.TO, XEF.TO)..." onkeydown="if(event.key==='Enter')addToWatchlist()" />
-      <button class="btn-primary" onclick="addToWatchlist()">Add</button>
-      <button class="btn-export" onclick="loadSuggestedWatchlist()">Load Suggestions</button>
-    </div>
-    <div class="watchlist-grid" id="watchlistGrid">
-      <div style="text-align:center;color:var(--text-muted);padding:40px;grid-column:1/-1">
-        Add symbols above to start building your watchlist, or click <strong>Load Suggestions</strong> for ideas based on your portfolio gaps.
-      </div>
-    </div>
-  </section>
-
-  <!-- ==================== WHAT-IF TAB ==================== -->
-  <section class="tab-panel" id="panel-whatif">
-    <div class="tab-description">
-      <h2>What-If Analysis</h2>
-      <p>Simulate adding or removing positions to see how it would change your portfolio scores.</p>
-    </div>
-    <div class="whatif-controls" id="whatifControls">
-      <div class="whatif-field">
-        <label>Action</label>
-        <select id="whatifAction">
-          <option value="add">Add Position</option>
-          <option value="remove">Remove Position</option>
-        </select>
-      </div>
-      <div class="whatif-field">
-        <label>Symbol</label>
-        <input type="text" id="whatifSymbol" placeholder="e.g. VFV.TO" />
-      </div>
-      <div class="whatif-field">
-        <label>Amount (CAD)</label>
-        <input type="number" id="whatifAmount" placeholder="e.g. 10000" min="0" />
-      </div>
-      <div class="whatif-field">
-        <label>Account</label>
-        <select id="whatifAccount">
-          <option value="TFSA">TFSA</option>
-          <option value="RRSP">RRSP</option>
-          <option value="Non-Reg">Non-Registered</option>
-          <option value="RESP">RESP</option>
-        </select>
-      </div>
-      <button class="btn-primary" onclick="runWhatIf()" style="align-self:flex-end;padding:8px 16px">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polygon points="5 3 19 12 5 21 5 3"/></svg>
-        Simulate
-      </button>
-    </div>
-    <div id="whatifResults"></div>
-  </section>
 
   <!-- ==================== AI ANALYST TAB ==================== -->
   <section class="tab-panel" id="panel-ai">
@@ -1170,13 +1106,12 @@ function renderActiveTab() {
     case 'overview': renderOverview(); break;
     case 'holdings': renderHoldingsTab(); if (holdingsView === 'table') renderHoldingsTable(); break;
     case 'sectors': renderSectors(); break;
-    case 'performance': renderPerformance(); renderHistoryChart(); renderContribGrowthChart(); renderPerfCorrelation(); break;
+    case 'performance': renderPerformance(); renderHistoryChart(); break;
     case 'risk': renderRisk(); renderCorrelationMatrix(); break;
     case 'region': renderRegion(); break;
     case 'models': renderModels(); renderStressTest(); break;
     case 'transactions': renderTransactions(); break;
-    case 'watchlist': renderWatchlist(); break;
-    case 'whatif': break;
+    case 'insights': renderInsightsTab(); break;
   }
 }
 
@@ -1603,32 +1538,35 @@ function generateDemoHistory(currentValue) {
   const history = [];
   const now = new Date();
   const totalWeeks = 260; // ~5 years of weekly data
-  const startValue = currentValue * 0.45; // portfolio grew from 45% of current over 5 years
-  // Simulate realistic market with trends, corrections, and recovery
+  const startValue = currentValue * 0.45;
   let value = startValue;
-  const annualGrowth = Math.pow(currentValue / startValue, 1/5) - 1; // implied CAGR
+  const annualGrowth = Math.pow(currentValue / startValue, 1/5) - 1;
   const weeklyGrowth = annualGrowth / 52;
+  const weeklyVol = 0.15 / Math.sqrt(52); // ~15% annual vol scaled to weekly
+
+  // Seeded PRNG for deterministic but non-periodic noise
+  let seed = 42;
+  function nextRand() { seed = (seed * 16807 + 0) % 2147483647; return (seed - 1) / 2147483646; }
+  function randNormal() { const u = nextRand(), v = nextRand(); return Math.sqrt(-2*Math.log(u||0.001))*Math.cos(2*Math.PI*v); }
+
   for (let i = totalWeeks; i >= 0; i--) {
     const d = new Date(now.getTime() - i * 7 * 24 * 60 * 60 * 1000);
     const weekNum = totalWeeks - i;
-    // Base trend
-    const trend = 1 + weeklyGrowth;
-    // Market volatility: mix of frequencies for realistic movement
-    const vol1 = Math.sin(weekNum * 0.15) * 0.012;
-    const vol2 = Math.cos(weekNum * 0.37) * 0.008;
-    const vol3 = Math.sin(weekNum * 0.73) * 0.005;
-    // Simulate a correction around week 100 (~2 years ago) and week 200 (~1 year ago)
-    let correction = 1;
-    if (weekNum >= 95 && weekNum <= 115) correction = 1 - 0.008 * Math.sin((weekNum - 95) * Math.PI / 20);
-    if (weekNum >= 190 && weekNum <= 205) correction = 1 - 0.005 * Math.sin((weekNum - 190) * Math.PI / 15);
-    // Random-ish weekly noise (deterministic from week number)
-    const noise = Math.sin(weekNum * 2.71828) * 0.004 + Math.cos(weekNum * 3.14159) * 0.003;
-    value = value * (trend + vol1 + vol2 + vol3 + noise) * correction;
-    value = Math.max(value, startValue * 0.7); // floor at 70% of start
+    // Geometric Brownian Motion step
+    const drift = weeklyGrowth - 0.5 * weeklyVol * weeklyVol;
+    const shock = weeklyVol * randNormal();
+    value = value * Math.exp(drift + shock);
+    // Drawdown events: ~20% correction at week 100, ~12% at week 200
+    if (weekNum === 100) value *= 0.80;
+    if (weekNum === 200) value *= 0.88;
+    value = Math.max(value, startValue * 0.5);
     history.push({ date: d.toISOString().split('T')[0], value: Math.round(value) });
   }
-  // Ensure last point matches current value closely
-  if (history.length > 0) history[history.length - 1].value = Math.round(currentValue);
+  // Scale last point to match current value
+  if (history.length > 0) {
+    const scale = currentValue / (history[history.length - 1].value || 1);
+    history.forEach(h => { h.value = Math.round(h.value * scale); });
+  }
   return history;
 }
 
@@ -3531,6 +3469,11 @@ function renderMoves(containerId, sectionId, moves, type) {
   });
 }
 
+function renderInsightsTab() {
+  // Re-generate insights and moves for the current portfolio state
+  generateMoves();
+}
+
 // ─── AI Position Ratings ─────────────────────────────────────────────────────
 async function ratePositions() {
   if (!apiKey) { showToast('Set your API key first', 'error'); toggleSettings(); return; }
@@ -4037,7 +3980,7 @@ function renderHistoryChart() {
           return gradient;
         },
         fill: true,
-        tension: 0.35,
+        tension: 0.1,
         pointRadius: values.length > 60 ? 0 : 3,
         pointHoverRadius: 5,
         borderWidth: 2.5,
@@ -4048,7 +3991,7 @@ function renderHistoryChart() {
         borderColor: 'rgba(168,85,247,0.6)',
         borderWidth: 1.5,
         borderDash: [5, 3],
-        tension: 0.35,
+        tension: 0.1,
         pointRadius: 0,
         pointHoverRadius: 3,
         fill: false,
@@ -4058,7 +4001,7 @@ function renderHistoryChart() {
         borderColor: 'rgba(34,197,94,0.5)',
         borderWidth: 1.5,
         borderDash: [3, 3],
-        tension: 0.35,
+        tension: 0.1,
         pointRadius: 0,
         pointHoverRadius: 3,
         fill: false,
@@ -4082,11 +4025,14 @@ function renderHistoryChart() {
 function generateBenchmarkCurve(points, annualReturn, annualVol, startValue) {
   const weeklyReturn = annualReturn / 52;
   const weeklyVol = annualVol / Math.sqrt(52);
+  const drift = weeklyReturn - 0.5 * weeklyVol * weeklyVol;
+  let seed = Math.round(annualReturn * 10000 + annualVol * 1000) + 7;
+  function nextRand() { seed = (seed * 16807 + 0) % 2147483647; return (seed - 1) / 2147483646; }
+  function randNormal() { const u = nextRand(), v = nextRand(); return Math.sqrt(-2*Math.log(u||0.001))*Math.cos(2*Math.PI*v); }
   const data = [startValue];
   let val = startValue;
   for (let i = 1; i < points; i++) {
-    const noise = Math.sin(i * 1.618) * weeklyVol + Math.cos(i * 2.236) * weeklyVol * 0.5;
-    val = val * (1 + weeklyReturn + noise);
+    val = val * Math.exp(drift + weeklyVol * randNormal());
     data.push(Math.round(val));
   }
   return data;
@@ -4375,129 +4321,24 @@ function loadDemoData() {
   document.getElementById('btnAnalyze').disabled = !apiKey;
 }
 
-// ─── Contributions vs Growth Chart ───────────────────────────────────────────
-function renderContribGrowthChart() {
-  const canvas = document.getElementById('contribGrowthChart');
-  if (!canvas) return;
-
-  const filtered = getFilteredHistory();
-  if (filtered.length < 2) return;
-
-  const totalBook = filteredPositions.reduce((s,p) => s + (p.book_value || p.market_value || p.value || 0), 0);
-  const totalVal = filteredPositions.reduce((s,p) => s + (p.market_value || p.value || 0), 0);
-  const startVal = filtered[0].value || filtered[0].v || 0;
-
-  // Simulate contributions as a steady accumulation line from start book to current book
-  // Growth is the difference between portfolio value and estimated contributions
-  const n = filtered.length;
-  const labels = filtered.map(h => {
-    const d = new Date(h.date || h.d);
-    return d.toLocaleDateString('en-CA', { month: 'short', year: '2-digit' });
-  });
-
-  const contribs = [];
-  const growth = [];
-  const estimatedStartBook = startVal * 0.85; // estimate starting book at 85% of starting value
-  for (let i = 0; i < n; i++) {
-    const progress = n > 1 ? i / (n - 1) : 0;
-    const contribAtPoint = estimatedStartBook + (totalBook - estimatedStartBook) * progress;
-    const valueAtPoint = filtered[i].value || filtered[i].v || 0;
-    contribs.push(Math.round(contribAtPoint));
-    growth.push(Math.round(valueAtPoint - contribAtPoint));
-  }
-
-  makeChart('contribGrowth', canvas, {
-    type: 'line',
-    data: {
-      labels: labels,
-      datasets: [{
-        label: 'Estimated Contributions',
-        data: contribs,
-        borderColor: 'rgba(59,130,246,0.7)',
-        backgroundColor: 'rgba(59,130,246,0.1)',
-        fill: true,
-        tension: 0.3,
-        pointRadius: 0,
-        borderWidth: 2,
-      }, {
-        label: 'Market Growth',
-        data: growth,
-        borderColor: 'rgba(34,197,94,0.7)',
-        backgroundColor: 'rgba(34,197,94,0.1)',
-        fill: true,
-        tension: 0.3,
-        pointRadius: 0,
-        borderWidth: 2,
-      }]
-    },
-    options: {
-      responsive: true,
-      plugins: {
-        datalabels: { display: false },
-        legend: { position: 'bottom', labels: { usePointStyle: true, pointStyleWidth: 8 } },
-        tooltip: { callbacks: { label: function(ctx) { return ctx.dataset.label + ': $' + ctx.parsed.y.toLocaleString(); } } }
-      },
-      scales: {
-        y: { grid: { color: 'var(--chart-grid, rgba(148,163,184,0.15))' }, ticks: { callback: v => '$' + (v/1000).toFixed(0) + 'k' } },
-        x: { grid: { display: false }, ticks: { maxTicksLimit: 8, font: { size: 10 } } }
-      },
-      interaction: { intersect: false, mode: 'index' },
-    }
-  });
-}
-
-// ─── Performance Correlation Matrix (simplified) ─────────────────────────────
-function renderPerfCorrelation() {
-  const wrap = document.getElementById('perfCorrMatrix');
-  if (!wrap) return;
-  const agg = aggregatePositions(filteredPositions);
-  const top = [...agg].sort((a,b) => (b.market_value||b.value||0) - (a.market_value||a.value||0)).slice(0, 10);
-  if (top.length < 2) { wrap.innerHTML = '<div style="text-align:center;color:var(--text-muted);padding:20px;font-size:13px">Need at least 2 positions.</div>'; return; }
-
-  const isEquity = c => /Technology|Financials|Energy|Healthcare|Industrials|Materials|Communications|Consumer|Utilities|Equity|Diversified Equity/.test(c);
-  const isBond = c => /Fixed Income|Cash|Preferred/.test(c);
-  const isCrypto = c => c === 'Crypto';
-  const isBalanced = c => c === 'Diversified Balanced';
-
-  function estCorr(c1, c2) {
-    if (c1 === c2) return 0.95;
-    if ((isBalanced(c1) && isEquity(c2)) || (isEquity(c1) && isBalanced(c2))) return 0.55;
-    if ((isBalanced(c1) && isBond(c2)) || (isBond(c1) && isBalanced(c2))) return 0.40;
-    if (isEquity(c1) && isEquity(c2)) return 0.70;
-    if ((isEquity(c1) && isBond(c2)) || (isBond(c1) && isEquity(c2))) return -0.20;
-    if (isCrypto(c1) && isCrypto(c2)) return 0.85;
-    if ((isEquity(c1) && isCrypto(c2)) || (isCrypto(c1) && isEquity(c2))) return 0.35;
-    if (c1 === 'Real Estate' && isEquity(c2) || c2 === 'Real Estate' && isEquity(c1)) return 0.55;
-    return 0.30;
-  }
-
-  function corrColor(v) {
-    if (v >= 0.8) return 'rgba(239,68,68,0.3)';
-    if (v >= 0.5) return 'rgba(245,158,11,0.2)';
-    if (v >= 0.2) return 'rgba(59,130,246,0.1)';
-    if (v >= -0.1) return 'transparent';
-    return 'rgba(34,197,94,0.15)';
-  }
-
-  const syms = top.map(p => (p.security?.symbol || p.symbol || '?').replace(/\.(TO|TSX)$/, ''));
-  const classes = top.map(p => inferAssetClass(p));
-  let html = '<div style="overflow-x:auto"><table style="border-collapse:collapse;font-size:11px;width:100%"><thead><tr><th style="padding:6px 4px"></th>';
-  syms.forEach(s => { html += '<th style="padding:6px 4px;text-align:center;font-family:\'JetBrains Mono\',monospace;font-size:10px;writing-mode:vertical-rl;transform:rotate(180deg);height:60px">' + s + '</th>'; });
-  html += '</tr></thead><tbody>';
-  for (let i = 0; i < syms.length; i++) {
-    html += '<tr><td style="padding:6px 4px;font-weight:600;font-family:\'JetBrains Mono\',monospace;font-size:10px;white-space:nowrap">' + syms[i] + '</td>';
-    for (let j = 0; j < syms.length; j++) {
-      const corr = i === j ? 1.0 : estCorr(classes[i], classes[j]);
-      html += '<td style="padding:4px;text-align:center;background:' + corrColor(corr) + ';font-family:\'JetBrains Mono\',monospace;font-size:10px;min-width:36px">' + (i === j ? '1.00' : corr.toFixed(2)) + '</td>';
-    }
-    html += '</tr>';
-  }
-  html += '</tbody></table></div>';
-  html += '<div style="font-size:10px;color:var(--text-muted);margin-top:8px">Estimated correlations based on asset class. Green = low correlation (good diversification). Red = high correlation (concentrated risk).</div>';
-  wrap.innerHTML = html;
-}
-
 // ─── Transactions / Activity ─────────────────────────────────────────────────
+let activeTxnPeriod = '1y';
+
+function setTxnPeriod(period) {
+  activeTxnPeriod = period;
+  document.querySelectorAll('#panel-transactions .date-btn').forEach(b => b.classList.remove('active'));
+  event.target.classList.add('active');
+  renderTransactions();
+}
+
+function getTxnCutoffDate() {
+  if (activeTxnPeriod === 'all') return null;
+  const now = new Date();
+  const map = { '1m': 30, '3m': 90, '6m': 180, '1y': 365 };
+  const days = map[activeTxnPeriod] || 365;
+  return new Date(now.getTime() - days * 86400000);
+}
+
 function generateDemoTransactions() {
   const txns = [];
   const agg = aggregatePositions(filteredPositions);
@@ -4529,7 +4370,9 @@ function generateDemoTransactions() {
 }
 
 function renderTransactions() {
-  const txns = generateDemoTransactions();
+  const allTxns = generateDemoTransactions();
+  const cutoff = getTxnCutoffDate();
+  const txns = cutoff ? allTxns.filter(t => new Date(t.date) >= cutoff) : allTxns;
   const body = document.getElementById('txnBody');
   body.innerHTML = '';
   txns.forEach(t => {
@@ -4591,181 +4434,6 @@ function renderTransactions() {
   });
 }
 
-// ─── Watchlist ────────────────────────────────────────────────────────────────
-let watchlist = [];
-
-function addToWatchlist() {
-  const input = document.getElementById('watchlistInput');
-  const sym = input.value.trim().toUpperCase();
-  if (!sym) return;
-  if (watchlist.find(w => w.symbol === sym)) { showToast(sym + ' already in watchlist', 'error'); return; }
-  watchlist.push({ symbol: sym, addedAt: new Date().toISOString() });
-  input.value = '';
-  renderWatchlist();
-  showToast(sym + ' added to watchlist', 'success');
-}
-
-function removeFromWatchlist(sym) {
-  watchlist = watchlist.filter(w => w.symbol !== sym);
-  renderWatchlist();
-}
-
-function loadSuggestedWatchlist() {
-  const agg = aggregatePositions(filteredPositions);
-  const existingSyms = new Set(agg.map(p => (p.security?.symbol || p.symbol || '').toUpperCase()));
-
-  // Suggest based on what's missing from portfolio
-  const suggestions = [];
-  const sectors = {};
-  agg.forEach(p => { const s = inferAssetClass(p); sectors[s] = (sectors[s]||0) + (p.market_value||p.value||0); });
-  const totalVal = agg.reduce((s,p) => s + (p.market_value||p.value||0), 0);
-
-  // Common suggestions based on portfolio gaps
-  const allSuggestions = [
-    { symbol: 'XEQT.TO', name: 'iShares All Equity ETF', reason: 'Instant global diversification' },
-    { symbol: 'VFV.TO', name: 'Vanguard S&P 500 ETF', reason: 'US large cap exposure' },
-    { symbol: 'XEF.TO', name: 'iShares EAFE ETF', reason: 'International developed markets' },
-    { symbol: 'ZAG.TO', name: 'BMO Aggregate Bond ETF', reason: 'Fixed income stability' },
-    { symbol: 'XRE.TO', name: 'iShares REIT ETF', reason: 'Real estate diversification' },
-    { symbol: 'XEC.TO', name: 'iShares Emerging Markets ETF', reason: 'Emerging market growth' },
-    { symbol: 'VDY.TO', name: 'Vanguard Dividend ETF', reason: 'Canadian dividend income' },
-    { symbol: 'TEC.TO', name: 'TD Global Tech Leaders ETF', reason: 'Technology sector exposure' },
-  ];
-
-  allSuggestions.forEach(s => {
-    if (!existingSyms.has(s.symbol)) {
-      suggestions.push(s);
-    }
-  });
-
-  watchlist = suggestions.slice(0, 6).map(s => ({ symbol: s.symbol, name: s.name, reason: s.reason, addedAt: new Date().toISOString() }));
-  renderWatchlist();
-  showToast('Loaded ' + watchlist.length + ' suggestions based on portfolio gaps', 'success');
-}
-
-function renderWatchlist() {
-  const grid = document.getElementById('watchlistGrid');
-  if (watchlist.length === 0) {
-    grid.innerHTML = '<div style="text-align:center;color:var(--text-muted);padding:40px;grid-column:1/-1">Add symbols above to start building your watchlist, or click <strong>Load Suggestions</strong> for ideas based on your portfolio gaps.</div>';
-    return;
-  }
-
-  const existingSyms = new Set(aggregatePositions(filteredPositions).map(p => (p.security?.symbol || p.symbol || '').toUpperCase()));
-
-  grid.innerHTML = '';
-  watchlist.forEach(w => {
-    const inPortfolio = existingSyms.has(w.symbol);
-    const card = document.createElement('div');
-    card.className = 'watchlist-card';
-    card.innerHTML = '<div class="wl-info">' +
-      '<div class="wl-symbol">' + w.symbol + (inPortfolio ? ' <span style="font-size:10px;color:var(--green);font-weight:400">✓ owned</span>' : '') + '</div>' +
-      '<div class="wl-name">' + (w.name || '') + '</div>' +
-      (w.reason ? '<div style="font-size:11px;color:var(--accent);margin-top:4px">' + w.reason + '</div>' : '') +
-      '</div>' +
-      '<div class="wl-actions">' +
-      '<button class="wl-btn" onclick="whatifFromWatchlist(\'' + w.symbol + '\')">What-If</button>' +
-      '<button class="wl-btn remove" onclick="removeFromWatchlist(\'' + w.symbol + '\')">Remove</button>' +
-      '</div>';
-    grid.appendChild(card);
-  });
-}
-
-function whatifFromWatchlist(symbol) {
-  switchTab('whatif');
-  document.getElementById('whatifSymbol').value = symbol;
-  document.getElementById('whatifAction').value = 'add';
-  document.getElementById('whatifAmount').value = '10000';
-}
-
-// ─── What-If Analysis ────────────────────────────────────────────────────────
-function runWhatIf() {
-  const action = document.getElementById('whatifAction').value;
-  const symbol = document.getElementById('whatifSymbol').value.trim().toUpperCase();
-  const amount = parseFloat(document.getElementById('whatifAmount').value) || 0;
-  const account = document.getElementById('whatifAccount').value;
-
-  if (!symbol) { showToast('Enter a symbol', 'error'); return; }
-  if (amount <= 0 && action === 'add') { showToast('Enter an amount', 'error'); return; }
-
-  // Current scores
-  const currentScores = computeScores();
-
-  // Create modified positions
-  let modifiedPositions = [...filteredPositions];
-
-  if (action === 'add') {
-    modifiedPositions.push({
-      class: 'equity',
-      security: { symbol: symbol, name: symbol, currency: 'CAD', type: 'etf' },
-      quantity: 1,
-      book_value: amount,
-      market_value: amount,
-      _accountName: account,
-    });
-  } else {
-    // Remove position by symbol
-    const before = modifiedPositions.length;
-    modifiedPositions = modifiedPositions.filter(p => {
-      const s = (p.security?.symbol || p.symbol || '').toUpperCase();
-      return s !== symbol;
-    });
-    if (modifiedPositions.length === before) { showToast('Symbol ' + symbol + ' not found in portfolio', 'error'); return; }
-  }
-
-  // Temporarily swap to compute new scores
-  const originalPositions = filteredPositions;
-  filteredPositions = modifiedPositions;
-  const newScores = computeScores();
-  filteredPositions = originalPositions;
-
-  // Display comparison
-  const resultsEl = document.getElementById('whatifResults');
-  const metrics = [
-    { label: 'Overall Health', current: currentScores.health, new: newScores.health },
-    { label: 'Diversification', current: currentScores.diversification, new: newScores.diversification },
-    { label: 'Risk Management', current: currentScores.riskManagement, new: newScores.riskManagement },
-    { label: 'Performance', current: currentScores.performance, new: newScores.performance },
-    { label: 'Tax Efficiency', current: currentScores.taxEfficiency, new: newScores.taxEfficiency },
-    { label: 'Income Score', current: currentScores.income, new: newScores.income },
-  ];
-
-  const currentTotal = filteredPositions.reduce((s,p) => s + (p.market_value || p.value || 0), 0);
-  const newTotal = modifiedPositions.reduce((s,p) => s + (p.market_value || p.value || 0), 0);
-
-  let html = '<div class="whatif-comparison">';
-  html += '<div class="whatif-col"><h4>Current Portfolio</h4>';
-  html += '<div class="score-row"><span>Portfolio Value</span><span class="score-change">' + fmt(currentTotal) + '</span></div>';
-  html += '<div class="score-row"><span>Positions</span><span class="score-change">' + aggregatePositions(filteredPositions).length + '</span></div>';
-  metrics.forEach(m => {
-    html += '<div class="score-row"><span>' + m.label + '</span><span class="score-change" style="color:' + scoreColor(m.current) + '">' + m.current + '/100</span></div>';
-  });
-  html += '</div>';
-
-  html += '<div class="whatif-col"><h4>After ' + (action === 'add' ? 'Adding ' + symbol : 'Removing ' + symbol) + '</h4>';
-  html += '<div class="score-row"><span>Portfolio Value</span><span class="score-change">' + fmt(newTotal) + '</span></div>';
-  html += '<div class="score-row"><span>Positions</span><span class="score-change">' + aggregatePositions(modifiedPositions).length + '</span></div>';
-  metrics.forEach(m => {
-    const diff = m.new - m.current;
-    const arrow = diff > 0 ? ' ↑' : diff < 0 ? ' ↓' : '';
-    const diffColor = diff > 0 ? 'var(--green)' : diff < 0 ? 'var(--red)' : 'var(--text-muted)';
-    html += '<div class="score-row"><span>' + m.label + '</span><span class="score-change" style="color:' + scoreColor(m.new) + '">' + m.new + '/100 <span style="color:' + diffColor + ';font-size:11px">' + (diff > 0 ? '+' : '') + diff + arrow + '</span></span></div>';
-  });
-  html += '</div></div>';
-
-  // Summary
-  const healthDiff = newScores.health - currentScores.health;
-  html += '<div style="margin-top:16px;padding:12px 16px;background:var(--bg-secondary);border-radius:8px;font-size:13px">';
-  if (healthDiff > 5) html += '<strong style="color:var(--green)">Positive impact:</strong> ';
-  else if (healthDiff < -5) html += '<strong style="color:var(--red)">Negative impact:</strong> ';
-  else html += '<strong>Minimal impact:</strong> ';
-  html += (action === 'add' ? 'Adding' : 'Removing') + ' ' + symbol + ' would move your health score from ' + currentScores.health + ' to ' + newScores.health + '. ';
-  if (action === 'add' && newScores.diversification > currentScores.diversification) html += 'Diversification improves. ';
-  if (action === 'add' && newScores.riskManagement > currentScores.riskManagement) html += 'Risk profile improves. ';
-  if (action === 'remove' && newScores.diversification < currentScores.diversification) html += 'Warning: diversification decreases. ';
-  html += '</div>';
-
-  resultsEl.innerHTML = html;
-}
 
 // ─── Quick Actions (AI Response) ─────────────────────────────────────────────
 function copyAIResponse() {
