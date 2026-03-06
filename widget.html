@@ -538,7 +538,7 @@ function render(scores) {
 function updateWidgetHeight() {
   // Tell Wealthica parent frame the actual widget height so it doesn't cut off
   requestAnimationFrame(function() {
-    var height = document.getElementById('widget').offsetHeight + 24;
+    var height = Math.max(document.body.scrollHeight, document.getElementById('widget').offsetHeight + 32);
     if (addon && addon.api && typeof addon.api.updateContainerHeight === 'function') {
       addon.api.updateContainerHeight(height);
     }
@@ -648,6 +648,10 @@ if (typeof Addon === 'undefined') {
     loadDemoData();
   }
 }
+
+// Ensure height is updated after fonts load and on initial render
+window.addEventListener('load', function() { updateWidgetHeight(); });
+setTimeout(updateWidgetHeight, 500);
 </script>
 </body>
 </html>
