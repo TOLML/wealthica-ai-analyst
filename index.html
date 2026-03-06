@@ -1228,6 +1228,8 @@ function renderActiveTab() {
     case 'models': renderModels(); renderStressTest(); break;
     case 'insights': renderInsightsTab(); break;
   }
+  // Update iframe height after content renders so Wealthica doesn't cut off the bottom
+  updateContainerHeight();
 }
 
 // ─── Risk Slider ─────────────────────────────────────────────────────────────
@@ -1403,6 +1405,22 @@ const ASSET_VOLATILITY = {
   'Commodities': { vol: 0.25, beta: 0.5, yield: 0 },
   'Alternatives': { vol: 0.15, beta: 0.5, yield: 0.02 },
 };
+
+// ─── Update Container Height ─────────────────────────────────────────────────
+// Tell Wealthica parent frame the actual content height so the iframe doesn't cut off
+function updateContainerHeight() {
+  requestAnimationFrame(function() {
+    var container = document.querySelector('.container');
+    if (!container) return;
+    var height = container.offsetHeight + 48;
+    if (addon && addon.api && typeof addon.api.updateContainerHeight === 'function') {
+      addon.api.updateContainerHeight(height);
+    }
+    try {
+      window.parent.postMessage({ type: 'update-container-height', height: height }, '*');
+    } catch(e) {}
+  });
+}
 
 // ─── Initialize Add-on ──────────────────────────────────────────────────────
 if (typeof Addon === 'undefined') {

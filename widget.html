@@ -62,6 +62,7 @@
   .widget {
     width: 100%;
     max-width: 100%;
+    padding-bottom: 8px;
   }
 
   /* Score Ring */
@@ -557,6 +558,24 @@ function render(scores) {
     alertBar.classList.add('visible');
     document.getElementById('alertText').textContent = 'Focus areas: ' + scores.weakAreas.join(', ');
   }
+
+  // Update iframe height so Wealthica doesn't cut off the widget
+  updateWidgetHeight();
+}
+
+// ─── Update Container Height ─────────────────────────────────────────────────
+function updateWidgetHeight() {
+  // Tell Wealthica parent frame the actual widget height so it doesn't cut off
+  requestAnimationFrame(function() {
+    var height = document.getElementById('widget').offsetHeight + 24;
+    if (addon && addon.api && typeof addon.api.updateContainerHeight === 'function') {
+      addon.api.updateContainerHeight(height);
+    }
+    // Also post message directly as fallback for older addon.js versions
+    try {
+      window.parent.postMessage({ type: 'update-container-height', height: height }, '*');
+    } catch(e) {}
+  });
 }
 
 // ─── Open Full App ───────────────────────────────────────────────────────────
