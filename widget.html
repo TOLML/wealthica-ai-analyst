@@ -46,36 +46,36 @@
     --shadow-lg: 0 4px 12px rgba(0,0,0,0.3);
   }
   * { margin: 0; padding: 0; box-sizing: border-box; }
-  html, body { height: 100%; width: 100%; }
+  html, body { height: 100%; width: 100%; overflow-x: hidden; }
   body {
     font-family: 'DM Sans', sans-serif;
     background: var(--bg-primary);
     color: var(--text-primary);
-    line-height: 1.5;
-    padding: 12px;
+    line-height: 1.4;
+    padding: 8px;
   }
 
   .widget {
-    max-width: 420px;
-    margin: 0 auto;
+    width: 100%;
+    max-width: 100%;
   }
 
   /* Score Ring */
   .score-section {
     display: flex;
     align-items: center;
-    gap: 16px;
-    padding: 16px;
+    gap: 10px;
+    padding: 10px;
     background: var(--bg-card);
     border: 1px solid var(--border);
-    border-radius: 14px;
-    box-shadow: var(--shadow-lg);
-    margin-bottom: 10px;
+    border-radius: 10px;
+    box-shadow: var(--shadow);
+    margin-bottom: 6px;
   }
   .score-ring {
     position: relative;
-    width: 80px;
-    height: 80px;
+    width: 60px;
+    height: 60px;
     flex-shrink: 0;
   }
   .score-ring svg { transform: rotate(-90deg); }
@@ -85,94 +85,99 @@
     position: absolute; inset: 0;
     display: flex; flex-direction: column; align-items: center; justify-content: center;
     font-family: 'JetBrains Mono', monospace;
-    font-size: 22px; font-weight: 700;
+    font-size: 18px; font-weight: 700;
     line-height: 1;
   }
   .score-ring .score-label-sm {
     font-family: 'DM Sans', sans-serif;
-    font-size: 9px; font-weight: 600; text-transform: uppercase;
-    letter-spacing: 0.5px; margin-top: 2px;
+    font-size: 8px; font-weight: 600; text-transform: uppercase;
+    letter-spacing: 0.3px; margin-top: 1px;
   }
-  .score-info { flex: 1; min-width: 0; }
-  .score-info h2 { font-size: 15px; font-weight: 700; margin-bottom: 2px; }
-  .score-info .total-value { font-family: 'JetBrains Mono', monospace; font-size: 20px; font-weight: 700; }
-  .score-info .gain-loss { font-size: 13px; font-weight: 600; }
+  .score-info { flex: 1; min-width: 0; overflow: hidden; }
+  .score-info h2 { font-size: 12px; font-weight: 700; margin-bottom: 1px; }
+  .score-info .total-value { font-family: 'JetBrains Mono', monospace; font-size: 16px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .score-info .gain-loss { font-size: 11px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .score-info .gain-loss.positive { color: var(--green); }
   .score-info .gain-loss.negative { color: var(--red); }
-  .score-info .meta { font-size: 11px; color: var(--text-muted); margin-top: 2px; }
+  .score-info .meta { font-size: 10px; color: var(--text-muted); margin-top: 1px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
   /* Sub-scores Grid */
   .sub-scores {
     display: grid;
     grid-template-columns: 1fr 1fr;
-    gap: 6px;
-    margin-bottom: 10px;
+    gap: 4px;
+    margin-bottom: 6px;
   }
   .sub-score {
     background: var(--bg-card);
     border: 1px solid var(--border);
-    border-radius: 10px;
-    padding: 10px 12px;
+    border-radius: 8px;
+    padding: 6px 8px;
     box-shadow: var(--shadow);
     transition: border-color 0.2s;
+    overflow: hidden;
   }
   .sub-score:hover { border-color: var(--accent); }
   .sub-score .ss-header {
     display: flex; justify-content: space-between; align-items: center;
-    margin-bottom: 6px;
+    margin-bottom: 4px;
   }
-  .sub-score .ss-name { font-size: 11px; font-weight: 600; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.3px; }
-  .sub-score .ss-value { font-family: 'JetBrains Mono', monospace; font-size: 14px; font-weight: 700; }
-  .sub-score .ss-bar { height: 4px; border-radius: 2px; background: var(--border); overflow: hidden; }
+  .sub-score .ss-name { font-size: 9px; font-weight: 600; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .sub-score .ss-value { font-family: 'JetBrains Mono', monospace; font-size: 12px; font-weight: 700; flex-shrink: 0; margin-left: 4px; }
+  .sub-score .ss-bar { height: 3px; border-radius: 2px; background: var(--border); overflow: hidden; }
   .sub-score .ss-bar-fill { height: 100%; border-radius: 2px; transition: width 1s ease; }
 
   /* Quick Stats */
   .quick-stats {
     display: grid;
     grid-template-columns: repeat(3, 1fr);
-    gap: 6px;
-    margin-bottom: 10px;
+    gap: 4px;
+    margin-bottom: 6px;
   }
   .stat {
     background: var(--bg-card);
     border: 1px solid var(--border);
-    border-radius: 10px;
-    padding: 10px;
+    border-radius: 8px;
+    padding: 6px 4px;
     text-align: center;
     box-shadow: var(--shadow);
+    overflow: hidden;
   }
-  .stat .stat-val { font-family: 'JetBrains Mono', monospace; font-size: 15px; font-weight: 700; }
-  .stat .stat-label { font-size: 10px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.3px; margin-top: 2px; }
+  .stat .stat-val { font-family: 'JetBrains Mono', monospace; font-size: 13px; font-weight: 700; white-space: nowrap; }
+  .stat .stat-label { font-size: 9px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.2px; margin-top: 1px; }
 
   /* Alert Bar */
   .alert-bar {
     background: var(--bg-card);
     border: 1px solid var(--border);
-    border-radius: 10px;
-    padding: 10px 14px;
-    margin-bottom: 10px;
-    font-size: 12px;
+    border-radius: 8px;
+    padding: 6px 10px;
+    margin-bottom: 6px;
+    font-size: 11px;
     color: var(--text-secondary);
     box-shadow: var(--shadow);
     display: none;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
   .alert-bar.visible { display: block; }
-  .alert-bar .alert-icon { margin-right: 6px; }
+  .alert-bar .alert-icon { margin-right: 4px; }
 
   /* Open Full App Button */
   .open-app-btn {
     display: flex;
     align-items: center;
     justify-content: center;
-    gap: 8px;
+    gap: 6px;
     width: 100%;
-    padding: 11px;
+    padding: 8px;
     background: var(--accent);
     color: #fff;
     border: none;
     border-radius: 10px;
     font-family: 'DM Sans', sans-serif;
-    font-size: 13px;
+    font-size: 12px;
     font-weight: 600;
     cursor: pointer;
     transition: opacity 0.2s, transform 0.1s;
@@ -180,7 +185,7 @@
   }
   .open-app-btn:hover { opacity: 0.92; }
   .open-app-btn:active { transform: scale(0.98); }
-  .open-app-btn svg { width: 16px; height: 16px; }
+  .open-app-btn svg { width: 14px; height: 14px; }
 
   /* Loading skeleton */
   .skeleton { background: linear-gradient(90deg, var(--border) 25%, var(--bg-card-hover) 50%, var(--border) 75%); background-size: 200% 100%; animation: shimmer 1.5s infinite; border-radius: 6px; }
@@ -592,9 +597,21 @@ function loadDemoData() {
 }
 
 // ─── Wealthica Integration ───────────────────────────────────────────────────
+let currentOptions = {};
+
+function buildQuery() {
+  const query = {};
+  if (currentOptions.groupsFilter) query.groups = currentOptions.groupsFilter;
+  if (currentOptions.institutionsFilter) query.institutions = currentOptions.institutionsFilter;
+  if (currentOptions.fromDate) query.from = currentOptions.fromDate;
+  if (currentOptions.toDate) query.to = currentOptions.toDate;
+  return query;
+}
+
 function loadPortfolio() {
   if (!addon) return;
-  addon.api.getPositions().then(function(positions) {
+  const query = buildQuery();
+  addon.api.getPositions(query).then(function(positions) {
     if (!positions || !positions.length) { loadDemoData(); return; }
     // Attach account names
     positions.forEach(p => {
@@ -621,12 +638,16 @@ if (typeof Addon === 'undefined') {
     setTimeout(function() { if (!initReceived) { addon = null; loadDemoData(); } }, 10000);
     addon.on('init', function(options) {
       initReceived = true;
+      currentOptions = options;
       if (options.theme) applyTheme(options.theme);
       else if (options.data && options.data.theme) applyTheme(options.data.theme);
       loadPortfolio();
     });
     addon.on('reload', function() { loadPortfolio(); });
-    addon.on('update', function(options) { loadPortfolio(); });
+    addon.on('update', function(options) {
+      currentOptions = { ...currentOptions, ...options };
+      loadPortfolio();
+    });
   } catch(e) {
     loadDemoData();
   }
