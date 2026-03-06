@@ -417,6 +417,18 @@
   .tab-description h2 { font-size: 16px; font-weight: 600; margin-bottom: 6px; display: flex; align-items: center; gap: 8px; }
   .tab-description p { font-size: 13px; color: var(--text-secondary); line-height: 1.6; margin: 0; }
 
+  /* Section titles and dividers for cleaner layout */
+  .section-divider { border: none; border-top: 1px solid var(--border); margin: 28px 0 20px; }
+  .section-title { display: flex; align-items: center; gap: 10px; margin: 0 0 14px; font-size: 14px; font-weight: 600; color: var(--text-primary); letter-spacing: -0.2px; }
+  .section-title .st-icon { width: 28px; height: 28px; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 14px; flex-shrink: 0; }
+  .section-title .st-icon.blue { background: rgba(99,102,241,0.1); color: var(--accent); }
+  .section-title .st-icon.green { background: rgba(16,185,129,0.1); color: var(--green); }
+  .section-title .st-icon.purple { background: rgba(139,92,246,0.1); color: var(--purple); }
+  .section-title .st-icon.red { background: rgba(244,63,94,0.1); color: var(--red); }
+  .section-title .st-icon.yellow { background: rgba(245,158,11,0.1); color: var(--yellow); }
+  .section-title .st-icon.cyan { background: rgba(6,182,212,0.1); color: var(--cyan); }
+  .section-title .st-sub { font-size: 12px; font-weight: 400; color: var(--text-muted); margin-left: auto; }
+
   /* Benchmark Comparison */
   .benchmark-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; margin-bottom: 20px; }
   .benchmark-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 10px; padding: 16px; position: relative; overflow: hidden; }
@@ -762,6 +774,7 @@
       </div>
     </div>
 
+    <h3 class="section-title"><span class="st-icon blue">&#9776;</span> Portfolio Summary</h3>
     <div class="summary-grid" id="summaryGrid">
       <div class="summary-card clickable-card" onclick="switchTab('performance')" title="View Performance"><div class="label">Total Value</div><div class="value" id="totalValue">--</div><div class="sub" id="totalAccounts"></div><div class="card-arrow">&#8594;</div></div>
       <div class="summary-card clickable-card" onclick="switchTab('holdings')" title="View Holdings"><div class="label">Positions</div><div class="value" id="totalPositions">--</div><div class="sub" id="positionsSub"></div><div class="card-arrow">&#8594;</div></div>
@@ -769,14 +782,19 @@
       <div class="summary-card clickable-card" onclick="switchTab('holdings')" title="View Holdings"><div class="label">Top Holding</div><div class="value" id="topHolding" style="font-size:16px">--</div><div class="sub" id="topHoldingPct"></div><div class="card-arrow">&#8594;</div></div>
     </div>
 
-    <!-- Score Breakdown Cards -->
+    <hr class="section-divider">
+    <h3 class="section-title"><span class="st-icon purple">&#9733;</span> Health Score Breakdown</h3>
     <div class="score-breakdown" id="scoreBreakdown"></div>
 
+    <hr class="section-divider">
+    <h3 class="section-title"><span class="st-icon green">&#9683;</span> Allocation & Top Holdings</h3>
     <div class="charts-row">
       <div class="chart-card clickable-card" onclick="switchTab('sectors')" style="cursor:pointer" title="View Sectors"><h3>Asset Allocation <span class="card-arrow" style="opacity:0.4;font-size:12px">&#8594;</span></h3><canvas id="allocationChart"></canvas></div>
       <div class="chart-card clickable-card" onclick="switchTab('holdings')" style="cursor:pointer" title="View Holdings"><h3>Top Holdings <span class="card-arrow" style="opacity:0.4;font-size:12px">&#8594;</span></h3><canvas id="topHoldingsChart"></canvas></div>
     </div>
 
+    <hr class="section-divider">
+    <h3 class="section-title"><span class="st-icon cyan">&#9881;</span> Accounts</h3>
     <div class="accounts-grid" id="accountsGrid"></div>
 
   </section>
@@ -790,17 +808,19 @@
 
     <!-- Key Insights -->
     <div class="insights-panel" id="insightsPanel" style="display:none">
-      <h3>Key Insights</h3>
+      <h3 class="section-title"><span class="st-icon yellow">&#9733;</span> Key Insights</h3>
       <div id="insightsList"></div>
     </div>
 
     <!-- Small & Big Moves -->
     <div class="actions-section" id="smallMovesSection" style="display:none">
-      <h3><span style="color:var(--green)">Quick Wins</span> — Small changes, meaningful impact</h3>
+      <hr class="section-divider">
+      <h3 class="section-title"><span class="st-icon green">&#10003;</span> Quick Wins <span class="st-sub">Small changes, meaningful impact</span></h3>
       <div class="action-cards" id="smallMoves"></div>
     </div>
-    <div class="actions-section" id="bigMovesSection" style="display:none; margin-top:24px">
-      <h3><span style="color:var(--purple)">Strategic Moves</span> — Bigger changes for long-term improvement</h3>
+    <div class="actions-section" id="bigMovesSection" style="display:none">
+      <hr class="section-divider">
+      <h3 class="section-title"><span class="st-icon purple">&#9830;</span> Strategic Moves <span class="st-sub">Bigger changes for long-term improvement</span></h3>
       <div class="action-cards" id="bigMoves"></div>
     </div>
     <div style="margin-top:20px">
@@ -839,7 +859,10 @@
         Get AI Position Ratings
       </button>
     </div>
-    <div class="chart-card" style="margin-bottom:20px"><h3>Portfolio Weights</h3><canvas id="holdingsWeightChart"></canvas></div>
+    <h3 class="section-title"><span class="st-icon blue">&#9776;</span> Portfolio Weights</h3>
+    <div class="chart-card" style="margin-bottom:20px"><canvas id="holdingsWeightChart"></canvas></div>
+    <hr class="section-divider">
+    <h3 class="section-title"><span class="st-icon purple">&#9679;</span> Individual Positions</h3>
     <div class="holdings-grid" id="holdingsGrid"></div>
     <div id="holdingsTableWrap" style="display:none;overflow-x:auto"></div>
   </section>
@@ -861,9 +884,19 @@
       <button class="date-btn" onclick="setDateRange('5y')">5Y</button>
       <button class="date-btn active" onclick="setDateRange('all')">All</button>
     </div>
+    <h3 class="section-title"><span class="st-icon blue">&#9650;</span> Portfolio History</h3>
     <div class="chart-card" id="historyChartWrap" style="margin-bottom:20px"><h3>Portfolio Value Over Time</h3><canvas id="historyChart"></canvas><div id="historyChartEmpty" style="display:none;text-align:center;padding:30px 0;color:var(--text-muted);font-size:13px">History data not available. Connect to Wealthica to see portfolio value over time.</div></div>
+
+    <hr class="section-divider">
+    <h3 class="section-title"><span class="st-icon green">&#9733;</span> Performance Summary</h3>
     <div class="summary-grid" id="perfSummaryGrid"></div>
+
+    <hr class="section-divider">
+    <h3 class="section-title"><span class="st-icon cyan">&#9878;</span> Benchmark Comparison</h3>
     <div class="benchmark-grid" id="benchmarkGrid"></div>
+
+    <hr class="section-divider">
+    <h3 class="section-title"><span class="st-icon purple">&#9686;</span> Position Analysis</h3>
     <div class="chart-card"><h3>Gain/Loss by Position</h3><canvas id="gainLossChart"></canvas></div>
     <div class="chart-card" style="margin-top:20px"><h3>Portfolio Performance Summary</h3><canvas id="accountPerfChart"></canvas></div>
     <div class="chart-card" style="margin-top:20px"><h3>Return by Position</h3><canvas id="benchmarkChart"></canvas></div>
@@ -882,13 +915,23 @@
       <h2>Risk Analysis</h2>
       <p>Comprehensive risk assessment of your portfolio. Evaluate concentration risk, sector overweight, and position sizing. Scores are calculated based on diversification breadth, Herfindahl-Hirschman Index (HHI) concentration, geographic exposure, and volatility proxy from asset class composition.</p>
     </div>
+    <h3 class="section-title"><span class="st-icon blue">&#9733;</span> Risk Scores</h3>
     <div class="score-cards-grid" id="riskScoresGrid"></div>
+
+    <hr class="section-divider">
+    <h3 class="section-title"><span class="st-icon purple">&#9683;</span> Concentration & Weights</h3>
     <div class="charts-row">
       <div class="chart-card"><h3>Concentration</h3><canvas id="concentrationChart"></canvas></div>
       <div class="chart-card"><h3>Position Weight Distribution</h3><canvas id="riskWeightsChart"></canvas></div>
     </div>
+
+    <hr class="section-divider">
+    <h3 class="section-title"><span class="st-icon red">&#9888;</span> Risk Factors</h3>
     <div class="risk-factors" id="riskFactors"></div>
-    <div class="chart-card" style="margin-top:20px"><h3>High Correlation Warnings</h3><div id="corrMatrixWrap" style="overflow-x:auto"></div></div>
+
+    <hr class="section-divider">
+    <h3 class="section-title"><span class="st-icon yellow">&#9741;</span> Correlation Analysis</h3>
+    <div class="chart-card"><h3>High Correlation Warnings</h3><div id="corrMatrixWrap" style="overflow-x:auto"></div></div>
     <div style="margin-top:20px">
       <button class="tab-ai-btn" id="aiBtn-risk" onclick="runTabAI('risk')">
         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polygon points="5 3 19 12 5 21 5 3"/></svg>
@@ -904,10 +947,14 @@
       <h2>Geographic Exposure</h2>
       <p>Analyze your portfolio's geographic diversification and currency exposure. Canadian investors often exhibit "home bias" — overweighting domestic securities despite Canada representing only ~3% of global market capitalization. A well-diversified portfolio typically includes exposure to US, international developed, and emerging markets.</p>
     </div>
+    <h3 class="section-title"><span class="st-icon blue">&#9673;</span> Geographic & Currency Breakdown</h3>
     <div class="charts-row">
       <div class="chart-card"><h3>Geographic Allocation</h3><canvas id="geoChart"></canvas></div>
       <div class="chart-card"><h3>Currency Exposure</h3><canvas id="currencyChart"></canvas></div>
     </div>
+
+    <hr class="section-divider">
+    <h3 class="section-title"><span class="st-icon green">&#9672;</span> Region Details</h3>
     <div class="region-cards" id="regionCards"></div>
     <div style="margin-top:20px">
       <button class="tab-ai-btn" id="aiBtn-region" onclick="runTabAI('region')">
@@ -924,10 +971,14 @@
       <h2>Sector Allocation</h2>
       <p>Breakdown of your portfolio by industry sector and asset class. Heavy concentration in a single sector increases exposure to industry-specific risks. A balanced portfolio typically spreads across Technology, Financials, Healthcare, Energy, Consumer, and other sectors to reduce correlation risk.</p>
     </div>
+    <h3 class="section-title"><span class="st-icon blue">&#9683;</span> Sector Overview</h3>
     <div class="charts-row">
       <div class="chart-card"><h3>Sector Allocation</h3><canvas id="sectorDetailChart"></canvas></div>
       <div class="chart-card"><h3>Sector Values</h3><canvas id="sectorBarChart"></canvas></div>
     </div>
+
+    <hr class="section-divider">
+    <h3 class="section-title"><span class="st-icon purple">&#9679;</span> Sector Details</h3>
     <div class="holdings-grid" id="sectorCards"></div>
     <div style="margin-top:20px">
       <button class="tab-ai-btn" id="aiBtn-sectors" onclick="runTabAI('sectors')">
@@ -946,36 +997,45 @@
     </div>
 
     <!-- Key Risk Metrics -->
+    <h3 class="section-title"><span class="st-icon blue">&#9776;</span> Key Risk Metrics</h3>
     <div class="metric-gauge-row" id="riskMetricsGauges"></div>
 
+    <hr class="section-divider">
     <!-- VaR Section with formulas -->
+    <h3 class="section-title"><span class="st-icon red">&#9888;</span> Value at Risk (VaR)</h3>
     <div id="varSection" class="model-section"></div>
 
+    <hr class="section-divider">
     <!-- Monte Carlo Section with formulas -->
+    <h3 class="section-title"><span class="st-icon purple">&#9830;</span> Monte Carlo Simulation</h3>
     <div id="monteCarloSection" class="model-section"></div>
     <div class="charts-row">
       <div class="chart-card"><h3>Monte Carlo Distribution (1-Year)</h3><canvas id="monteCarloChart"></canvas></div>
       <div class="chart-card"><h3>Factor Exposure</h3><canvas id="factorChart"></canvas></div>
     </div>
 
+    <hr class="section-divider">
     <!-- Factor Analysis -->
+    <h3 class="section-title"><span class="st-icon cyan">&#9741;</span> Factor Analysis</h3>
     <div id="factorSection" class="model-section"></div>
 
     <!-- Model Conclusion -->
     <div class="model-conclusion" id="modelConclusion"></div>
 
+    <hr class="section-divider">
     <!-- Stress Test Scenarios -->
-    <div class="model-section" style="margin-top:24px">
-      <h3>Stress Test Scenarios</h3>
+    <h3 class="section-title"><span class="st-icon yellow">&#9889;</span> Stress Test Scenarios</h3>
+    <div class="model-section">
       <div class="model-desc">How would your portfolio perform under extreme market conditions? Impacts are calculated by applying historical sector-specific drawdowns to your current allocation.</div>
     </div>
     <div class="summary-grid" id="stressMetrics"></div>
     <div class="scenario-grid" id="scenarioGrid"></div>
     <div class="chart-card" style="margin-bottom:20px"><h3>Scenario Impact Comparison</h3><canvas id="scenarioChart"></canvas></div>
 
+    <hr class="section-divider">
     <!-- Recommendations -->
+    <h3 class="section-title"><span class="st-icon green">&#10003;</span> Recommendations</h3>
     <div class="model-section">
-      <h3 style="color:var(--accent)">Recommendations</h3>
       <div class="model-desc">Actionable suggestions based on your portfolio's risk profile, stress test results, and quantitative analysis.</div>
     </div>
     <div class="rec-cards" id="riskRecommendations"></div>
@@ -1001,8 +1061,15 @@
       <button class="date-btn active" onclick="setTxnPeriod('1y')">1Y</button>
       <button class="date-btn" onclick="setTxnPeriod('all')">All</button>
     </div>
+    <h3 class="section-title"><span class="st-icon blue">&#9776;</span> Transaction Summary</h3>
     <div class="summary-grid" id="txnSummaryGrid"></div>
-    <div class="chart-card" style="margin:16px 0"><h3>Monthly Activity</h3><canvas id="txnChart"></canvas></div>
+
+    <hr class="section-divider">
+    <h3 class="section-title"><span class="st-icon green">&#9650;</span> Monthly Activity</h3>
+    <div class="chart-card" style="margin-bottom:16px"><canvas id="txnChart"></canvas></div>
+
+    <hr class="section-divider">
+    <h3 class="section-title"><span class="st-icon purple">&#9776;</span> Transaction History</h3>
     <div style="overflow-x:auto">
       <table class="txn-table" id="txnTable">
         <thead><tr><th>Date</th><th>Type</th><th>Symbol</th><th>Account</th><th>Shares</th><th style="text-align:right">Amount</th></tr></thead>
