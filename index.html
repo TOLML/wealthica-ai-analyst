@@ -2187,9 +2187,9 @@ function computeScores() {
     const bv = p.book_value || mv;
     return bv > 0 ? ((mv - bv) / bv) * 100 : 0;
   });
-  const avgReturn = posReturns.reduce((s,r) => s + r, 0) / posReturns.length;
+  const avgReturn = posReturns.length > 0 ? posReturns.reduce((s,r) => s + r, 0) / posReturns.length : 0;
   const winners = posReturns.filter(r => r > 0).length;
-  const winRate = (winners / posReturns.length) * 100;
+  const winRate = posReturns.length > 0 ? (winners / posReturns.length) * 100 : 0;
   // Tighter scoring: 0% return = 40 (not 50), need strong returns to score well
   // +10% → ~55, +20% → ~65, +50% → ~80. Negative returns punished harder.
   const returnScore = clamp(Math.round(40 + Math.sign(totalReturn) * Math.min(50, Math.sqrt(Math.abs(totalReturn)) * (totalReturn >= 0 ? 5.5 : 8))));
@@ -2327,6 +2327,7 @@ function pct(n) { if (n === undefined || n === null || isNaN(n)) return ''; retu
 function escapeHtml(str) { const d = document.createElement('div'); d.textContent = str; return d.innerHTML; }
 
 function makeChart(key, ctx, config) {
+  if (!ctx) return;
   if (charts[key]) charts[key].destroy();
   charts[key] = new Chart(ctx, config);
 }
@@ -2605,8 +2606,8 @@ function renderPerformance() {
     const bv = p.book_value || mv;
     return { ...p, ret: bv > 0 ? ((mv-bv)/bv)*100 : 0, gl: mv - bv };
   }).sort((a,b) => b.ret - a.ret);
-  const best = withReturn[0];
-  const worst = withReturn[withReturn.length - 1];
+  const best = withReturn.length > 0 ? withReturn[0] : null;
+  const worst = withReturn.length > 0 ? withReturn[withReturn.length - 1] : null;
 
   const grid = document.getElementById('perfSummaryGrid');
   grid.innerHTML = '';
@@ -3307,6 +3308,7 @@ function renderStressTest() {
   });
 
   // Summary metrics
+  if (!scenarioResults.length) return;
   const worstCase = scenarioResults.reduce((w, s) => s.impact < w.impact ? s : w, scenarioResults[0]);
   const avgImpact = scenarioResults.reduce((s, r) => s + r.impact, 0) / scenarioResults.length;
   const metricsGrid = document.getElementById('stressMetrics');
@@ -3400,8 +3402,8 @@ function renderRiskRecommendations(stats, scenarioResults, sectorWeights) {
   }
 
   // Scenario-specific recommendations
-  const worstScenario = scenarioResults.reduce((w, s) => s.impact < w.impact ? s : w, scenarioResults[0]);
-  if (worstScenario.impact < -0.35) {
+  const worstScenario = scenarioResults.length > 0 ? scenarioResults.reduce((w, s) => s.impact < w.impact ? s : w, scenarioResults[0]) : null;
+  if (worstScenario && worstScenario.impact < -0.35) {
     recs.push({ icon: 'var(--red-bg)', iconColor: 'var(--red)', iconText: 'ST', title: 'Vulnerable to ' + worstScenario.name, body: 'Under this scenario, your portfolio could lose ' + Math.abs(worstScenario.impact * 100).toFixed(0) + '% (' + fmt(worstScenario.dollarImpact) + '). Your sector concentration amplifies this risk. Diversify across sectors and geographies to reduce scenario-specific vulnerability.', metric: 'Worst case: ' + fmt(worstScenario.newValue) });
   }
 
@@ -4365,7 +4367,7 @@ function renderContribGrowthChart() {
   const growth = [];
   const estimatedStartBook = startVal * 0.85; // estimate starting book at 85% of starting value
   for (let i = 0; i < n; i++) {
-    const progress = i / (n - 1);
+    const progress = n > 1 ? i / (n - 1) : 0;
     const contribAtPoint = estimatedStartBook + (totalBook - estimatedStartBook) * progress;
     const valueAtPoint = filtered[i].value || filtered[i].v || 0;
     contribs.push(Math.round(contribAtPoint));
