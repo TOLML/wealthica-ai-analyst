@@ -1178,6 +1178,7 @@ let selectedGroups = []; // empty = all groups selected
 let activeDateRange = 'all';
 let holdingsView = 'cards';
 let portfolioHistory = [];
+let portfolioHistoryFull = []; // Unscaled copy for account filter scaling
 let aiResponseCache = {};
 let conversationHistory = [];
 let lastSystemPrompt = '';
@@ -1225,7 +1226,7 @@ function renderActiveTab() {
     case 'performance': renderPerformance(); break;
     case 'risk': renderRisk(); renderCorrelationMatrix(); break;
     case 'region': renderRegion(); break;
-    case 'models': renderModels(); renderStressTest(); break;
+    case 'models': { const _stats = renderModels(); renderStressTest(_stats); } break;
     case 'insights': renderInsightsTab(); break;
   }
   // Update iframe height after content renders so Wealthica doesn't cut off the bottom
@@ -1240,6 +1241,8 @@ function onRiskChange() {
   else if (riskTolerance <= 5) { label.textContent = 'Moderate'; label.style.color = 'var(--yellow)'; }
   else if (riskTolerance <= 7) { label.textContent = 'Growth'; label.style.color = 'var(--orange)'; }
   else { label.textContent = 'Aggressive'; label.style.color = 'var(--red)'; }
+  aiResponseCache = {};
+  renderSummary();
   generateMoves();
 }
 
@@ -1302,6 +1305,8 @@ if (typeof Chart !== 'undefined') {
 // ─── Date Range Filter ───────────────────────────────────────────────────────
 function setDateRange(range) {
   activeDateRange = range;
+  aiResponseCache = {};
+  _scoresCache = null;
   document.querySelectorAll('.date-btn').forEach(b => b.classList.remove('active'));
   const activeBtn = document.querySelector('.date-btn[onclick="setDateRange(\'' + range + '\')"]');
   if (activeBtn) activeBtn.classList.add('active');
@@ -1425,7 +1430,7 @@ function updateContainerHeight() {
       addon.api.updateContainerHeight(height);
     }
     try {
-      window.parent.postMessage({ type: 'update-container-height', height: height }, '*');
+      window.parent.postMessage({ type: 'update-container-height', height: height }, 'https://app.wealthica.com');
     } catch(e) {}
   });
 }
@@ -1647,6 +1652,9 @@ function updateGroupToggleLabel() {
 }
 
 async function applyGroupFilter() {
+  aiResponseCache = {};
+  positionRatings = {};
+  _scoresCache = null;
   updateGroupToggleLabel();
   if (selectedGroups.length === 0) {
     delete currentOptions.groupsFilter;
@@ -1708,6 +1716,7 @@ function applyDemoGroupFilter() {
 function regenerateDemoHistory() {
   const tv = filteredPositions.reduce((s,p) => s + (p.market_value || p.value || 0), 0);
   portfolioHistory = generateDemoHistory(tv);
+  portfolioHistoryFull = [...portfolioHistory];
 }
 
 function generateDemoHistory(currentValue) {
@@ -1771,8 +1780,7 @@ async function loadPortfolio() {
     ]);
     portfolioData.positions = positions || [];
     portfolioData.institutions = institutions || [];
-    console.log('[Wealthica] Raw positions sample:', JSON.stringify((positions||[]).slice(0,2), null, 2));
-    console.log('[Wealthica] Raw institutions:', JSON.stringify(institutions, null, 2));
+    console.log('[Wealthica] Loaded', (positions||[]).length, 'positions from', (institutions||[]).length, 'institutions');
     if (!addon) return; // addon was nulled during async wait
     processPortfolio();
     filteredPositions = [...portfolioData.positions];
@@ -1843,6 +1851,7 @@ async function fetchHistory(query) {
       const cleaned = raw.filter(h => h.value >= median * 0.15 && h.value <= median * 5);
       // Second pass: remove remaining spikes that deviate >80% from neighbors
       portfolioHistory = [];
+      portfolioHistoryFull = [];
       for (let i = 0; i < cleaned.length; i++) {
         if (cleaned.length >= 3 && i > 0 && i < cleaned.length - 1) {
           const prev = cleaned[i - 1].value, curr = cleaned[i].value, next = cleaned[i + 1].value;
@@ -1860,7 +1869,8 @@ async function fetchHistory(query) {
         }
       });
       portfolioHistory = Object.values(byDate).sort((a, b) => new Date(a.date) - new Date(b.date));
-      console.log('[Wealthica] History loaded:', portfolioHistory.length, 'of', raw.length, 'points. Sample:', JSON.stringify(portfolioHistory.slice(0,3)));
+      portfolioHistoryFull = portfolioHistory.map(h => ({ date: h.date, value: h.value }));
+      console.log('[Wealthica] History loaded:', portfolioHistory.length, 'of', raw.length, 'points');
       // Re-render displays that depend on history data (period returns, portfolio value)
       renderSummary();
       if (activeTab === 'performance') {
@@ -1870,10 +1880,12 @@ async function fetchHistory(query) {
     } else {
       console.log('[Wealthica] No history data returned');
       portfolioHistory = [];
+      portfolioHistoryFull = [];
     }
   } catch(e) {
     console.log('History not available:', e);
     portfolioHistory = [];
+    portfolioHistoryFull = [];
   }
 }
 
@@ -1905,8 +1917,7 @@ function processPortfolio() {
     });
   });
 
-  console.log('[Wealthica] instMap keys:', Object.keys(instMap).filter(k => !k.startsWith('name:')));
-  console.log('[Wealthica] invMap keys:', Object.keys(invMap).filter(k => !k.startsWith('prefix:')));
+  console.log('[Wealthica] Mapped', Object.keys(instMap).length, 'institutions,', Object.keys(invMap).length, 'investments');
 
   // ── Helper to resolve an account name from institution/investment IDs ──
   function resolveAccountName(instId, investId) {
@@ -2010,7 +2021,7 @@ function processPortfolio() {
   // Log resolved accounts for debugging
   const acctSummary = {};
   expandedPositions.forEach(p => { acctSummary[p._accountName || 'Account'] = (acctSummary[p._accountName || 'Account'] || 0) + 1; });
-  console.log('[Wealthica] Resolved accounts (' + expandedPositions.length + ' positions):', acctSummary);
+  console.log('[Wealthica] Resolved', expandedPositions.length, 'positions across', Object.keys(acctSummary).length, 'accounts');
 }
 
 // ─── Account Filter ──────────────────────────────────────────────────────────
@@ -2061,6 +2072,9 @@ function populateAccountFilter() {
 }
 
 async function applyAccountFilter() {
+  aiResponseCache = {};
+  positionRatings = {};
+  _scoresCache = null;
   const val = document.getElementById('accountFilter').value;
   if (val === 'all') {
     filteredPositions = [...portfolioData.positions];
@@ -2083,8 +2097,8 @@ async function applyAccountFilter() {
     const totalVal = portfolioData.totalValue || 1;
     const filteredVal = filteredPositions.reduce((s, p) => s + (p.market_value || p.value || 0), 0);
     const ratio = totalVal > 0 ? filteredVal / totalVal : 1;
-    if (ratio < 1 && portfolioHistory.length > 0) {
-      portfolioHistory = portfolioHistory.map(h => ({ date: h.date, value: Math.round(h.value * ratio) }));
+    if (ratio < 1 && portfolioHistoryFull.length > 0) {
+      portfolioHistory = portfolioHistoryFull.map(h => ({ date: h.date, value: Math.round(h.value * ratio) }));
     }
   } else if (addon) {
     // Reset to full history when switching back to "all"
@@ -2277,7 +2291,12 @@ function inferEquitySector(sym, name, category) {
 }
 
 // ─── Scoring System ──────────────────────────────────────────────────────────
+let _scoresCache = null;
+let _scoresCacheKey = '';
 function computeScores() {
+  // Simple cache: invalidate when positions or risk tolerance change
+  const cacheKey = filteredPositions.length + ':' + (filteredPositions[0]?.security?.symbol || '') + ':' + riskTolerance + ':' + (portfolioData.totalValue || 0);
+  if (_scoresCache && _scoresCacheKey === cacheKey) return _scoresCache;
   const positions = aggregatePositions(filteredPositions);
   const totalVal = positions.reduce((s,p) => s + (p.market_value || p.value || 0), 0);
   if (!positions.length || !totalVal) return emptyScores();
@@ -2402,13 +2421,14 @@ function computeScores() {
       // US dividends in non-RRSP lose 15% withholding
       if (cur === 'USD' && !isRRSP && (sector.includes('Equity') || sector === 'Financials' || sector === 'Technology' || sector === 'Healthcare')) {
         taxScore -= 2;
-        taxIssues.push(sym + ' (USD dividend payer) in non-RRSP — loses 15% withholding tax');
+        taxIssues.push(escapeHtml(sym) + ' (USD dividend payer) in non-RRSP — loses 15% withholding tax');
       }
       // Growth stocks in RRSP instead of TFSA
-      if (isRRSP && sector === 'Crypto') { taxScore -= 4; taxIssues.push(sym + ' in RRSP — crypto growth is better sheltered in TFSA'); }
+      if (isRRSP && sector === 'Crypto') { taxScore -= 4; taxIssues.push(escapeHtml(sym) + ' in RRSP — crypto growth is better sheltered in TFSA'); }
       // Unrealized losses in registered accounts (can't harvest)
-      const gl = (p.market_value||p.value||0) - (p.book_value||0);
-      if (gl < -2000 && isRegistered && !isNonReg) { taxScore -= 2; taxIssues.push(sym + ' has ' + fmt(gl) + ' unrealized loss in registered account — cannot tax-loss harvest'); }
+      const bvTax = (p.book_value != null ? p.book_value : (p.market_value || p.value || 0));
+      const gl = (p.market_value||p.value||0) - bvTax;
+      if (gl < -2000 && isRegistered && !isNonReg) { taxScore -= 2; taxIssues.push(escapeHtml(sym) + ' has ' + fmt(gl) + ' unrealized loss in registered account — cannot tax-loss harvest'); }
     });
   });
   // Bonus: having registered accounts at all
@@ -2456,7 +2476,7 @@ function computeScores() {
     ? 'Below-average portfolio health (score: ' + health + '). Multiple areas need work. ' + (weakAreas.length > 0 ? 'Key weaknesses: ' + weakAreas.join(', ') + '. ' : '') + 'The portfolio has meaningful structural issues that increase risk without proportional reward. Consider simplifying with all-in-one ETFs or consulting a fee-only advisor.'
     : 'Portfolio needs significant restructuring (score: ' + health + '). ' + (weakAreas.length > 0 ? 'Critical issues: ' + weakAreas.join(', ') + '. ' : '') + 'Consider moving to a balanced all-in-one ETF (XBAL.TO, VGRO.TO) or consulting a qualified financial advisor.';
 
-  return {
+  const result = {
     health, healthDetail,
     diversification, diversificationDetail,
     riskManagement, riskDetail,
@@ -2470,6 +2490,9 @@ function computeScores() {
     winRate, avgReturn, winners, losers: posReturns.length - winners,
     incomeWeight, taxIssues,
   };
+  _scoresCache = result;
+  _scoresCacheKey = cacheKey;
+  return result;
 }
 
 function emptyScores() {
@@ -2888,7 +2911,7 @@ function renderBenchmarkComparison(portfolioReturn) {
     { cls: 'portfolio', label: 'Total Return', value: pct(portfolioReturn), desc: fmt(totalGL) + ' gain/loss', vs: '' },
     { cls: 'sp500', label: 'Portfolio Value', value: fmt(totalVal), desc: 'Book value: ' + fmt(totalBook), vs: '' },
     { cls: 'tsx', label: 'Win Rate', value: (aggregated.length > 0 ? (winners/aggregated.length*100).toFixed(0) : 0) + '%', desc: winners + ' winners / ' + losers + ' losers', vs: '' },
-    (function() { const sortedAccts = Object.entries(acctPerf).sort((a,b) => (b[1].mv-b[1].bv)/(b[1].bv||1) - (a[1].mv-a[1].bv)/(a[1].bv||1)); const best = sortedAccts[0]; return { cls: 'nasdaq', label: 'Best Account', value: best ? best[0] : '--', desc: best ? pct(((best[1].mv - best[1].bv) / (best[1].bv || 1)) * 100) + ' return' : '', vs: '' }; })(),
+    (function() { const sortedAccts = Object.entries(acctPerf).sort((a,b) => (b[1].mv-b[1].bv)/(b[1].bv||1) - (a[1].mv-a[1].bv)/(a[1].bv||1)); const best = sortedAccts[0]; return { cls: 'nasdaq', label: 'Best Account', value: best ? best[0] : '--', desc: best ? pct(best[1].bv > 0 ? ((best[1].mv - best[1].bv) / best[1].bv * 100) : 0) + ' return' : '', vs: '' }; })(),
   ];
   cards.forEach(c => {
     const d = document.createElement('div');
@@ -3096,8 +3119,8 @@ function renderSectors() {
   grid.innerHTML = '';
   sectorEntries.forEach(([name, data], i) => {
     const pctVal = totalVal > 0 ? (data.value/totalVal*100) : 0;
-    const gl = data.positions.reduce((s,p) => s + ((p.market_value||p.value||0) - (p.book_value||(p.market_value||p.value||0))), 0);
-    const topSymbols = data.positions.sort((a,b) => (b.market_value||b.value||0) - (a.market_value||a.value||0)).slice(0,3).map(p => p.security?.symbol || p.symbol || '?').join(', ');
+    const gl = data.positions.reduce((s,p) => s + ((p.market_value||p.value||0) - (p.book_value != null ? p.book_value : (p.market_value||p.value||0))), 0);
+    const topSymbols = data.positions.sort((a,b) => (b.market_value||b.value||0) - (a.market_value||a.value||0)).slice(0,3).map(p => escapeHtml(p.security?.symbol || p.symbol || '?')).join(', ');
     const d = document.createElement('div');
     d.className = 'position-card';
     d.innerHTML = '<div class="pos-header"><div><div class="pos-symbol" style="color:' + CHART_COLORS[i % CHART_COLORS.length] + '">' + escapeHtml(name) + '</div>' +
@@ -3254,7 +3277,7 @@ function computePortfolioStats() {
 
 function renderModels() {
   const stats = computePortfolioStats();
-  if (!stats) return;
+  if (!stats) return stats;
 
   // Risk Metrics Gauges — simplified with plain-English explanations
   const gauges = document.getElementById('riskMetricsGauges');
@@ -3470,11 +3493,12 @@ function renderModelConclusion(stats) {
     '<div><div class="mc-grade-text" style="color:' + gradeColor + '">' + gradeLabel + '</div>' +
     '<div class="mc-grade-sub">Based on volatility, risk-adjusted returns, market sensitivity, and diversification</div></div></div>' +
     '<div class="mc-points">' + points.map(p => '<div class="mc-point"><div class="mc-bullet" style="background:' + p.color + '"></div><div>' + p.text + '</div></div>').join('') + '</div>';
+  return stats;
 }
 
 // ─── Stress Test Tab ─────────────────────────────────────────────────────────
-function renderStressTest() {
-  const stats = computePortfolioStats();
+function renderStressTest(cachedStats) {
+  const stats = cachedStats || computePortfolioStats();
   if (!stats) return;
   const totalVal = stats.totalVal;
 
@@ -3667,7 +3691,7 @@ function generateMoves() {
 
   // Analyze positions (aggregated)
   const sorted = [...movesAgg].sort((a,b) => (b.market_value||b.value||0) - (a.market_value||a.value||0));
-  const weights = sorted.map(p => ({ sym: p.security?.symbol||p.symbol||'?', w: (p.market_value||p.value||0)/totalVal*100, mv: p.market_value||p.value||0, bv: p.book_value||0, name: p.security?.name||'' }));
+  const weights = sorted.map(p => ({ sym: p.security?.symbol||p.symbol||'?', w: (p.market_value||p.value||0)/totalVal*100, mv: p.market_value||p.value||0, bv: (p.book_value != null ? p.book_value : (p.market_value||p.value||0)), name: p.security?.name||'' }));
 
   // Small moves based on risk tolerance
   const maxAcceptable = riskTolerance <= 3 ? 10 : riskTolerance <= 5 ? 15 : riskTolerance <= 7 ? 25 : 35;
@@ -3679,7 +3703,7 @@ function generateMoves() {
   });
 
   // Losses for tax-loss harvesting (use per-account data for account type check)
-  const losses = filteredPositions.filter(p => (p.book_value||0) > (p.market_value||p.value||0)).map(p => ({ sym: p.security?.symbol||p.symbol, loss: (p.market_value||p.value||0) - p.book_value, acct: p._accountName||'' }));
+  const losses = filteredPositions.filter(p => (p.book_value != null ? p.book_value : (p.market_value||p.value||0)) > (p.market_value||p.value||0)).map(p => ({ sym: p.security?.symbol||p.symbol, loss: (p.market_value||p.value||0) - (p.book_value != null ? p.book_value : (p.market_value||p.value||0)), acct: p._accountName||'' }));
   // Deduplicate: only suggest once per symbol
   const seenLossSym = new Set();
   losses.filter(l => !l.acct.includes('TFSA') && !l.acct.includes('RRSP')).filter(l => { if (seenLossSym.has(l.sym)) return false; seenLossSym.add(l.sym); return true; }).forEach(l => {
@@ -4358,8 +4382,8 @@ function renderCorrelationMatrix() {
     const riskLevel = w.corr >= 0.90 ? 'High' : w.corr >= 0.75 ? 'Medium' : 'Low';
     const riskColor = w.corr >= 0.90 ? 'var(--red)' : w.corr >= 0.75 ? 'var(--yellow)' : 'var(--accent)';
     html += '<tr style="border-bottom:1px solid var(--border)">' +
-      '<td style="padding:8px 6px;font-weight:600;font-family:\'JetBrains Mono\',monospace">' + w.sym1 + ' / ' + w.sym2 + '</td>' +
-      '<td style="padding:8px 6px;color:var(--text-muted)">' + w.c1 + (w.c1 === w.c2 ? ' (same)' : ' / ' + w.c2) + '</td>' +
+      '<td style="padding:8px 6px;font-weight:600;font-family:\'JetBrains Mono\',monospace">' + escapeHtml(w.sym1) + ' / ' + escapeHtml(w.sym2) + '</td>' +
+      '<td style="padding:8px 6px;color:var(--text-muted)">' + escapeHtml(w.c1) + (w.c1 === w.c2 ? ' (same)' : ' / ' + escapeHtml(w.c2)) + '</td>' +
       '<td style="padding:8px 6px;text-align:center;font-weight:600;color:' + riskColor + '">' + w.corr.toFixed(2) + '</td>' +
       '<td style="padding:8px 6px;text-align:right;font-family:\'JetBrains Mono\',monospace">' + w.combinedW.toFixed(1) + '%</td>' +
       '<td style="padding:8px 6px"><span style="background:' + riskColor + '20;color:' + riskColor + ';padding:2px 8px;border-radius:4px;font-size:10px;font-weight:600">' + riskLevel + '</span></td>' +
@@ -4373,22 +4397,24 @@ function renderCorrelationMatrix() {
 // ─── Export Report ───────────────────────────────────────────────────────────
 function exportReport() {
   const totalVal = filteredPositions.reduce((s,p) => s + (p.market_value||p.value||0), 0);
-  const totalBook = filteredPositions.reduce((s,p) => s + (p.book_value||p.market_value||p.value||0), 0);
+  const totalBook = filteredPositions.reduce((s,p) => s + (p.book_value != null ? p.book_value : (p.market_value||p.value||0)), 0);
   const totalGL = totalVal - totalBook;
   const totalRet = totalBook > 0 ? ((totalVal-totalBook)/totalBook*100) : 0;
 
   const aggregated = aggregatePositions(filteredPositions);
+  // Sanitize CSV fields to prevent formula injection
+  function csvSafe(val) { const s = String(val).replace(/"/g, '""'); if (/^[=+\-@\t\r]/.test(s)) return '"\'' + s + '"'; return s.includes(',') ? '"' + s + '"' : s; }
   let csv = 'Symbol,Name,Quantity,Market Value,Book Value,Gain/Loss,Return %,Weight %,Account(s),Asset Class,Region\n';
   aggregated.forEach(p => {
-    const sym = p.security?.symbol || p.symbol || '';
-    const name = (p.security?.name || '').replace(/,/g, ' ');
+    const sym = csvSafe(p.security?.symbol || p.symbol || '');
+    const name = csvSafe((p.security?.name || '').replace(/,/g, ' '));
     const mv = p.market_value || p.value || 0;
     const bv = (p.book_value != null ? p.book_value : mv);
     const gl = mv - bv;
     const ret = bv > 0 ? ((mv-bv)/bv*100).toFixed(2) : '0';
     const w = totalVal > 0 ? (mv/totalVal*100).toFixed(2) : '0';
-    const accounts = ((p._accounts || []).join('; ') || p._accountName || '').replace(/,/g, ' ');
-    csv += [sym, name, p.quantity||'', mv.toFixed(2), bv.toFixed(2), gl.toFixed(2), ret, w, accounts, inferAssetClass(p), inferRegion(p)].join(',') + '\n';
+    const accounts = csvSafe(((p._accounts || []).join('; ') || p._accountName || '').replace(/,/g, ' '));
+    csv += [sym, name, p.quantity||'', mv.toFixed(2), bv.toFixed(2), gl.toFixed(2), ret, w, accounts, csvSafe(inferAssetClass(p)), csvSafe(inferRegion(p))].join(',') + '\n';
   });
 
   // Add summary
@@ -4567,12 +4593,13 @@ function loadDemoData() {
   buildGroupsFromData();
 
   let tv = 0, tb = 0;
-  portfolioData.positions.forEach(p => { tv += p.market_value || 0; tb += p.book_value || 0; });
+  portfolioData.positions.forEach(p => { tv += p.market_value || 0; tb += (p.book_value != null ? p.book_value : 0); });
   portfolioData.totalValue = tv;
   portfolioData.totalBook = tb;
 
   // Generate mock portfolio history (5 years / 60 months with weekly data points)
   portfolioHistory = generateDemoHistory(tv);
+  portfolioHistoryFull = portfolioHistory.map(h => ({ date: h.date, value: h.value }));
 
   filteredPositions = [...portfolioData.positions];
   populateAccountFilter();
@@ -4852,10 +4879,11 @@ function loadTestPortfolio(name) {
   };
   buildGroupsFromData();
   let tv = 0, tb = 0;
-  portfolioData.positions.forEach(p => { tv += p.market_value || 0; tb += p.book_value || 0; });
+  portfolioData.positions.forEach(p => { tv += p.market_value || 0; tb += (p.book_value != null ? p.book_value : 0); });
   portfolioData.totalValue = tv;
   portfolioData.totalBook = tb;
   portfolioHistory = generateDemoHistory(tv);
+  portfolioHistoryFull = portfolioHistory.map(h => ({ date: h.date, value: h.value }));
   filteredPositions = [...portfolioData.positions];
   populateAccountFilter();
   renderAllTabs();
