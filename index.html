@@ -1303,24 +1303,32 @@ if (typeof Chart !== 'undefined') {
 function setDateRange(range) {
   activeDateRange = range;
   document.querySelectorAll('.date-btn').forEach(b => b.classList.remove('active'));
-  document.querySelector('.date-btn[onclick="setDateRange(\'' + range + '\')"]').classList.add('active');
+  const activeBtn = document.querySelector('.date-btn[onclick="setDateRange(\'' + range + '\')"]');
+  if (activeBtn) activeBtn.classList.add('active');
   if (addon) {
-    loadPortfolio();
+    loadPortfolio().catch(err => console.error('Date range reload failed:', err));
   } else {
     renderAllTabs();
   }
 }
 
+function formatLocalDate(d) {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return y + '-' + m + '-' + day;
+}
+
 function getDateFrom(range) {
   if (range === 'all') return null;
   const now = new Date();
-  if (range === 'ytd') return new Date(now.getFullYear(), 0, 1).toISOString().split('T')[0];
-  if (range === '1m') { now.setMonth(now.getMonth() - 1); return now.toISOString().split('T')[0]; }
-  if (range === '3m') { now.setMonth(now.getMonth() - 3); return now.toISOString().split('T')[0]; }
-  if (range === '6m') { now.setMonth(now.getMonth() - 6); return now.toISOString().split('T')[0]; }
-  if (range === '1y') { now.setFullYear(now.getFullYear() - 1); return now.toISOString().split('T')[0]; }
-  if (range === '3y') { now.setFullYear(now.getFullYear() - 3); return now.toISOString().split('T')[0]; }
-  if (range === '5y') { now.setFullYear(now.getFullYear() - 5); return now.toISOString().split('T')[0]; }
+  if (range === 'ytd') return formatLocalDate(new Date(now.getFullYear(), 0, 1));
+  if (range === '1m') { now.setMonth(now.getMonth() - 1); return formatLocalDate(now); }
+  if (range === '3m') { now.setMonth(now.getMonth() - 3); return formatLocalDate(now); }
+  if (range === '6m') { now.setMonth(now.getMonth() - 6); return formatLocalDate(now); }
+  if (range === '1y') { now.setFullYear(now.getFullYear() - 1); return formatLocalDate(now); }
+  if (range === '3y') { now.setFullYear(now.getFullYear() - 3); return formatLocalDate(now); }
+  if (range === '5y') { now.setFullYear(now.getFullYear() - 5); return formatLocalDate(now); }
   return null;
 }
 
@@ -1431,9 +1439,11 @@ if (typeof Addon === 'undefined') {
   try {
     addon = new Addon();
     let initReceived = false;
-    setTimeout(function() { if (!initReceived) { showToast('Wealthica not detected — loading demo data', 'error'); addon = null; loadDemoData(); } }, 10000);
+    const initTimeout = setTimeout(function() { if (!initReceived) { initReceived = true; showToast('Wealthica not detected — loading demo data', 'error'); addon = null; loadDemoData(); } }, 10000);
     addon.on('init', function(options) {
+      if (initReceived) return; // Already timed out and loaded demo data
       initReceived = true;
+      clearTimeout(initTimeout);
       currentOptions = options;
       // Detect Wealthica theme
       if (options.theme) applyTheme(options.theme);
@@ -1457,15 +1467,16 @@ if (typeof Addon === 'undefined') {
       loadPortfolio();
       fetchGroups();
     });
-    addon.on('reload', function() { loadPortfolio(); });
+    addon.on('reload', function() { if (addon) loadPortfolio().catch(err => console.error('Reload failed:', err)); });
     addon.on('update', function(options) {
+      if (!addon) return;
       currentOptions = { ...currentOptions, ...options };
       // Sync if Wealthica changed the group from its dashboard
       if (options.groupsFilter !== undefined) {
         const gf = options.groupsFilter;
         selectedGroups = !gf ? [] : (typeof gf === 'string' ? gf.split(',').filter(Boolean) : Array.isArray(gf) ? gf : []);
       }
-      loadPortfolio();
+      loadPortfolio().catch(err => console.error('Update failed:', err));
     });
   } catch(e) {
     console.log('Not running inside Wealthica.', e);
@@ -1509,16 +1520,18 @@ function buildGroupsFromData() {
 
 // Try fetching real groups from Wealthica API (overrides auto-generated ones)
 async function fetchGroups() {
-  if (!addon) return;
+  const addonRef = addon;
+  if (!addonRef) return;
   let groups = null;
   try {
-    groups = await addon.request({ method: 'GET', endpoint: 'groups' });
+    groups = await addonRef.request({ method: 'GET', endpoint: 'groups' });
   } catch(e) {
     console.log('Groups endpoint not available, trying user profile:', e);
   }
+  if (!addon) return; // addon nulled during async wait
   if (!Array.isArray(groups) || groups.length === 0) {
     try {
-      const user = await addon.api.getUser();
+      const user = await addonRef.api.getUser();
       if (user && user.groups && Array.isArray(user.groups)) groups = user.groups;
     } catch(e) {
       console.log('User groups not available:', e);
@@ -1746,18 +1759,20 @@ function buildQuery(options) {
 }
 
 async function loadPortfolio() {
-  if (!addon) return;
+  const addonRef = addon; // Capture reference to avoid race conditions
+  if (!addonRef) return;
   showLoadingSkeletons();
   try {
     const query = buildQuery(currentOptions);
     const [positions, institutions] = await Promise.all([
-      addon.api.getPositions(query),
-      addon.api.getInstitutions(query),
+      addonRef.api.getPositions(query),
+      addonRef.api.getInstitutions(query),
     ]);
     portfolioData.positions = positions || [];
     portfolioData.institutions = institutions || [];
     console.log('[Wealthica] Raw positions sample:', JSON.stringify((positions||[]).slice(0,2), null, 2));
     console.log('[Wealthica] Raw institutions:', JSON.stringify(institutions, null, 2));
+    if (!addon) return; // addon was nulled during async wait
     processPortfolio();
     filteredPositions = [...portfolioData.positions];
     populateAccountFilter();
@@ -1765,8 +1780,8 @@ async function loadPortfolio() {
     renderAllTabs();
     document.getElementById('btnAnalyze').disabled = !apiKey;
     if (portfolioData.positions.length > 0) showToast('Loaded ' + portfolioData.positions.length + ' positions', 'success');
-    // Fetch portfolio history in background (non-blocking)
-    fetchHistory(query);
+    // Fetch portfolio history (awaited so charts have data)
+    await fetchHistory(query);
   } catch(err) {
     console.error('Failed to load portfolio:', err);
     showToast('Failed to load: ' + (err.message || err), 'error');
@@ -1774,16 +1789,18 @@ async function loadPortfolio() {
 }
 
 async function fetchHistory(query) {
-  if (!addon) return;
+  const addonRef = addon; // Capture reference to avoid race conditions
+  if (!addonRef) return;
   try {
     // Try addon.api.getHistory first
     let history;
     try {
-      history = await addon.api.getHistory(query);
+      history = await addonRef.api.getHistory(query);
     } catch(e1) {
+      if (!addon) return; // addon was nulled during async wait
       // Fallback: use addon.request to the history endpoint
       try {
-        history = await addon.request({ method: 'GET', endpoint: 'history', query: query });
+        history = await addonRef.request({ method: 'GET', endpoint: 'history', query: query });
       } catch(e2) {
         console.log('History fallback also failed:', e2);
       }
@@ -1802,8 +1819,8 @@ async function fetchHistory(query) {
         let value = 0;
         // Prefer top-level value/equity — this is the total portfolio net worth (includes cash)
         // h.investments may not include cash balances and can give incorrect totals
-        if (h.value || h.equity || h.v) {
-          value = h.equity || h.value || h.v || 0;
+        if (h.equity != null || h.value != null || h.v != null) {
+          value = h.equity ?? h.value ?? h.v ?? 0;
         }
         // Fall back to summing investments only if no top-level value
         if (!value && h.investments && typeof h.investments === 'object') {
@@ -1956,13 +1973,14 @@ function processPortfolio() {
         const rawMV = inv.market_value || inv.value || 0;
         const rawBV = inv.book_value || rawMV;
         // Scale per-investment values proportionally to match currency-converted total
-        const mv = rawSum > 0 ? posMV * (rawMV / rawSum) : posMV / investments.length;
-        const bv = rawBookSum > 0 ? posBV * (rawBV / rawBookSum) : posBV / investments.length;
+        const invCount = investments.length || 1;
+        const mv = rawSum > 0 ? posMV * (rawMV / rawSum) : posMV / invCount;
+        const bv = rawBookSum > 0 ? posBV * (rawBV / rawBookSum) : posBV / invCount;
         const accountName = resolveAccountName(invInstId, invInvestId) || pos.account_name || pos.accountName || 'Account';
         expandedPositions.push({
           ...pos,
-          market_value: mv,
-          book_value: bv,
+          market_value: isFinite(mv) ? mv : 0,
+          book_value: isFinite(bv) ? bv : 0,
           quantity: inv.quantity != null ? inv.quantity : pos.quantity,
           gain_amount: inv.gain_amount,
           gain_percent: inv.gain_percent,
@@ -2041,7 +2059,7 @@ function populateAccountFilter() {
   }
 }
 
-function applyAccountFilter() {
+async function applyAccountFilter() {
   const val = document.getElementById('accountFilter').value;
   if (val === 'all') {
     filteredPositions = [...portfolioData.positions];
@@ -2057,7 +2075,20 @@ function applyAccountFilter() {
   } else {
     filteredPositions = portfolioData.positions.filter(p => (p._accountName || 'Account') === val);
   }
-  if (!addon) regenerateDemoHistory();
+  if (!addon) {
+    regenerateDemoHistory();
+  } else if (val !== 'all') {
+    // In Wealthica mode, scale history to match filtered positions' proportion
+    const totalVal = portfolioData.totalValue || 1;
+    const filteredVal = filteredPositions.reduce((s, p) => s + (p.market_value || p.value || 0), 0);
+    const ratio = totalVal > 0 ? filteredVal / totalVal : 1;
+    if (ratio < 1 && portfolioHistory.length > 0) {
+      portfolioHistory = portfolioHistory.map(h => ({ date: h.date, value: Math.round(h.value * ratio) }));
+    }
+  } else if (addon) {
+    // Reset to full history when switching back to "all"
+    await fetchHistory(buildQuery(currentOptions));
+  }
   renderAllTabs();
 }
 
@@ -4050,8 +4081,11 @@ function saveSettings() {
   const profile = getInvestorProfile();
   const selectedModel = getSelectedModel();
   if (addon) {
-    addon.saveData({ apiKey: key, investorProfile: profile, model: selectedModel }).then(() => { showToast('Settings saved', 'success'); updateStatus('connected', 'Settings saved'); }).catch(err => { showToast('Settings set for session', 'error'); });
-  } else { showToast('Settings set for session', 'success'); updateStatus('connected', 'Settings set'); }
+    addon.saveData({ apiKey: key, investorProfile: profile, model: selectedModel }).then(() => { showToast('Settings saved', 'success'); updateStatus('connected', 'Settings saved'); }).catch(err => { console.log('Wealthica saveData failed, using localStorage:', err); try { localStorage.setItem('wealthica_ai_settings', JSON.stringify({ apiKey: key, investorProfile: profile, model: selectedModel })); } catch(e) {} showToast('Settings saved locally', 'success'); });
+  } else {
+    try { localStorage.setItem('wealthica_ai_settings', JSON.stringify({ apiKey: key, investorProfile: profile, model: selectedModel })); } catch(e) {}
+    showToast('Settings saved locally', 'success'); updateStatus('connected', 'Settings set');
+  }
   document.getElementById('settingsPanel').classList.remove('visible');
   document.getElementById('btnAnalyze').disabled = filteredPositions.length === 0;
 }
@@ -4540,6 +4574,16 @@ function loadDemoData() {
 
   filteredPositions = [...portfolioData.positions];
   populateAccountFilter();
+  // Restore settings from localStorage in demo mode
+  try {
+    const saved = localStorage.getItem('wealthica_ai_settings');
+    if (saved) {
+      const s = JSON.parse(saved);
+      if (s.apiKey) { apiKey = s.apiKey; document.getElementById('apiKeyInput').value = apiKey; }
+      if (s.investorProfile) loadInvestorProfile(s.investorProfile);
+      if (s.model) document.getElementById('modelSelect').value = s.model;
+    }
+  } catch(e) {}
   renderAllTabs();
   document.getElementById('btnAnalyze').disabled = !apiKey;
 }
