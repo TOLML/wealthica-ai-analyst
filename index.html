@@ -3,6 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://wealthica.github.io https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; connect-src https://api.anthropic.com https://*.wealthica.com; img-src 'self' data: blob:; frame-ancestors https://app.wealthica.com https://addons.wealthica.com;">
 <title>Wealthica Portfolio Intelligence</title>
 <script src="https://wealthica.github.io/wealthica.js/dist/addon.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
@@ -942,9 +943,9 @@
 
     <hr class="section-divider">
     <h3 class="section-title"><span class="st-icon purple">&#9686;</span> Position Analysis</h3>
-    <div class="chart-card"><h3>Gain/Loss by Position</h3><canvas id="gainLossChart"></canvas></div>
-    <div class="chart-card" style="margin-top:20px"><h3>Portfolio Performance Summary</h3><canvas id="accountPerfChart"></canvas></div>
-    <div class="chart-card" style="margin-top:20px"><h3>Return by Position</h3><canvas id="benchmarkChart"></canvas></div>
+    <div class="chart-card"><h3 id="gainLossTitle">Gain/Loss by Position</h3><canvas id="gainLossChart"></canvas></div>
+    <div class="chart-card" style="margin-top:20px"><h3 id="acctPerfTitle">Portfolio Performance Summary</h3><canvas id="accountPerfChart"></canvas></div>
+    <div class="chart-card" style="margin-top:20px"><h3 id="returnPosTitle">Return by Position</h3><canvas id="benchmarkChart"></canvas></div>
     <div style="margin-top:20px">
       <button class="tab-ai-btn" id="aiBtn-performance" onclick="runTabAI('performance')">
         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polygon points="5 3 19 12 5 21 5 3"/></svg>
@@ -1167,6 +1168,7 @@
 // ─── State ───────────────────────────────────────────────────────────────────
 let addon = null;
 let apiKey = '';
+let _lastAICall = 0;
 let portfolioData = { positions: [], institutions: [], totalValue: 0, totalBook: 0 };
 let filteredPositions = [];
 let currentOptions = {};
@@ -1311,7 +1313,7 @@ function setDateRange(range) {
   const activeBtn = document.querySelector('.date-btn[onclick="setDateRange(\'' + range + '\')"]');
   if (activeBtn) activeBtn.classList.add('active');
   if (addon) {
-    loadPortfolio().catch(err => console.error('Date range reload failed:', err));
+    loadPortfolio().catch(err => console.error('Date range reload failed:', err.message));
   } else {
     renderAllTabs();
   }
@@ -1472,7 +1474,7 @@ if (typeof Addon === 'undefined') {
       loadPortfolio();
       fetchGroups();
     });
-    addon.on('reload', function() { if (addon) loadPortfolio().catch(err => console.error('Reload failed:', err)); });
+    addon.on('reload', function() { if (addon) loadPortfolio().catch(err => console.error('Reload failed:', err.message)); });
     addon.on('update', function(options) {
       if (!addon) return;
       currentOptions = { ...currentOptions, ...options };
@@ -1481,10 +1483,10 @@ if (typeof Addon === 'undefined') {
         const gf = options.groupsFilter;
         selectedGroups = !gf ? [] : (typeof gf === 'string' ? gf.split(',').filter(Boolean) : Array.isArray(gf) ? gf : []);
       }
-      loadPortfolio().catch(err => console.error('Update failed:', err));
+      loadPortfolio().catch(err => console.error('Update failed:', err.message));
     });
   } catch(e) {
-    console.log('Not running inside Wealthica.', e);
+    console.log('Not running inside Wealthica.');
     showToast('Demo mode — not inside Wealthica', 'error');
     loadDemoData();
   }
@@ -1531,7 +1533,7 @@ async function fetchGroups() {
   try {
     groups = await addonRef.request({ method: 'GET', endpoint: 'groups' });
   } catch(e) {
-    console.log('Groups endpoint not available, trying user profile:', e);
+    console.log('Groups endpoint not available, trying user profile');
   }
   if (!addon) return; // addon nulled during async wait
   if (!Array.isArray(groups) || groups.length === 0) {
@@ -1539,7 +1541,7 @@ async function fetchGroups() {
       const user = await addonRef.api.getUser();
       if (user && user.groups && Array.isArray(user.groups)) groups = user.groups;
     } catch(e) {
-      console.log('User groups not available:', e);
+      console.log('User groups not available');
     }
   }
   if (Array.isArray(groups) && groups.length > 0) {
@@ -1727,7 +1729,7 @@ function generateDemoHistory(currentValue) {
   const startValue = currentValue * 0.45;
   let value = startValue;
   const annualGrowth = Math.pow(currentValue / startValue, 1/5) - 1;
-  const weeklyGrowth = annualGrowth / 52;
+  const weeklyGrowth = Math.log(1 + annualGrowth) / 52;
   const weeklyVol = 0.15 / Math.sqrt(52); // ~15% annual vol scaled to weekly
 
   // Seeded PRNG for deterministic but non-periodic noise
@@ -1792,8 +1794,8 @@ async function loadPortfolio() {
     // Fetch portfolio history (awaited so charts have data)
     await fetchHistory(query);
   } catch(err) {
-    console.error('Failed to load portfolio:', err);
-    showToast('Failed to load: ' + (err.message || err), 'error');
+    console.error('Failed to load portfolio:', err.message);
+    showToast('Failed to load portfolio data', 'error');
   }
 }
 
@@ -1811,7 +1813,7 @@ async function fetchHistory(query) {
       try {
         history = await addonRef.request({ method: 'GET', endpoint: 'history', query: query });
       } catch(e2) {
-        console.log('History fallback also failed:', e2);
+        console.log('History fallback also failed');
       }
     }
     let arr = [];
@@ -1819,7 +1821,7 @@ async function fetchHistory(query) {
       arr = history;
     } else if (history && typeof history === 'object' && !Array.isArray(history)) {
       arr = history.results || history.data || history.history || [];
-      if (arr.length === 0) console.log('[Wealthica] History response format:', Object.keys(history));
+      if (arr.length === 0) console.log('[Wealthica] History response: no recognized array field');
     }
     if (arr.length > 0) {
       // Normalize: ensure each entry has a total value (aggregate investments if needed)
@@ -1875,7 +1877,7 @@ async function fetchHistory(query) {
       renderSummary();
       if (activeTab === 'performance') {
         renderPerformance();
-        renderHistoryChart();
+        // History chart removed (no canvas in HTML)
       }
     } else {
       console.log('[Wealthica] No history data returned');
@@ -1883,7 +1885,7 @@ async function fetchHistory(query) {
       portfolioHistoryFull = [];
     }
   } catch(e) {
-    console.log('History not available:', e);
+    console.log('History not available');
     portfolioHistory = [];
     portfolioHistoryFull = [];
   }
@@ -2186,6 +2188,10 @@ function inferAssetClass(pos) {
   // Wealthica API: class & category are at position level (pos.class, pos.category)
   const assetClass = (pos.class || pos.security?.asset_class || '').toLowerCase();
   const category = (pos.category || pos.security?.category || '').toLowerCase();
+
+  // 0. Detect bare currency codes as cash (CAD, USD, EUR, GBP, etc.)
+  const currencies = ['CAD','USD','EUR','GBP','JPY','CHF','AUD','NZD','HKD','SGD','SEK','NOK','DKK','CNY','MXN','BRL','INR','KRW','TWD','ZAR'];
+  if (currencies.includes(sym) || /^[A-Z]{3}\.FX$/i.test(sym)) return 'Cash';
 
   // 1. Use Wealthica's class / category — short-circuit for non-equity types only
   //    For equity, fall through to detailed ETF/stock pattern matching below
@@ -2813,8 +2819,8 @@ function renderPerformance() {
   const totalRet = periodReturn ? periodReturn.pct : (totalBook > 0 ? ((totalVal - totalBook) / totalBook) * 100 : 0);
   const periodLabel = getPeriodLabel();
 
-  // Best/worst (aggregated by symbol)
-  const withReturn = aggregated.map(p => {
+  // Best/worst (aggregated by symbol, excluding cash/currency positions)
+  const withReturn = aggregated.filter(p => inferAssetClass(p) !== 'Cash').map(p => {
     const mv = p.market_value || p.value || 0;
     const bv = (p.book_value != null ? p.book_value : mv);
     return { ...p, ret: bv > 0 ? ((mv-bv)/bv)*100 : 0, gl: mv - bv };
@@ -2823,15 +2829,18 @@ function renderPerformance() {
   const worst = withReturn.length > 0 ? withReturn[withReturn.length - 1] : null;
 
   const isFiltered = activeDateRange !== 'all';
-  const perfNote = isFiltered ? ' (all\u2011time)' : '';
 
   const grid = document.getElementById('perfSummaryGrid');
   grid.innerHTML = '';
+
+  // When a date range is active, show portfolio-level period return from history
+  // Per-position data is always all-time (book vs market) since positions don't carry period returns
+  const wtdAvg = withReturn.length > 0 ? (function(){ const tv = withReturn.reduce((s,p)=>s+(p.market_value||p.value||0),0); return tv > 0 ? withReturn.reduce((s,p)=>s+p.ret*((p.market_value||p.value||0)/tv),0) : 0; })() : 0;
   const cards = [
-    { label: periodLabel + ' Return', value: pct(totalRet), cls: totalRet >= 0 ? 'positive' : 'negative', sub: fmt(totalGL) },
-    { label: 'Best Performer' + perfNote, value: best ? (best.security?.symbol || best.symbol || '--') : '--', cls: 'positive', sub: best ? pct(best.ret) : '' },
-    { label: 'Worst Performer' + perfNote, value: worst ? (worst.security?.symbol || worst.symbol || '--') : '--', cls: worst && worst.ret < 0 ? 'negative' : '', sub: worst ? pct(worst.ret) : '' },
-    { label: 'Wtd Avg Return' + perfNote, value: pct(withReturn.length > 0 ? (function(){ const tv = withReturn.reduce((s,p)=>s+(p.market_value||p.value||0),0); return tv > 0 ? withReturn.reduce((s,p)=>s+p.ret*((p.market_value||p.value||0)/tv),0) : 0; })() : 0), cls: '', sub: aggregated.length + ' holdings' },
+    { label: periodLabel + ' Return', value: pct(totalRet), cls: totalRet >= 0 ? 'positive' : 'negative', sub: fmt(totalGL) + (isFiltered ? ' (portfolio\u2011level)' : '') },
+    { label: 'Best Performer', value: best ? (best.security?.symbol || best.symbol || '--') : '--', cls: 'positive', sub: best ? pct(best.ret) + ' all\u2011time' : '' },
+    { label: 'Worst Performer', value: worst ? (worst.security?.symbol || worst.symbol || '--') : '--', cls: worst && worst.ret < 0 ? 'negative' : '', sub: worst ? pct(worst.ret) + ' all\u2011time' : '' },
+    { label: 'Wtd Avg Return', value: pct(wtdAvg), cls: '', sub: withReturn.length + ' holdings · all\u2011time' },
   ];
   cards.forEach(c => {
     const d = document.createElement('div');
@@ -2839,6 +2848,15 @@ function renderPerformance() {
     d.innerHTML = '<div class="label">' + c.label + '</div><div class="value ' + c.cls + '" style="font-size:16px">' + c.value + '</div><div class="sub">' + c.sub + '</div>';
     grid.appendChild(d);
   });
+
+  // Update chart titles to clarify all-time vs period
+  const allTimeNote = isFiltered ? ' (All\u2011Time)' : '';
+  const glTitle = document.getElementById('gainLossTitle');
+  if (glTitle) glTitle.textContent = 'Gain/Loss by Position' + allTimeNote;
+  const apTitle = document.getElementById('acctPerfTitle');
+  if (apTitle) apTitle.textContent = 'Portfolio Performance Summary' + allTimeNote;
+  const rpTitle = document.getElementById('returnPosTitle');
+  if (rpTitle) rpTitle.textContent = 'Return by Position' + allTimeNote;
 
   // Gain/loss by position (aggregated)
   const glSorted = [...withReturn].sort((a,b) => b.gl - a.gl);
@@ -2898,20 +2916,20 @@ function renderBenchmarkComparison(portfolioReturn) {
     acctPerf[a].bv += ((p.book_value != null ? p.book_value : (p.market_value || p.value || 0)));
   });
 
-  const winners = aggregated.filter(p => {
+  const nonCash = aggregated.filter(p => inferAssetClass(p) !== 'Cash');
+  const winners = nonCash.filter(p => {
     const mv = p.market_value || p.value || 0;
     const bv = p.book_value != null ? p.book_value : mv;
     return mv > bv;
   }).length;
-  const losers = aggregated.length - winners;
+  const losers = nonCash.length - winners;
 
   const grid = document.getElementById('benchmarkGrid');
   grid.innerHTML = '';
   const cards = [
-    { cls: 'portfolio', label: 'Total Return', value: pct(portfolioReturn), desc: fmt(totalGL) + ' gain/loss', vs: '' },
     { cls: 'sp500', label: 'Portfolio Value', value: fmt(totalVal), desc: 'Book value: ' + fmt(totalBook), vs: '' },
-    { cls: 'tsx', label: 'Win Rate', value: (aggregated.length > 0 ? (winners/aggregated.length*100).toFixed(0) : 0) + '%', desc: winners + ' winners / ' + losers + ' losers', vs: '' },
-    (function() { const sortedAccts = Object.entries(acctPerf).sort((a,b) => (b[1].mv-b[1].bv)/(b[1].bv||1) - (a[1].mv-a[1].bv)/(a[1].bv||1)); const best = sortedAccts[0]; return { cls: 'nasdaq', label: 'Best Account', value: best ? best[0] : '--', desc: best ? pct(best[1].bv > 0 ? ((best[1].mv - best[1].bv) / best[1].bv * 100) : 0) + ' return' : '', vs: '' }; })(),
+    { cls: 'tsx', label: 'Win Rate', value: (nonCash.length > 0 ? (winners/nonCash.length*100).toFixed(0) : 0) + '%', desc: winners + ' winners / ' + losers + ' losers', vs: '' },
+    (function() { const acctRet = (a) => a.bv > 0 ? ((a.mv - a.bv) / a.bv * 100) : 0; const sortedAccts = Object.entries(acctPerf).sort((a,b) => acctRet(b[1]) - acctRet(a[1])); const best = sortedAccts[0]; return { cls: 'nasdaq', label: 'Best Account', value: best ? best[0] : '--', desc: best ? pct(acctRet(best[1])) + ' return' : '', vs: '' }; })(),
   ];
   cards.forEach(c => {
     const d = document.createElement('div');
@@ -2922,8 +2940,8 @@ function renderBenchmarkComparison(portfolioReturn) {
     grid.appendChild(d);
   });
 
-  // Return by position bar chart (aggregated)
-  const returnData = aggregated.map(p => {
+  // Return by position bar chart (aggregated, excluding cash)
+  const returnData = aggregated.filter(p => inferAssetClass(p) !== 'Cash').map(p => {
     const mv = p.market_value || p.value || 0;
     const bv = (p.book_value != null ? p.book_value : mv);
     return { sym: p.security?.symbol || p.symbol || '?', ret: bv > 0 ? ((mv-bv)/bv)*100 : 0 };
@@ -3299,17 +3317,8 @@ function renderModels() {
 
   // VaR Section — with formulas shown
   const varSection = document.getElementById('varSection');
-  const volPct = (stats.stdDev * 100).toFixed(1);
   varSection.innerHTML = '<h3>Value at Risk (VaR)</h3>' +
-    '<div class="model-desc">"What\'s the most I could lose?" VaR answers this at a confidence level. For example, 95% Daily VaR means: on 19 out of 20 days, your losses won\'t exceed this amount.</div>' +
-    '<div class="model-desc" style="background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:12px;margin-top:8px;font-family:\'JetBrains Mono\',monospace;font-size:11px;line-height:1.8">' +
-    '<strong>How it\'s calculated:</strong><br>' +
-    'Portfolio Value = ' + fmt(stats.totalVal) + '<br>' +
-    'Portfolio Volatility = ' + volPct + '% (weighted average of each holding\'s estimated volatility)<br>' +
-    'Daily VaR (95%) = Value x Volatility x 1.645 / sqrt(252) = ' + fmt(stats.totalVal) + ' x ' + volPct + '% x 1.645 / 15.87 = <strong>' + fmt(stats.var95_1d) + '</strong><br>' +
-    'Monthly VaR (95%) = Value x Volatility x 1.645 / sqrt(12) = <strong>' + fmt(stats.var95_1m) + '</strong><br>' +
-    '<span style="color:var(--text-muted)">1.645 = z-score for 95% confidence | 2.326 = z-score for 99% confidence</span>' +
-    '</div>';
+    '<div class="model-desc">"What\'s the most I could lose?" VaR answers this at a confidence level. For example, 95% Daily VaR means: on 19 out of 20 days, your losses won\'t exceed this amount.</div>';
   const varResults = document.createElement('div');
   varResults.className = 'model-results';
   [
@@ -3327,19 +3336,8 @@ function renderModels() {
 
   // Monte Carlo Section — with formulas shown
   const mcSection = document.getElementById('monteCarloSection');
-  const dailyRetPct = (Math.log(1 + stats.portfolioReturn) / 252 * 100).toFixed(4);
-  const dailyVolPct = (stats.portfolioVol / Math.sqrt(252) * 100).toFixed(2);
   mcSection.innerHTML = '<h3>Monte Carlo Simulation</h3>' +
-    '<div class="model-desc">"What might happen over the next year?" We run 5,000 random simulations of your portfolio, each with different daily market movements. This shows the range of likely outcomes.</div>' +
-    '<div class="model-desc" style="background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:12px;margin-top:8px;font-family:\'JetBrains Mono\',monospace;font-size:11px;line-height:1.8">' +
-    '<strong>How it\'s calculated:</strong><br>' +
-    'Starting value = ' + fmt(stats.totalVal) + '<br>' +
-    'Est. daily return = ' + dailyRetPct + '% (from your overall return annualized)<br>' +
-    'Est. daily volatility = ' + dailyVolPct + '% (annual vol / sqrt(252))<br>' +
-    'Each day: New Value = Value x (1 + daily return + daily vol x random)<br>' +
-    'Repeat 252 trading days x 5,000 trials, then sort outcomes<br>' +
-    '<span style="color:var(--text-muted)">"random" = normally distributed random number (Box-Muller transform)</span>' +
-    '</div>';
+    '<div class="model-desc">"What might happen over the next year?" We run 5,000 random simulations of your portfolio, each with different daily market movements. This shows the range of likely outcomes.</div>';
   const mcResultsDiv = document.createElement('div');
   mcResultsDiv.className = 'model-results';
   [
@@ -3758,6 +3756,8 @@ function renderInsightsTab() {
 async function ratePositions() {
   if (!apiKey) { showToast('Set your API key first', 'error'); toggleSettings(); return; }
   if (filteredPositions.length === 0) { showToast('No positions to rate', 'error'); return; }
+  if (Date.now() - _lastAICall < 3000) { showToast('Please wait a moment between AI requests', 'error'); return; }
+  _lastAICall = Date.now();
 
   const btn = document.getElementById('btnRatePositions');
   btn.disabled = true;
@@ -3816,12 +3816,12 @@ async function ratePositions() {
         showToast('Rated ' + parsed.positions.length + ' positions', 'success');
       }
     } catch(parseErr) {
-      console.error('Failed to parse AI ratings:', parseErr, text);
+      console.error('Failed to parse AI ratings:', parseErr.message);
       showToast('AI returned invalid format. Try again.', 'error');
     }
   } catch(err) {
-    console.error('Rating error:', err);
-    showToast('Rating failed: ' + err.message, 'error');
+    console.error('Rating error:', err.message);
+    showToast('Rating failed', 'error');
   }
 
   btn.disabled = false;
@@ -3894,16 +3894,18 @@ async function streamAIResponse(systemPrompt, messages, responseEl, onComplete) 
     responseEl.classList.remove('loading');
     if (onComplete) onComplete(fullText);
   } catch(err) {
-    console.error('Analysis error:', err);
+    console.error('Analysis error:', err.message);
     responseEl.innerHTML = '<div class="ai-content" style="color:var(--red)"><strong>Error:</strong> ' + escapeHtml(err.message) + '</div>';
     responseEl.classList.remove('loading');
-    showToast('Analysis failed: ' + err.message, 'error');
+    showToast('Analysis failed', 'error');
   }
 }
 
 async function runAnalysis() {
   if (!apiKey) { showToast('Set your API key first', 'error'); toggleSettings(); return; }
   if (filteredPositions.length === 0) { showToast('No portfolio data', 'error'); return; }
+  if (Date.now() - _lastAICall < 3000) { showToast('Please wait a moment between AI requests', 'error'); return; }
+  _lastAICall = Date.now();
 
   const btn = document.getElementById('btnAnalyze');
   const responseEl = document.getElementById('aiResponse');
@@ -3975,7 +3977,7 @@ function buildPortfolioSummary() {
       symbol: pos.security?.symbol || pos.symbol || 'N/A',
       name: pos.security?.name || '',
       quantity: pos.quantity,
-      book_value: pos.book_value ? Math.round(pos.book_value*100)/100 : null,
+      book_value: pos.book_value != null ? Math.round(pos.book_value*100)/100 : null,
       market_value: Math.round((pos.market_value||pos.value||0)*100)/100,
       currency: pos.security?.currency || pos.currency || 'CAD',
       type: pos.security?.type || '',
@@ -4030,12 +4032,12 @@ function buildPortfolioSummary() {
       income: scores.incomeDetail,
     },
     key_metrics: {
-      top_holding_weight_pct: scores.maxConcentration ? Math.round(scores.maxConcentration*10)/10 : 0,
-      top3_weight_pct: scores.top3Concentration ? Math.round(scores.top3Concentration*10)/10 : 0,
-      canadian_home_bias_pct: scores.homeBias ? Math.round(scores.homeBias*10)/10 : 0,
-      total_return_pct: scores.totalReturn ? Math.round(scores.totalReturn*10)/10 : 0,
-      win_rate_pct: scores.winRate ? Math.round(scores.winRate*10)/10 : 0,
-      crypto_weight_pct: scores.cryptoWeight ? Math.round(scores.cryptoWeight*10)/10 : 0,
+      top_holding_weight_pct: Math.round((scores.maxConcentration || 0)*10)/10,
+      top3_weight_pct: Math.round((scores.top3Concentration || 0)*10)/10,
+      canadian_home_bias_pct: Math.round((scores.homeBias || 0)*10)/10,
+      total_return_pct: Math.round((scores.totalReturn ?? 0)*10)/10,
+      win_rate_pct: Math.round((scores.winRate ?? 0)*10)/10,
+      crypto_weight_pct: Math.round((scores.cryptoWeight ?? 0)*10)/10,
     },
     accounts: byAccount,
   };
@@ -4107,9 +4109,11 @@ function saveSettings() {
   const profile = getInvestorProfile();
   const selectedModel = getSelectedModel();
   if (addon) {
-    addon.saveData({ apiKey: key, investorProfile: profile, model: selectedModel }).then(() => { showToast('Settings saved', 'success'); updateStatus('connected', 'Settings saved'); }).catch(err => { console.log('Wealthica saveData failed, using localStorage:', err); try { localStorage.setItem('wealthica_ai_settings', JSON.stringify({ apiKey: key, investorProfile: profile, model: selectedModel })); } catch(e) {} showToast('Settings saved locally', 'success'); });
+    addon.saveData({ apiKey: key, model: selectedModel }).then(() => { showToast('Settings saved', 'success'); updateStatus('connected', 'Settings saved'); }).catch(err => { console.log('Wealthica saveData failed, using localStorage'); try { localStorage.setItem('wealthica_ai_key', key); localStorage.setItem('wealthica_ai_prefs', JSON.stringify({ model: selectedModel })); } catch(e) {} showToast('Settings saved locally', 'success'); });
+    // Save investor profile separately (non-sensitive)
+    try { localStorage.setItem('wealthica_ai_profile', JSON.stringify(profile)); } catch(e) {}
   } else {
-    try { localStorage.setItem('wealthica_ai_settings', JSON.stringify({ apiKey: key, investorProfile: profile, model: selectedModel })); } catch(e) {}
+    try { localStorage.setItem('wealthica_ai_key', key); localStorage.setItem('wealthica_ai_prefs', JSON.stringify({ model: selectedModel })); localStorage.setItem('wealthica_ai_profile', JSON.stringify(profile)); } catch(e) {}
     showToast('Settings saved locally', 'success'); updateStatus('connected', 'Settings set');
   }
   document.getElementById('settingsPanel').classList.remove('visible');
@@ -4213,112 +4217,6 @@ function getPeriodReturn() {
   const endVal = history[history.length - 1].value ?? history[history.length - 1].v ?? 0;
   if (startVal <= 0) return null;
   return { startVal, endVal, change: endVal - startVal, pct: ((endVal - startVal) / startVal) * 100 };
-}
-
-function renderHistoryChart() {
-  const canvas = document.getElementById('historyChart');
-  const emptyMsg = document.getElementById('historyChartEmpty');
-  if (!canvas) return;
-
-  const filtered = getFilteredHistory();
-  if (filtered.length === 0) {
-    canvas.style.display = 'none';
-    if (emptyMsg) emptyMsg.style.display = '';
-    return;
-  }
-  canvas.style.display = '';
-  if (emptyMsg) emptyMsg.style.display = 'none';
-
-  const labels = filtered.map(h => {
-    const d = new Date(h.date || h.d);
-    return d.toLocaleDateString('en-CA', { month: 'short', day: 'numeric', year: '2-digit' });
-  });
-  const values = filtered.map(h => h.value ?? h.v ?? 0);
-
-  // Generate benchmark overlays (normalized to start at same value as portfolio)
-  const startVal = values[0] || 1;
-  const sp500Data = generateBenchmarkCurve(filtered.length, 0.10, 0.16, startVal); // ~10% annual, 16% vol
-  const tsxData = generateBenchmarkCurve(filtered.length, 0.07, 0.14, startVal);   // ~7% annual, 14% vol
-
-  const minVal = Math.min(...values, ...sp500Data, ...tsxData);
-  const maxVal = Math.max(...values, ...sp500Data, ...tsxData);
-  const yPadding = (maxVal - minVal) * 0.1 || maxVal * 0.05;
-  const yMin = Math.max(0, minVal - yPadding);
-
-  makeChart('history', canvas, {
-    type: 'line',
-    data: {
-      labels: labels,
-      datasets: [{
-        label: 'Portfolio',
-        data: values,
-        borderColor: '#6366f1',
-        backgroundColor: function(context) {
-          const chart = context.chart;
-          const {ctx, chartArea} = chart;
-          if (!chartArea) return 'rgba(99,102,241,0.08)';
-          const gradient = ctx.createLinearGradient(0, chartArea.top, 0, chartArea.bottom);
-          gradient.addColorStop(0, 'rgba(99,102,241,0.2)');
-          gradient.addColorStop(1, 'rgba(99,102,241,0.01)');
-          return gradient;
-        },
-        fill: true,
-        tension: 0.2,
-        pointRadius: values.length > 60 ? 0 : 3,
-        pointHoverRadius: 5,
-        borderWidth: 2.5,
-        pointBackgroundColor: '#6366f1',
-      }, {
-        label: 'S&P 500 (simulated)',
-        data: sp500Data,
-        borderColor: '#d946ef',
-        borderWidth: 1.5,
-        borderDash: [5, 3],
-        tension: 0.2,
-        pointRadius: 0,
-        pointHoverRadius: 3,
-        fill: false,
-      }, {
-        label: 'TSX (simulated)',
-        data: tsxData,
-        borderColor: '#14b8a6',
-        borderWidth: 1.5,
-        borderDash: [3, 3],
-        tension: 0.2,
-        pointRadius: 0,
-        pointHoverRadius: 3,
-        fill: false,
-      }]
-    },
-    options: {
-      responsive: true,
-      plugins: { datalabels: { display: false },
-        legend: { display: true, position: 'bottom', labels: { usePointStyle: true, pointStyleWidth: 8, font: { size: 11 } } },
-        tooltip: { callbacks: { label: function(ctx) { return ctx.dataset.label + ': $' + ctx.parsed.y.toLocaleString(); } } }
-      },
-      scales: {
-        y: { min: yMin, grid: { color: 'var(--chart-grid, rgba(148,163,184,0.15))' }, ticks: { callback: v => '$' + (v/1000).toFixed(0) + 'k' } },
-        x: { grid: { display: false }, ticks: { maxTicksLimit: 8, font: { size: 10 } } }
-      },
-      interaction: { intersect: false, mode: 'index' },
-    }
-  });
-}
-
-function generateBenchmarkCurve(points, annualReturn, annualVol, startValue) {
-  const weeklyReturn = annualReturn / 52;
-  const weeklyVol = annualVol / Math.sqrt(52);
-  const drift = weeklyReturn - 0.5 * weeklyVol * weeklyVol;
-  let seed = Math.round(annualReturn * 10000 + annualVol * 1000) + 7;
-  function nextRand() { seed = (seed * 16807 + 0) % 2147483647; return (seed - 1) / 2147483646; }
-  function randNormal() { const u = nextRand(), v = nextRand(); return Math.sqrt(-2*Math.log(u||0.001))*Math.cos(2*Math.PI*v); }
-  const data = [startValue];
-  let val = startValue;
-  for (let i = 1; i < points; i++) {
-    val = val * Math.exp(drift + weeklyVol * randNormal());
-    data.push(Math.round(val));
-  }
-  return data;
 }
 
 // ─── Correlation Heatmap ─────────────────────────────────────────────────────
@@ -4439,7 +4337,7 @@ function exportReport() {
 // ─── Mobile Swipe Navigation ─────────────────────────────────────────────────
 (function initSwipe() {
   let touchStartX = 0, touchEndX = 0;
-  const tabOrder = ['overview','holdings','sectors','performance','risk','region','models','ai'];
+  const tabOrder = ['overview','holdings','performance','sectors','region','risk','models','insights','ai'];
   document.addEventListener('touchstart', function(e) { touchStartX = e.changedTouches[0].screenX; }, { passive: true });
   document.addEventListener('touchend', function(e) {
     touchEndX = e.changedTouches[0].screenX;
@@ -4474,6 +4372,8 @@ const TAB_AI_PROMPTS = {
 async function runTabAI(tab) {
   if (!apiKey) { showToast('Set your API key first', 'error'); toggleSettings(); return; }
   if (filteredPositions.length === 0) { showToast('No portfolio data', 'error'); return; }
+  if (Date.now() - _lastAICall < 3000) { showToast('Please wait a moment between AI requests', 'error'); return; }
+  _lastAICall = Date.now();
 
   const btn = document.getElementById('aiBtn-' + tab);
   const resEl = document.getElementById('aiRes-' + tab);
@@ -4535,7 +4435,7 @@ async function runTabAI(tab) {
     aiResponseCache[tab] = renderMarkdown(fullText);
   } catch(err) {
     resEl.innerHTML = '<div style="color:var(--red)"><strong>Error:</strong> ' + escapeHtml(err.message) + '</div>';
-    showToast('AI analysis failed: ' + err.message, 'error');
+    showToast('AI analysis failed', 'error');
   }
 
   btn.disabled = false;
@@ -4605,131 +4505,28 @@ function loadDemoData() {
   populateAccountFilter();
   // Restore settings from localStorage in demo mode
   try {
-    const saved = localStorage.getItem('wealthica_ai_settings');
-    if (saved) {
-      const s = JSON.parse(saved);
-      if (s.apiKey) { apiKey = s.apiKey; document.getElementById('apiKeyInput').value = apiKey; }
-      if (s.investorProfile) loadInvestorProfile(s.investorProfile);
-      if (s.model) document.getElementById('modelSelect').value = s.model;
+    // Support new separated storage format
+    const savedKey = localStorage.getItem('wealthica_ai_key');
+    if (savedKey) { apiKey = savedKey; document.getElementById('apiKeyInput').value = apiKey; }
+    const savedPrefs = localStorage.getItem('wealthica_ai_prefs');
+    if (savedPrefs) { const p = JSON.parse(savedPrefs); if (p.model) document.getElementById('modelSelect').value = p.model; }
+    const savedProfile = localStorage.getItem('wealthica_ai_profile');
+    if (savedProfile) loadInvestorProfile(JSON.parse(savedProfile));
+    // Migrate from old combined format
+    if (!savedKey) {
+      const legacy = localStorage.getItem('wealthica_ai_settings');
+      if (legacy) {
+        const s = JSON.parse(legacy);
+        if (s.apiKey) { apiKey = s.apiKey; document.getElementById('apiKeyInput').value = apiKey; localStorage.setItem('wealthica_ai_key', s.apiKey); }
+        if (s.investorProfile) { loadInvestorProfile(s.investorProfile); localStorage.setItem('wealthica_ai_profile', JSON.stringify(s.investorProfile)); }
+        if (s.model) { document.getElementById('modelSelect').value = s.model; localStorage.setItem('wealthica_ai_prefs', JSON.stringify({ model: s.model })); }
+        localStorage.removeItem('wealthica_ai_settings');
+      }
     }
   } catch(e) {}
   renderAllTabs();
   document.getElementById('btnAnalyze').disabled = !apiKey;
 }
-
-// ─── Transactions / Activity ─────────────────────────────────────────────────
-let activeTxnPeriod = '1y';
-
-function setTxnPeriod(period) {
-  activeTxnPeriod = period;
-  document.querySelectorAll('#panel-transactions .date-btn').forEach(b => b.classList.remove('active'));
-  event.target.classList.add('active');
-  renderTransactions();
-}
-
-function getTxnCutoffDate() {
-  if (activeTxnPeriod === 'all') return null;
-  const now = new Date();
-  const map = { '1m': 30, '3m': 90, '6m': 180, '1y': 365 };
-  const days = map[activeTxnPeriod] || 365;
-  return new Date(now.getTime() - days * 86400000);
-}
-
-function generateDemoTransactions() {
-  const txns = [];
-  const agg = aggregatePositions(filteredPositions);
-  const now = new Date();
-  const types = ['buy', 'buy', 'buy', 'sell', 'dividend', 'dividend', 'contribution'];
-
-  for (let i = 0; i < 30; i++) {
-    const daysAgo = Math.floor(Math.random() * 365);
-    const d = new Date(now.getTime() - daysAgo * 86400000);
-    const pos = agg[Math.floor(Math.random() * agg.length)];
-    const sym = pos.security?.symbol || pos.symbol || 'N/A';
-    const acct = pos._accountName || pos._accounts?.[0] || 'Account';
-    const type = types[Math.floor(Math.random() * types.length)];
-    let amount = 0, shares = 0;
-    if (type === 'buy') {
-      shares = Math.ceil(Math.random() * 50);
-      amount = -(shares * (50 + Math.random() * 200));
-    } else if (type === 'sell') {
-      shares = Math.ceil(Math.random() * 20);
-      amount = shares * (50 + Math.random() * 200);
-    } else if (type === 'dividend') {
-      amount = 10 + Math.random() * 200;
-    } else {
-      amount = -(500 + Math.random() * 5000);
-    }
-    txns.push({ date: d.toISOString().split('T')[0], type, symbol: type === 'contribution' ? '--' : sym, account: acct, shares: type === 'dividend' || type === 'contribution' ? '--' : shares, amount: Math.round(amount * 100) / 100 });
-  }
-  return txns.sort((a, b) => b.date.localeCompare(a.date));
-}
-
-function renderTransactions() {
-  const allTxns = generateDemoTransactions();
-  const cutoff = getTxnCutoffDate();
-  const txns = cutoff ? allTxns.filter(t => new Date(t.date) >= cutoff) : allTxns;
-  const body = document.getElementById('txnBody');
-  body.innerHTML = '';
-  txns.forEach(t => {
-    const tr = document.createElement('tr');
-    tr.innerHTML = '<td>' + t.date + '</td>' +
-      '<td><span class="txn-badge ' + t.type + '">' + t.type + '</span></td>' +
-      '<td style="font-family:\'JetBrains Mono\',monospace;font-weight:600">' + t.symbol + '</td>' +
-      '<td style="font-size:12px;color:var(--text-muted)">' + t.account + '</td>' +
-      '<td>' + t.shares + '</td>' +
-      '<td style="text-align:right;font-family:\'JetBrains Mono\',monospace;color:' + (t.amount >= 0 ? 'var(--green)' : 'var(--red)') + '">' + (t.amount >= 0 ? '+' : '') + '$' + Math.abs(t.amount).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2}) + '</td>';
-    body.appendChild(tr);
-  });
-
-  // Summary cards
-  const buys = txns.filter(t => t.type === 'buy');
-  const sells = txns.filter(t => t.type === 'sell');
-  const divs = txns.filter(t => t.type === 'dividend');
-  const contribs = txns.filter(t => t.type === 'contribution');
-  const grid = document.getElementById('txnSummaryGrid');
-  grid.innerHTML = '';
-  const cards = [
-    { label: 'Total Buys', value: buys.length + ' trades', sub: '$' + Math.abs(buys.reduce((s,t) => s + t.amount, 0)).toLocaleString(undefined,{maximumFractionDigits:0}) },
-    { label: 'Total Sells', value: sells.length + ' trades', sub: '$' + sells.reduce((s,t) => s + t.amount, 0).toLocaleString(undefined,{maximumFractionDigits:0}) },
-    { label: 'Dividends Received', value: divs.length + ' payments', sub: '$' + divs.reduce((s,t) => s + t.amount, 0).toLocaleString(undefined,{maximumFractionDigits:0}) },
-    { label: 'Contributions', value: contribs.length, sub: '$' + Math.abs(contribs.reduce((s,t) => s + t.amount, 0)).toLocaleString(undefined,{maximumFractionDigits:0}) },
-  ];
-  cards.forEach(c => {
-    const d = document.createElement('div');
-    d.className = 'summary-card';
-    d.innerHTML = '<div class="label">' + c.label + '</div><div class="value" style="font-size:16px">' + c.value + '</div><div class="sub">' + c.sub + '</div>';
-    grid.appendChild(d);
-  });
-
-  // Monthly activity chart
-  const monthly = {};
-  txns.forEach(t => {
-    const m = t.date.substring(0, 7);
-    if (!monthly[m]) monthly[m] = { buys: 0, sells: 0, divs: 0 };
-    if (t.type === 'buy') monthly[m].buys += Math.abs(t.amount);
-    if (t.type === 'sell') monthly[m].sells += t.amount;
-    if (t.type === 'dividend') monthly[m].divs += t.amount;
-  });
-  const months = Object.keys(monthly).sort();
-  makeChart('txnChart', document.getElementById('txnChart'), {
-    type: 'bar',
-    data: {
-      labels: months,
-      datasets: [
-        { label: 'Buys', data: months.map(m => monthly[m].buys), backgroundColor: 'rgba(244,63,94,0.7)', borderRadius: 6 },
-        { label: 'Sells', data: months.map(m => monthly[m].sells), backgroundColor: 'rgba(20,184,166,0.7)', borderRadius: 6 },
-        { label: 'Dividends', data: months.map(m => monthly[m].divs), backgroundColor: 'rgba(99,102,241,0.7)', borderRadius: 6 },
-      ]
-    },
-    options: {
-      responsive: true,
-      plugins: { datalabels: { display: false }, legend: { position: 'bottom', labels: { usePointStyle: true, pointStyleWidth: 8 } } },
-      scales: { y: { stacked: false, grid: { color: 'var(--chart-grid, rgba(148,163,184,0.15))' }, ticks: { callback: v => '$' + (v/1000).toFixed(1) + 'k' } }, x: { grid: { display: false } } }
-    }
-  });
-}
-
 
 // ─── Quick Actions (AI Response) ─────────────────────────────────────────────
 function copyAIResponse() {
@@ -4888,7 +4685,7 @@ function loadTestPortfolio(name) {
   populateAccountFilter();
   renderAllTabs();
   document.getElementById('btnAnalyze').disabled = !apiKey;
-  console.log('Loaded test portfolio: ' + name + ' (' + positions.length + ' positions, $' + tv.toLocaleString() + ' total)');
+  console.log('Loaded test portfolio: ' + name + ' (' + positions.length + ' positions)');
 }
 
 // Run all 10 test portfolios and log any rendering issues
