@@ -1875,7 +1875,7 @@ async function fetchHistory(query) {
       renderSummary();
       if (activeTab === 'performance') {
         renderPerformance();
-        renderHistoryChart();
+        // History chart removed (no canvas in HTML)
       }
     } else {
       console.log('[Wealthica] No history data returned');
@@ -3971,7 +3971,7 @@ function buildPortfolioSummary() {
       symbol: pos.security?.symbol || pos.symbol || 'N/A',
       name: pos.security?.name || '',
       quantity: pos.quantity,
-      book_value: pos.book_value ? Math.round(pos.book_value*100)/100 : null,
+      book_value: pos.book_value != null ? Math.round(pos.book_value*100)/100 : null,
       market_value: Math.round((pos.market_value||pos.value||0)*100)/100,
       currency: pos.security?.currency || pos.currency || 'CAD',
       type: pos.security?.type || '',
@@ -4026,12 +4026,12 @@ function buildPortfolioSummary() {
       income: scores.incomeDetail,
     },
     key_metrics: {
-      top_holding_weight_pct: scores.maxConcentration ? Math.round(scores.maxConcentration*10)/10 : 0,
-      top3_weight_pct: scores.top3Concentration ? Math.round(scores.top3Concentration*10)/10 : 0,
-      canadian_home_bias_pct: scores.homeBias ? Math.round(scores.homeBias*10)/10 : 0,
-      total_return_pct: scores.totalReturn ? Math.round(scores.totalReturn*10)/10 : 0,
-      win_rate_pct: scores.winRate ? Math.round(scores.winRate*10)/10 : 0,
-      crypto_weight_pct: scores.cryptoWeight ? Math.round(scores.cryptoWeight*10)/10 : 0,
+      top_holding_weight_pct: Math.round((scores.maxConcentration || 0)*10)/10,
+      top3_weight_pct: Math.round((scores.top3Concentration || 0)*10)/10,
+      canadian_home_bias_pct: Math.round((scores.homeBias || 0)*10)/10,
+      total_return_pct: Math.round((scores.totalReturn ?? 0)*10)/10,
+      win_rate_pct: Math.round((scores.winRate ?? 0)*10)/10,
+      crypto_weight_pct: Math.round((scores.cryptoWeight ?? 0)*10)/10,
     },
     accounts: byAccount,
   };
@@ -4209,112 +4209,6 @@ function getPeriodReturn() {
   const endVal = history[history.length - 1].value ?? history[history.length - 1].v ?? 0;
   if (startVal <= 0) return null;
   return { startVal, endVal, change: endVal - startVal, pct: ((endVal - startVal) / startVal) * 100 };
-}
-
-function renderHistoryChart() {
-  const canvas = document.getElementById('historyChart');
-  const emptyMsg = document.getElementById('historyChartEmpty');
-  if (!canvas) return;
-
-  const filtered = getFilteredHistory();
-  if (filtered.length === 0) {
-    canvas.style.display = 'none';
-    if (emptyMsg) emptyMsg.style.display = '';
-    return;
-  }
-  canvas.style.display = '';
-  if (emptyMsg) emptyMsg.style.display = 'none';
-
-  const labels = filtered.map(h => {
-    const d = new Date(h.date || h.d);
-    return d.toLocaleDateString('en-CA', { month: 'short', day: 'numeric', year: '2-digit' });
-  });
-  const values = filtered.map(h => h.value ?? h.v ?? 0);
-
-  // Generate benchmark overlays (normalized to start at same value as portfolio)
-  const startVal = values[0] || 1;
-  const sp500Data = generateBenchmarkCurve(filtered.length, 0.10, 0.16, startVal); // ~10% annual, 16% vol
-  const tsxData = generateBenchmarkCurve(filtered.length, 0.07, 0.14, startVal);   // ~7% annual, 14% vol
-
-  const minVal = Math.min(...values, ...sp500Data, ...tsxData);
-  const maxVal = Math.max(...values, ...sp500Data, ...tsxData);
-  const yPadding = (maxVal - minVal) * 0.1 || maxVal * 0.05;
-  const yMin = Math.max(0, minVal - yPadding);
-
-  makeChart('history', canvas, {
-    type: 'line',
-    data: {
-      labels: labels,
-      datasets: [{
-        label: 'Portfolio',
-        data: values,
-        borderColor: '#6366f1',
-        backgroundColor: function(context) {
-          const chart = context.chart;
-          const {ctx, chartArea} = chart;
-          if (!chartArea) return 'rgba(99,102,241,0.08)';
-          const gradient = ctx.createLinearGradient(0, chartArea.top, 0, chartArea.bottom);
-          gradient.addColorStop(0, 'rgba(99,102,241,0.2)');
-          gradient.addColorStop(1, 'rgba(99,102,241,0.01)');
-          return gradient;
-        },
-        fill: true,
-        tension: 0.2,
-        pointRadius: values.length > 60 ? 0 : 3,
-        pointHoverRadius: 5,
-        borderWidth: 2.5,
-        pointBackgroundColor: '#6366f1',
-      }, {
-        label: 'S&P 500 (simulated)',
-        data: sp500Data,
-        borderColor: '#d946ef',
-        borderWidth: 1.5,
-        borderDash: [5, 3],
-        tension: 0.2,
-        pointRadius: 0,
-        pointHoverRadius: 3,
-        fill: false,
-      }, {
-        label: 'TSX (simulated)',
-        data: tsxData,
-        borderColor: '#14b8a6',
-        borderWidth: 1.5,
-        borderDash: [3, 3],
-        tension: 0.2,
-        pointRadius: 0,
-        pointHoverRadius: 3,
-        fill: false,
-      }]
-    },
-    options: {
-      responsive: true,
-      plugins: { datalabels: { display: false },
-        legend: { display: true, position: 'bottom', labels: { usePointStyle: true, pointStyleWidth: 8, font: { size: 11 } } },
-        tooltip: { callbacks: { label: function(ctx) { return ctx.dataset.label + ': $' + ctx.parsed.y.toLocaleString(); } } }
-      },
-      scales: {
-        y: { min: yMin, grid: { color: 'var(--chart-grid, rgba(148,163,184,0.15))' }, ticks: { callback: v => '$' + (v/1000).toFixed(0) + 'k' } },
-        x: { grid: { display: false }, ticks: { maxTicksLimit: 8, font: { size: 10 } } }
-      },
-      interaction: { intersect: false, mode: 'index' },
-    }
-  });
-}
-
-function generateBenchmarkCurve(points, annualReturn, annualVol, startValue) {
-  const weeklyReturn = annualReturn / 52;
-  const weeklyVol = annualVol / Math.sqrt(52);
-  const drift = weeklyReturn - 0.5 * weeklyVol * weeklyVol;
-  let seed = Math.round(annualReturn * 10000 + annualVol * 1000) + 7;
-  function nextRand() { seed = (seed * 16807 + 0) % 2147483647; return (seed - 1) / 2147483646; }
-  function randNormal() { const u = nextRand(), v = nextRand(); return Math.sqrt(-2*Math.log(u||0.001))*Math.cos(2*Math.PI*v); }
-  const data = [startValue];
-  let val = startValue;
-  for (let i = 1; i < points; i++) {
-    val = val * Math.exp(drift + weeklyVol * randNormal());
-    data.push(Math.round(val));
-  }
-  return data;
 }
 
 // ─── Correlation Heatmap ─────────────────────────────────────────────────────
@@ -4612,120 +4506,6 @@ function loadDemoData() {
   renderAllTabs();
   document.getElementById('btnAnalyze').disabled = !apiKey;
 }
-
-// ─── Transactions / Activity ─────────────────────────────────────────────────
-let activeTxnPeriod = '1y';
-
-function setTxnPeriod(period) {
-  activeTxnPeriod = period;
-  document.querySelectorAll('#panel-transactions .date-btn').forEach(b => b.classList.remove('active'));
-  event.target.classList.add('active');
-  renderTransactions();
-}
-
-function getTxnCutoffDate() {
-  if (activeTxnPeriod === 'all') return null;
-  const now = new Date();
-  const map = { '1m': 30, '3m': 90, '6m': 180, '1y': 365 };
-  const days = map[activeTxnPeriod] || 365;
-  return new Date(now.getTime() - days * 86400000);
-}
-
-function generateDemoTransactions() {
-  const txns = [];
-  const agg = aggregatePositions(filteredPositions);
-  const now = new Date();
-  const types = ['buy', 'buy', 'buy', 'sell', 'dividend', 'dividend', 'contribution'];
-
-  for (let i = 0; i < 30; i++) {
-    const daysAgo = Math.floor(Math.random() * 365);
-    const d = new Date(now.getTime() - daysAgo * 86400000);
-    const pos = agg[Math.floor(Math.random() * agg.length)];
-    const sym = pos.security?.symbol || pos.symbol || 'N/A';
-    const acct = pos._accountName || pos._accounts?.[0] || 'Account';
-    const type = types[Math.floor(Math.random() * types.length)];
-    let amount = 0, shares = 0;
-    if (type === 'buy') {
-      shares = Math.ceil(Math.random() * 50);
-      amount = -(shares * (50 + Math.random() * 200));
-    } else if (type === 'sell') {
-      shares = Math.ceil(Math.random() * 20);
-      amount = shares * (50 + Math.random() * 200);
-    } else if (type === 'dividend') {
-      amount = 10 + Math.random() * 200;
-    } else {
-      amount = -(500 + Math.random() * 5000);
-    }
-    txns.push({ date: d.toISOString().split('T')[0], type, symbol: type === 'contribution' ? '--' : sym, account: acct, shares: type === 'dividend' || type === 'contribution' ? '--' : shares, amount: Math.round(amount * 100) / 100 });
-  }
-  return txns.sort((a, b) => b.date.localeCompare(a.date));
-}
-
-function renderTransactions() {
-  const allTxns = generateDemoTransactions();
-  const cutoff = getTxnCutoffDate();
-  const txns = cutoff ? allTxns.filter(t => new Date(t.date) >= cutoff) : allTxns;
-  const body = document.getElementById('txnBody');
-  body.innerHTML = '';
-  txns.forEach(t => {
-    const tr = document.createElement('tr');
-    tr.innerHTML = '<td>' + t.date + '</td>' +
-      '<td><span class="txn-badge ' + t.type + '">' + t.type + '</span></td>' +
-      '<td style="font-family:\'JetBrains Mono\',monospace;font-weight:600">' + t.symbol + '</td>' +
-      '<td style="font-size:12px;color:var(--text-muted)">' + t.account + '</td>' +
-      '<td>' + t.shares + '</td>' +
-      '<td style="text-align:right;font-family:\'JetBrains Mono\',monospace;color:' + (t.amount >= 0 ? 'var(--green)' : 'var(--red)') + '">' + (t.amount >= 0 ? '+' : '') + '$' + Math.abs(t.amount).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2}) + '</td>';
-    body.appendChild(tr);
-  });
-
-  // Summary cards
-  const buys = txns.filter(t => t.type === 'buy');
-  const sells = txns.filter(t => t.type === 'sell');
-  const divs = txns.filter(t => t.type === 'dividend');
-  const contribs = txns.filter(t => t.type === 'contribution');
-  const grid = document.getElementById('txnSummaryGrid');
-  grid.innerHTML = '';
-  const cards = [
-    { label: 'Total Buys', value: buys.length + ' trades', sub: '$' + Math.abs(buys.reduce((s,t) => s + t.amount, 0)).toLocaleString(undefined,{maximumFractionDigits:0}) },
-    { label: 'Total Sells', value: sells.length + ' trades', sub: '$' + sells.reduce((s,t) => s + t.amount, 0).toLocaleString(undefined,{maximumFractionDigits:0}) },
-    { label: 'Dividends Received', value: divs.length + ' payments', sub: '$' + divs.reduce((s,t) => s + t.amount, 0).toLocaleString(undefined,{maximumFractionDigits:0}) },
-    { label: 'Contributions', value: contribs.length, sub: '$' + Math.abs(contribs.reduce((s,t) => s + t.amount, 0)).toLocaleString(undefined,{maximumFractionDigits:0}) },
-  ];
-  cards.forEach(c => {
-    const d = document.createElement('div');
-    d.className = 'summary-card';
-    d.innerHTML = '<div class="label">' + c.label + '</div><div class="value" style="font-size:16px">' + c.value + '</div><div class="sub">' + c.sub + '</div>';
-    grid.appendChild(d);
-  });
-
-  // Monthly activity chart
-  const monthly = {};
-  txns.forEach(t => {
-    const m = t.date.substring(0, 7);
-    if (!monthly[m]) monthly[m] = { buys: 0, sells: 0, divs: 0 };
-    if (t.type === 'buy') monthly[m].buys += Math.abs(t.amount);
-    if (t.type === 'sell') monthly[m].sells += t.amount;
-    if (t.type === 'dividend') monthly[m].divs += t.amount;
-  });
-  const months = Object.keys(monthly).sort();
-  makeChart('txnChart', document.getElementById('txnChart'), {
-    type: 'bar',
-    data: {
-      labels: months,
-      datasets: [
-        { label: 'Buys', data: months.map(m => monthly[m].buys), backgroundColor: 'rgba(244,63,94,0.7)', borderRadius: 6 },
-        { label: 'Sells', data: months.map(m => monthly[m].sells), backgroundColor: 'rgba(20,184,166,0.7)', borderRadius: 6 },
-        { label: 'Dividends', data: months.map(m => monthly[m].divs), backgroundColor: 'rgba(99,102,241,0.7)', borderRadius: 6 },
-      ]
-    },
-    options: {
-      responsive: true,
-      plugins: { datalabels: { display: false }, legend: { position: 'bottom', labels: { usePointStyle: true, pointStyleWidth: 8 } } },
-      scales: { y: { stacked: false, grid: { color: 'var(--chart-grid, rgba(148,163,184,0.15))' }, ticks: { callback: v => '$' + (v/1000).toFixed(1) + 'k' } }, x: { grid: { display: false } } }
-    }
-  });
-}
-
 
 // ─── Quick Actions (AI Response) ─────────────────────────────────────────────
 function copyAIResponse() {
