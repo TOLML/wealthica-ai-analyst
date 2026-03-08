@@ -1953,7 +1953,7 @@ function processPortfolio() {
     if (pos._accountName) {
       // Demo data — already has _accountName, keep as-is
       totalValue += pos.market_value || pos.value || 0;
-      totalBook += pos.book_value || pos.market_value || pos.value || 0;
+      totalBook += (pos.book_value != null ? pos.book_value : (pos.market_value || pos.value || 0));
       expandedPositions.push(pos);
       return;
     }
@@ -1963,16 +1963,16 @@ function processPortfolio() {
     if (Array.isArray(investments) && investments.length > 0) {
       // Use top-level market_value (already currency-converted by Wealthica) as the true total
       const posMV = pos.market_value || pos.value || 0;
-      const posBV = pos.book_value || posMV;
+      const posBV = (pos.book_value != null ? pos.book_value : posMV);
       const rawSum = investments.reduce((s, inv) => s + (inv.market_value || inv.value || 0), 0);
-      const rawBookSum = investments.reduce((s, inv) => s + (inv.book_value || inv.market_value || inv.value || 0), 0);
+      const rawBookSum = investments.reduce((s, inv) => s + ((inv.book_value != null ? inv.book_value : (inv.market_value || inv.value || 0))), 0);
       totalValue += posMV;
       totalBook += posBV;
       investments.forEach(inv => {
         const invInstId = typeof inv.institution === 'object' ? (inv.institution?._id || inv.institution?.id) : inv.institution;
         const invInvestId = typeof inv.investment === 'object' ? (inv.investment?._id || inv.investment?.id) : inv.investment;
         const rawMV = inv.market_value || inv.value || 0;
-        const rawBV = inv.book_value || rawMV;
+        const rawBV = (inv.book_value != null ? inv.book_value : rawMV);
         // Scale per-investment values proportionally to match currency-converted total
         const invCount = investments.length || 1;
         const mv = rawSum > 0 ? posMV * (rawMV / rawSum) : posMV / invCount;
@@ -1992,7 +1992,7 @@ function processPortfolio() {
     } else {
       // No investments[] — use top-level fields (old-style or single-account)
       const mv = pos.market_value || pos.value || 0;
-      const bv = pos.book_value || mv;
+      const bv = (pos.book_value != null ? pos.book_value : mv);
       totalValue += mv;
       totalBook += bv;
       const investId = typeof pos.investment === 'object' ? (pos.investment?._id || pos.investment?.id) : pos.investment;
@@ -2284,7 +2284,7 @@ function computeScores() {
 
   const weights = positions.map(p => (p.market_value || p.value || 0) / totalVal);
   const n = positions.length;
-  const totalBook = positions.reduce((s,p) => s + (p.book_value || p.market_value || p.value || 0), 0);
+  const totalBook = positions.reduce((s,p) => s + ((p.book_value != null ? p.book_value : (p.market_value || p.value || 0))), 0);
   const totalReturn = totalBook > 0 ? ((totalVal - totalBook) / totalBook) * 100 : 0;
 
   // Group correlated assets (e.g., BTCC.B.TO and BTC are the same underlying)
@@ -2359,7 +2359,7 @@ function computeScores() {
   // ── 3. Performance (0-100) ──
   const posReturns = positions.map(p => {
     const mv = p.market_value || p.value || 0;
-    const bv = p.book_value || mv;
+    const bv = (p.book_value != null ? p.book_value : mv);
     return bv > 0 ? ((mv - bv) / bv) * 100 : 0;
   });
   const avgReturn = posReturns.length > 0 ? posReturns.reduce((s,r) => s + r, 0) / posReturns.length : 0;
@@ -2527,7 +2527,7 @@ function getPeriodLabel() {
 
 function renderSummary() {
   const positionsValue = filteredPositions.reduce((s,p) => s + (p.market_value || p.value || 0), 0);
-  const totalBook = filteredPositions.reduce((s,p) => s + (p.book_value || p.market_value || p.value || 0), 0);
+  const totalBook = filteredPositions.reduce((s,p) => s + ((p.book_value != null ? p.book_value : (p.market_value || p.value || 0))), 0);
   // Use latest history value if available — it includes cash balances the positions API misses
   const latestHistoryVal = (portfolioHistory && portfolioHistory.length > 0) ? portfolioHistory[portfolioHistory.length - 1].value : 0;
   const totalValue = (latestHistoryVal > positionsValue) ? latestHistoryVal : positionsValue;
@@ -2732,7 +2732,7 @@ function renderHoldingsTab() {
     const sym = pos.security?.symbol || pos.symbol || '--';
     const name = pos.security?.name || '';
     const mv = pos.market_value || pos.value || 0;
-    const bv = pos.book_value || mv;
+    const bv = (pos.book_value != null ? pos.book_value : mv);
     const gl = mv - bv;
     const ret = bv > 0 ? ((mv - bv)/bv)*100 : 0;
     const weight = totalVal > 0 ? (mv/totalVal)*100 : 0;
@@ -2778,7 +2778,7 @@ function renderHoldingsTab() {
 // ─── Performance Tab ─────────────────────────────────────────────────────────
 function renderPerformance() {
   const positionsVal = filteredPositions.reduce((s,p) => s + (p.market_value || p.value || 0), 0);
-  const totalBook = filteredPositions.reduce((s,p) => s + (p.book_value || p.market_value || p.value || 0), 0);
+  const totalBook = filteredPositions.reduce((s,p) => s + ((p.book_value != null ? p.book_value : (p.market_value || p.value || 0))), 0);
   // Use latest history value if available — includes cash balances
   const latestHistoryVal = (portfolioHistory && portfolioHistory.length > 0) ? portfolioHistory[portfolioHistory.length - 1].value : 0;
   const totalVal = (latestHistoryVal > positionsVal) ? latestHistoryVal : positionsVal;
@@ -2793,7 +2793,7 @@ function renderPerformance() {
   // Best/worst (aggregated by symbol)
   const withReturn = aggregated.map(p => {
     const mv = p.market_value || p.value || 0;
-    const bv = p.book_value || mv;
+    const bv = (p.book_value != null ? p.book_value : mv);
     return { ...p, ret: bv > 0 ? ((mv-bv)/bv)*100 : 0, gl: mv - bv };
   }).sort((a,b) => b.ret - a.ret);
   const best = withReturn.length > 0 ? withReturn[0] : null;
@@ -2835,7 +2835,7 @@ function renderPerformance() {
     const ac = inferAssetClass(p);
     if (!assetPerf[ac]) assetPerf[ac] = { mv: 0, bv: 0 };
     assetPerf[ac].mv += (p.market_value || p.value || 0);
-    assetPerf[ac].bv += (p.book_value || p.market_value || p.value || 0);
+    assetPerf[ac].bv += ((p.book_value != null ? p.book_value : (p.market_value || p.value || 0)));
   });
   const assetEntries = Object.entries(assetPerf).sort((a,b) => (b[1].mv-b[1].bv) - (a[1].mv-a[1].bv));
   makeChart('accountPerf', document.getElementById('accountPerfChart'), {
@@ -2858,7 +2858,7 @@ function renderPerformance() {
 // ─── Benchmark Comparison ────────────────────────────────────────────────────
 function renderBenchmarkComparison(portfolioReturn) {
   const positionsVal = filteredPositions.reduce((s,p) => s + (p.market_value || p.value || 0), 0);
-  const totalBook = filteredPositions.reduce((s,p) => s + (p.book_value || p.market_value || p.value || 0), 0);
+  const totalBook = filteredPositions.reduce((s,p) => s + ((p.book_value != null ? p.book_value : (p.market_value || p.value || 0))), 0);
   // Use latest history value if available — includes cash balances
   const latestHistoryVal = (portfolioHistory && portfolioHistory.length > 0) ? portfolioHistory[portfolioHistory.length - 1].value : 0;
   const totalVal = (latestHistoryVal > positionsVal) ? latestHistoryVal : positionsVal;
@@ -2872,7 +2872,7 @@ function renderBenchmarkComparison(portfolioReturn) {
     const a = p._accountName || 'Unknown';
     if (!acctPerf[a]) acctPerf[a] = { mv: 0, bv: 0 };
     acctPerf[a].mv += (p.market_value || p.value || 0);
-    acctPerf[a].bv += (p.book_value || p.market_value || p.value || 0);
+    acctPerf[a].bv += ((p.book_value != null ? p.book_value : (p.market_value || p.value || 0)));
   });
 
   const winners = aggregated.filter(p => {
@@ -2902,7 +2902,7 @@ function renderBenchmarkComparison(portfolioReturn) {
   // Return by position bar chart (aggregated)
   const returnData = aggregated.map(p => {
     const mv = p.market_value || p.value || 0;
-    const bv = p.book_value || mv;
+    const bv = (p.book_value != null ? p.book_value : mv);
     return { sym: p.security?.symbol || p.symbol || '?', ret: bv > 0 ? ((mv-bv)/bv)*100 : 0 };
   }).sort((a,b) => b.ret - a.ret).slice(0, 12);
 
@@ -3124,7 +3124,7 @@ function computePortfolioStats() {
 
   modelPositions.forEach(p => {
     const mv = p.market_value || p.value || 0;
-    const bv = p.book_value || mv;
+    const bv = (p.book_value != null ? p.book_value : mv);
     const w = mv / totalVal;
     const sector = inferAssetClass(p);
     const lookup = ASSET_VOLATILITY[sector] || ASSET_VOLATILITY['Equity'];
@@ -3140,8 +3140,9 @@ function computePortfolioStats() {
 
   // Portfolio volatility using variance-covariance matrix
   // var(P) = sum_i sum_j w_i w_j sigma_i sigma_j rho_ij
-  function corrEstimate(s1, s2) {
-    if (s1 === s2) return 1.0;
+  function corrEstimate(s1, s2, samePosition) {
+    if (samePosition) return 1.0;
+    if (s1 === s2) return 0.85; // Same sector, different positions
     const eq = s => !['Fixed Income','Cash','Preferred Shares','Crypto','Commodities','Alternatives','Real Estate'].includes(s);
     const bond = s => ['Fixed Income','Cash','Preferred Shares'].includes(s);
     const crypto = s => s === 'Crypto';
@@ -3157,14 +3158,14 @@ function computePortfolioStats() {
   let portfolioVariance = 0;
   for (let i = 0; i < posStats.length; i++) {
     for (let j = 0; j < posStats.length; j++) {
-      const rho = corrEstimate(posStats[i].sector, posStats[j].sector);
+      const rho = corrEstimate(posStats[i].sector, posStats[j].sector, i === j);
       portfolioVariance += posStats[i].w * posStats[j].w * posStats[i].vol * posStats[j].vol * rho;
     }
   }
   let portfolioVol = Math.sqrt(Math.max(0, portfolioVariance));
 
   const riskFreeRate = 0.04; // ~4% (Canadian T-bills)
-  const totalBook = modelPositions.reduce((s,p) => s + (p.book_value || p.market_value || p.value || 0), 0);
+  const totalBook = modelPositions.reduce((s,p) => s + ((p.book_value != null ? p.book_value : (p.market_value || p.value || 0))), 0);
   const cumulativeReturn = totalBook > 0 ? (totalVal - totalBook) / totalBook : 0;
   // Use portfolio history date range for holding period if available, else estimate
   let holdingYears = 2;
@@ -3742,7 +3743,7 @@ async function ratePositions() {
   const totalVal = rateAgg.reduce((s,p) => s + (p.market_value || p.value || 0), 0);
   const positionList = rateAgg.map(p => {
     const mv = p.market_value || p.value || 0;
-    const bv = p.book_value || mv;
+    const bv = (p.book_value != null ? p.book_value : mv);
     return {
       symbol: p.security?.symbol || p.symbol || 'N/A',
       name: p.security?.name || '',
@@ -3941,7 +3942,7 @@ function resetAnalyzeBtn() {
 
 function buildPortfolioSummary() {
   const totalValue = filteredPositions.reduce((s,p) => s + (p.market_value || p.value || 0), 0);
-  const totalBook = filteredPositions.reduce((s,p) => s + (p.book_value || p.market_value || p.value || 0), 0);
+  const totalBook = filteredPositions.reduce((s,p) => s + ((p.book_value != null ? p.book_value : (p.market_value || p.value || 0))), 0);
   const byAccount = {};
   filteredPositions.forEach(pos => {
     const acct = pos._accountName || 'Unknown';
@@ -4151,7 +4152,7 @@ function renderHoldingsTable() {
     const sym = p.security?.symbol || p.symbol || '--';
     const name = p.security?.name || '';
     const mv = p.market_value || p.value || 0;
-    const bv = p.book_value || mv;
+    const bv = (p.book_value != null ? p.book_value : mv);
     const gl = mv - bv;
     const ret = bv > 0 ? ((mv-bv)/bv)*100 : 0;
     const weight = totalVal > 0 ? (mv/totalVal*100) : 0;
@@ -4382,7 +4383,7 @@ function exportReport() {
     const sym = p.security?.symbol || p.symbol || '';
     const name = (p.security?.name || '').replace(/,/g, ' ');
     const mv = p.market_value || p.value || 0;
-    const bv = p.book_value || mv;
+    const bv = (p.book_value != null ? p.book_value : mv);
     const gl = mv - bv;
     const ret = bv > 0 ? ((mv-bv)/bv*100).toFixed(2) : '0';
     const w = totalVal > 0 ? (mv/totalVal*100).toFixed(2) : '0';
