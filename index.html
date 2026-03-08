@@ -2187,6 +2187,10 @@ function inferAssetClass(pos) {
   const assetClass = (pos.class || pos.security?.asset_class || '').toLowerCase();
   const category = (pos.category || pos.security?.category || '').toLowerCase();
 
+  // 0. Detect bare currency codes as cash (CAD, USD, EUR, GBP, etc.)
+  const currencies = ['CAD','USD','EUR','GBP','JPY','CHF','AUD','NZD','HKD','SGD','SEK','NOK','DKK','CNY','MXN','BRL','INR','KRW','TWD','ZAR'];
+  if (currencies.includes(sym) || /^[A-Z]{3}\.FX$/i.test(sym)) return 'Cash';
+
   // 1. Use Wealthica's class / category — short-circuit for non-equity types only
   //    For equity, fall through to detailed ETF/stock pattern matching below
   if (assetClass && !/equity|stock/i.test(assetClass)) {
@@ -2813,8 +2817,8 @@ function renderPerformance() {
   const totalRet = periodReturn ? periodReturn.pct : (totalBook > 0 ? ((totalVal - totalBook) / totalBook) * 100 : 0);
   const periodLabel = getPeriodLabel();
 
-  // Best/worst (aggregated by symbol)
-  const withReturn = aggregated.map(p => {
+  // Best/worst (aggregated by symbol, excluding cash/currency positions)
+  const withReturn = aggregated.filter(p => inferAssetClass(p) !== 'Cash').map(p => {
     const mv = p.market_value || p.value || 0;
     const bv = (p.book_value != null ? p.book_value : mv);
     return { ...p, ret: bv > 0 ? ((mv-bv)/bv)*100 : 0, gl: mv - bv };
@@ -2834,7 +2838,7 @@ function renderPerformance() {
     { label: periodLabel + ' Return', value: pct(totalRet), cls: totalRet >= 0 ? 'positive' : 'negative', sub: fmt(totalGL) + (isFiltered ? ' (portfolio\u2011level)' : '') },
     { label: 'Best Performer', value: best ? (best.security?.symbol || best.symbol || '--') : '--', cls: 'positive', sub: best ? pct(best.ret) + ' all\u2011time' : '' },
     { label: 'Worst Performer', value: worst ? (worst.security?.symbol || worst.symbol || '--') : '--', cls: worst && worst.ret < 0 ? 'negative' : '', sub: worst ? pct(worst.ret) + ' all\u2011time' : '' },
-    { label: 'Wtd Avg Return', value: pct(wtdAvg), cls: '', sub: aggregated.length + ' holdings · all\u2011time' },
+    { label: 'Wtd Avg Return', value: pct(wtdAvg), cls: '', sub: withReturn.length + ' holdings · all\u2011time' },
   ];
   cards.forEach(c => {
     const d = document.createElement('div');
@@ -2910,19 +2914,19 @@ function renderBenchmarkComparison(portfolioReturn) {
     acctPerf[a].bv += ((p.book_value != null ? p.book_value : (p.market_value || p.value || 0)));
   });
 
-  const winners = aggregated.filter(p => {
+  const nonCash = aggregated.filter(p => inferAssetClass(p) !== 'Cash');
+  const winners = nonCash.filter(p => {
     const mv = p.market_value || p.value || 0;
     const bv = p.book_value != null ? p.book_value : mv;
     return mv > bv;
   }).length;
-  const losers = aggregated.length - winners;
+  const losers = nonCash.length - winners;
 
   const grid = document.getElementById('benchmarkGrid');
   grid.innerHTML = '';
   const cards = [
-    { cls: 'portfolio', label: 'Total Return', value: pct(portfolioReturn), desc: fmt(totalGL) + ' gain/loss', vs: '' },
     { cls: 'sp500', label: 'Portfolio Value', value: fmt(totalVal), desc: 'Book value: ' + fmt(totalBook), vs: '' },
-    { cls: 'tsx', label: 'Win Rate', value: (aggregated.length > 0 ? (winners/aggregated.length*100).toFixed(0) : 0) + '%', desc: winners + ' winners / ' + losers + ' losers', vs: '' },
+    { cls: 'tsx', label: 'Win Rate', value: (nonCash.length > 0 ? (winners/nonCash.length*100).toFixed(0) : 0) + '%', desc: winners + ' winners / ' + losers + ' losers', vs: '' },
     (function() { const acctRet = (a) => a.bv > 0 ? ((a.mv - a.bv) / a.bv * 100) : 0; const sortedAccts = Object.entries(acctPerf).sort((a,b) => acctRet(b[1]) - acctRet(a[1])); const best = sortedAccts[0]; return { cls: 'nasdaq', label: 'Best Account', value: best ? best[0] : '--', desc: best ? pct(acctRet(best[1])) + ' return' : '', vs: '' }; })(),
   ];
   cards.forEach(c => {
@@ -2934,8 +2938,8 @@ function renderBenchmarkComparison(portfolioReturn) {
     grid.appendChild(d);
   });
 
-  // Return by position bar chart (aggregated)
-  const returnData = aggregated.map(p => {
+  // Return by position bar chart (aggregated, excluding cash)
+  const returnData = aggregated.filter(p => inferAssetClass(p) !== 'Cash').map(p => {
     const mv = p.market_value || p.value || 0;
     const bv = (p.book_value != null ? p.book_value : mv);
     return { sym: p.security?.symbol || p.symbol || '?', ret: bv > 0 ? ((mv-bv)/bv)*100 : 0 };
@@ -4431,7 +4435,7 @@ function exportReport() {
 // ─── Mobile Swipe Navigation ─────────────────────────────────────────────────
 (function initSwipe() {
   let touchStartX = 0, touchEndX = 0;
-  const tabOrder = ['overview','holdings','sectors','performance','risk','region','models','ai'];
+  const tabOrder = ['overview','holdings','performance','sectors','region','risk','models','insights','ai'];
   document.addEventListener('touchstart', function(e) { touchStartX = e.changedTouches[0].screenX; }, { passive: true });
   document.addEventListener('touchend', function(e) {
     touchEndX = e.changedTouches[0].screenX;
