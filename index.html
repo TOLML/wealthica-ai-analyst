@@ -1226,7 +1226,7 @@ function renderActiveTab() {
     case 'performance': renderPerformance(); break;
     case 'risk': renderRisk(); renderCorrelationMatrix(); break;
     case 'region': renderRegion(); break;
-    case 'models': renderModels(); renderStressTest(); break;
+    case 'models': { const _stats = renderModels(); renderStressTest(_stats); } break;
     case 'insights': renderInsightsTab(); break;
   }
   // Update iframe height after content renders so Wealthica doesn't cut off the bottom
@@ -3277,7 +3277,7 @@ function computePortfolioStats() {
 
 function renderModels() {
   const stats = computePortfolioStats();
-  if (!stats) return;
+  if (!stats) return stats;
 
   // Risk Metrics Gauges — simplified with plain-English explanations
   const gauges = document.getElementById('riskMetricsGauges');
@@ -3493,11 +3493,12 @@ function renderModelConclusion(stats) {
     '<div><div class="mc-grade-text" style="color:' + gradeColor + '">' + gradeLabel + '</div>' +
     '<div class="mc-grade-sub">Based on volatility, risk-adjusted returns, market sensitivity, and diversification</div></div></div>' +
     '<div class="mc-points">' + points.map(p => '<div class="mc-point"><div class="mc-bullet" style="background:' + p.color + '"></div><div>' + p.text + '</div></div>').join('') + '</div>';
+  return stats;
 }
 
 // ─── Stress Test Tab ─────────────────────────────────────────────────────────
-function renderStressTest() {
-  const stats = computePortfolioStats();
+function renderStressTest(cachedStats) {
+  const stats = cachedStats || computePortfolioStats();
   if (!stats) return;
   const totalVal = stats.totalVal;
 
