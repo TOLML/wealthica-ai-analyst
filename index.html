@@ -942,9 +942,9 @@
 
     <hr class="section-divider">
     <h3 class="section-title"><span class="st-icon purple">&#9686;</span> Position Analysis</h3>
-    <div class="chart-card"><h3>Gain/Loss by Position</h3><canvas id="gainLossChart"></canvas></div>
-    <div class="chart-card" style="margin-top:20px"><h3>Portfolio Performance Summary</h3><canvas id="accountPerfChart"></canvas></div>
-    <div class="chart-card" style="margin-top:20px"><h3>Return by Position</h3><canvas id="benchmarkChart"></canvas></div>
+    <div class="chart-card"><h3 id="gainLossTitle">Gain/Loss by Position</h3><canvas id="gainLossChart"></canvas></div>
+    <div class="chart-card" style="margin-top:20px"><h3 id="acctPerfTitle">Portfolio Performance Summary</h3><canvas id="accountPerfChart"></canvas></div>
+    <div class="chart-card" style="margin-top:20px"><h3 id="returnPosTitle">Return by Position</h3><canvas id="benchmarkChart"></canvas></div>
     <div style="margin-top:20px">
       <button class="tab-ai-btn" id="aiBtn-performance" onclick="runTabAI('performance')">
         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polygon points="5 3 19 12 5 21 5 3"/></svg>
@@ -2823,15 +2823,18 @@ function renderPerformance() {
   const worst = withReturn.length > 0 ? withReturn[withReturn.length - 1] : null;
 
   const isFiltered = activeDateRange !== 'all';
-  const perfNote = isFiltered ? ' (all\u2011time)' : '';
 
   const grid = document.getElementById('perfSummaryGrid');
   grid.innerHTML = '';
+
+  // When a date range is active, show portfolio-level period return from history
+  // Per-position data is always all-time (book vs market) since positions don't carry period returns
+  const wtdAvg = withReturn.length > 0 ? (function(){ const tv = withReturn.reduce((s,p)=>s+(p.market_value||p.value||0),0); return tv > 0 ? withReturn.reduce((s,p)=>s+p.ret*((p.market_value||p.value||0)/tv),0) : 0; })() : 0;
   const cards = [
-    { label: periodLabel + ' Return', value: pct(totalRet), cls: totalRet >= 0 ? 'positive' : 'negative', sub: fmt(totalGL) },
-    { label: 'Best Performer' + perfNote, value: best ? (best.security?.symbol || best.symbol || '--') : '--', cls: 'positive', sub: best ? pct(best.ret) : '' },
-    { label: 'Worst Performer' + perfNote, value: worst ? (worst.security?.symbol || worst.symbol || '--') : '--', cls: worst && worst.ret < 0 ? 'negative' : '', sub: worst ? pct(worst.ret) : '' },
-    { label: 'Wtd Avg Return' + perfNote, value: pct(withReturn.length > 0 ? (function(){ const tv = withReturn.reduce((s,p)=>s+(p.market_value||p.value||0),0); return tv > 0 ? withReturn.reduce((s,p)=>s+p.ret*((p.market_value||p.value||0)/tv),0) : 0; })() : 0), cls: '', sub: aggregated.length + ' holdings' },
+    { label: periodLabel + ' Return', value: pct(totalRet), cls: totalRet >= 0 ? 'positive' : 'negative', sub: fmt(totalGL) + (isFiltered ? ' (portfolio\u2011level)' : '') },
+    { label: 'Best Performer', value: best ? (best.security?.symbol || best.symbol || '--') : '--', cls: 'positive', sub: best ? pct(best.ret) + ' all\u2011time' : '' },
+    { label: 'Worst Performer', value: worst ? (worst.security?.symbol || worst.symbol || '--') : '--', cls: worst && worst.ret < 0 ? 'negative' : '', sub: worst ? pct(worst.ret) + ' all\u2011time' : '' },
+    { label: 'Wtd Avg Return', value: pct(wtdAvg), cls: '', sub: aggregated.length + ' holdings · all\u2011time' },
   ];
   cards.forEach(c => {
     const d = document.createElement('div');
@@ -2839,6 +2842,15 @@ function renderPerformance() {
     d.innerHTML = '<div class="label">' + c.label + '</div><div class="value ' + c.cls + '" style="font-size:16px">' + c.value + '</div><div class="sub">' + c.sub + '</div>';
     grid.appendChild(d);
   });
+
+  // Update chart titles to clarify all-time vs period
+  const allTimeNote = isFiltered ? ' (All\u2011Time)' : '';
+  const glTitle = document.getElementById('gainLossTitle');
+  if (glTitle) glTitle.textContent = 'Gain/Loss by Position' + allTimeNote;
+  const apTitle = document.getElementById('acctPerfTitle');
+  if (apTitle) apTitle.textContent = 'Portfolio Performance Summary' + allTimeNote;
+  const rpTitle = document.getElementById('returnPosTitle');
+  if (rpTitle) rpTitle.textContent = 'Return by Position' + allTimeNote;
 
   // Gain/loss by position (aggregated)
   const glSorted = [...withReturn].sort((a,b) => b.gl - a.gl);
@@ -2911,7 +2923,7 @@ function renderBenchmarkComparison(portfolioReturn) {
     { cls: 'portfolio', label: 'Total Return', value: pct(portfolioReturn), desc: fmt(totalGL) + ' gain/loss', vs: '' },
     { cls: 'sp500', label: 'Portfolio Value', value: fmt(totalVal), desc: 'Book value: ' + fmt(totalBook), vs: '' },
     { cls: 'tsx', label: 'Win Rate', value: (aggregated.length > 0 ? (winners/aggregated.length*100).toFixed(0) : 0) + '%', desc: winners + ' winners / ' + losers + ' losers', vs: '' },
-    (function() { const sortedAccts = Object.entries(acctPerf).sort((a,b) => (b[1].mv-b[1].bv)/(b[1].bv||1) - (a[1].mv-a[1].bv)/(a[1].bv||1)); const best = sortedAccts[0]; return { cls: 'nasdaq', label: 'Best Account', value: best ? best[0] : '--', desc: best ? pct(best[1].bv > 0 ? ((best[1].mv - best[1].bv) / best[1].bv * 100) : 0) + ' return' : '', vs: '' }; })(),
+    (function() { const acctRet = (a) => a.bv > 0 ? ((a.mv - a.bv) / a.bv * 100) : 0; const sortedAccts = Object.entries(acctPerf).sort((a,b) => acctRet(b[1]) - acctRet(a[1])); const best = sortedAccts[0]; return { cls: 'nasdaq', label: 'Best Account', value: best ? best[0] : '--', desc: best ? pct(acctRet(best[1])) + ' return' : '', vs: '' }; })(),
   ];
   cards.forEach(c => {
     const d = document.createElement('div');
@@ -3299,17 +3311,8 @@ function renderModels() {
 
   // VaR Section — with formulas shown
   const varSection = document.getElementById('varSection');
-  const volPct = (stats.stdDev * 100).toFixed(1);
   varSection.innerHTML = '<h3>Value at Risk (VaR)</h3>' +
-    '<div class="model-desc">"What\'s the most I could lose?" VaR answers this at a confidence level. For example, 95% Daily VaR means: on 19 out of 20 days, your losses won\'t exceed this amount.</div>' +
-    '<div class="model-desc" style="background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:12px;margin-top:8px;font-family:\'JetBrains Mono\',monospace;font-size:11px;line-height:1.8">' +
-    '<strong>How it\'s calculated:</strong><br>' +
-    'Portfolio Value = ' + fmt(stats.totalVal) + '<br>' +
-    'Portfolio Volatility = ' + volPct + '% (weighted average of each holding\'s estimated volatility)<br>' +
-    'Daily VaR (95%) = Value x Volatility x 1.645 / sqrt(252) = ' + fmt(stats.totalVal) + ' x ' + volPct + '% x 1.645 / 15.87 = <strong>' + fmt(stats.var95_1d) + '</strong><br>' +
-    'Monthly VaR (95%) = Value x Volatility x 1.645 / sqrt(12) = <strong>' + fmt(stats.var95_1m) + '</strong><br>' +
-    '<span style="color:var(--text-muted)">1.645 = z-score for 95% confidence | 2.326 = z-score for 99% confidence</span>' +
-    '</div>';
+    '<div class="model-desc">"What\'s the most I could lose?" VaR answers this at a confidence level. For example, 95% Daily VaR means: on 19 out of 20 days, your losses won\'t exceed this amount.</div>';
   const varResults = document.createElement('div');
   varResults.className = 'model-results';
   [
@@ -3327,19 +3330,8 @@ function renderModels() {
 
   // Monte Carlo Section — with formulas shown
   const mcSection = document.getElementById('monteCarloSection');
-  const dailyRetPct = (Math.log(1 + stats.portfolioReturn) / 252 * 100).toFixed(4);
-  const dailyVolPct = (stats.portfolioVol / Math.sqrt(252) * 100).toFixed(2);
   mcSection.innerHTML = '<h3>Monte Carlo Simulation</h3>' +
-    '<div class="model-desc">"What might happen over the next year?" We run 5,000 random simulations of your portfolio, each with different daily market movements. This shows the range of likely outcomes.</div>' +
-    '<div class="model-desc" style="background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:12px;margin-top:8px;font-family:\'JetBrains Mono\',monospace;font-size:11px;line-height:1.8">' +
-    '<strong>How it\'s calculated:</strong><br>' +
-    'Starting value = ' + fmt(stats.totalVal) + '<br>' +
-    'Est. daily return = ' + dailyRetPct + '% (from your overall return annualized)<br>' +
-    'Est. daily volatility = ' + dailyVolPct + '% (annual vol / sqrt(252))<br>' +
-    'Each day: New Value = Value x (1 + daily return + daily vol x random)<br>' +
-    'Repeat 252 trading days x 5,000 trials, then sort outcomes<br>' +
-    '<span style="color:var(--text-muted)">"random" = normally distributed random number (Box-Muller transform)</span>' +
-    '</div>';
+    '<div class="model-desc">"What might happen over the next year?" We run 5,000 random simulations of your portfolio, each with different daily market movements. This shows the range of likely outcomes.</div>';
   const mcResultsDiv = document.createElement('div');
   mcResultsDiv.className = 'model-results';
   [
