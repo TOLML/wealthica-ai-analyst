@@ -3,6 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://wealthica.github.io https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; connect-src https://api.anthropic.com https://*.wealthica.com; img-src 'self' data: blob:; frame-ancestors https://app.wealthica.com https://addons.wealthica.com;">
 <title>Wealthica Portfolio Intelligence</title>
 <script src="https://wealthica.github.io/wealthica.js/dist/addon.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
@@ -1167,6 +1168,7 @@
 // ─── State ───────────────────────────────────────────────────────────────────
 let addon = null;
 let apiKey = '';
+let _lastAICall = 0;
 let portfolioData = { positions: [], institutions: [], totalValue: 0, totalBook: 0 };
 let filteredPositions = [];
 let currentOptions = {};
@@ -1727,7 +1729,7 @@ function generateDemoHistory(currentValue) {
   const startValue = currentValue * 0.45;
   let value = startValue;
   const annualGrowth = Math.pow(currentValue / startValue, 1/5) - 1;
-  const weeklyGrowth = annualGrowth / 52;
+  const weeklyGrowth = Math.log(1 + annualGrowth) / 52;
   const weeklyVol = 0.15 / Math.sqrt(52); // ~15% annual vol scaled to weekly
 
   // Seeded PRNG for deterministic but non-periodic noise
@@ -3754,6 +3756,8 @@ function renderInsightsTab() {
 async function ratePositions() {
   if (!apiKey) { showToast('Set your API key first', 'error'); toggleSettings(); return; }
   if (filteredPositions.length === 0) { showToast('No positions to rate', 'error'); return; }
+  if (Date.now() - _lastAICall < 3000) { showToast('Please wait a moment between AI requests', 'error'); return; }
+  _lastAICall = Date.now();
 
   const btn = document.getElementById('btnRatePositions');
   btn.disabled = true;
@@ -3900,6 +3904,8 @@ async function streamAIResponse(systemPrompt, messages, responseEl, onComplete) 
 async function runAnalysis() {
   if (!apiKey) { showToast('Set your API key first', 'error'); toggleSettings(); return; }
   if (filteredPositions.length === 0) { showToast('No portfolio data', 'error'); return; }
+  if (Date.now() - _lastAICall < 3000) { showToast('Please wait a moment between AI requests', 'error'); return; }
+  _lastAICall = Date.now();
 
   const btn = document.getElementById('btnAnalyze');
   const responseEl = document.getElementById('aiResponse');
@@ -4364,6 +4370,8 @@ const TAB_AI_PROMPTS = {
 async function runTabAI(tab) {
   if (!apiKey) { showToast('Set your API key first', 'error'); toggleSettings(); return; }
   if (filteredPositions.length === 0) { showToast('No portfolio data', 'error'); return; }
+  if (Date.now() - _lastAICall < 3000) { showToast('Please wait a moment between AI requests', 'error'); return; }
+  _lastAICall = Date.now();
 
   const btn = document.getElementById('aiBtn-' + tab);
   const resEl = document.getElementById('aiRes-' + tab);
