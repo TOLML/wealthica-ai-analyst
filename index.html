@@ -1800,18 +1800,19 @@ async function fetchHistory(query) {
       const raw = arr.map(h => {
         const date = h.date || h.d || '';
         let value = 0;
-        // Always prefer summing investments when available — h.value may be net deposits, not total equity
-        if (h.investments && typeof h.investments === 'object') {
+        // Prefer top-level value/equity — this is the total portfolio net worth (includes cash)
+        // h.investments may not include cash balances and can give incorrect totals
+        if (h.value || h.equity || h.v) {
+          value = h.equity || h.value || h.v || 0;
+        }
+        // Fall back to summing investments only if no top-level value
+        if (!value && h.investments && typeof h.investments === 'object') {
           const invVals = Object.values(h.investments);
           if (invVals.length > 0) {
             value = invVals.reduce((s, inv) => {
               return s + (typeof inv === 'number' ? inv : (inv.value || inv.market_value || inv.equity || 0));
             }, 0);
           }
-        }
-        // Fall back to top-level value fields only if no investments data
-        if (!value) {
-          value = h.equity || h.value || h.v || 0;
         }
         return { date, value };
       }).filter(h => h.date && h.value > 0);
@@ -1842,7 +1843,12 @@ async function fetchHistory(query) {
       });
       portfolioHistory = Object.values(byDate).sort((a, b) => new Date(a.date) - new Date(b.date));
       console.log('[Wealthica] History loaded:', portfolioHistory.length, 'of', raw.length, 'points. Sample:', JSON.stringify(portfolioHistory.slice(0,3)));
-      if (activeTab === 'performance') renderHistoryChart();
+      // Re-render displays that depend on history data (period returns, portfolio value)
+      renderSummary();
+      if (activeTab === 'performance') {
+        renderPerformance();
+        renderHistoryChart();
+      }
     } else {
       console.log('[Wealthica] No history data returned');
       portfolioHistory = [];
@@ -2488,8 +2494,11 @@ function getPeriodLabel() {
 }
 
 function renderSummary() {
-  const totalValue = filteredPositions.reduce((s,p) => s + (p.market_value || p.value || 0), 0);
+  const positionsValue = filteredPositions.reduce((s,p) => s + (p.market_value || p.value || 0), 0);
   const totalBook = filteredPositions.reduce((s,p) => s + (p.book_value || p.market_value || p.value || 0), 0);
+  // Use latest history value if available — it includes cash balances the positions API misses
+  const latestHistoryVal = (portfolioHistory && portfolioHistory.length > 0) ? portfolioHistory[portfolioHistory.length - 1].value : 0;
+  const totalValue = (latestHistoryVal > positionsValue) ? latestHistoryVal : positionsValue;
   const accounts = [...new Set(filteredPositions.map(p => p._accountName).filter(Boolean))];
   const aggregated = aggregatePositions(filteredPositions);
 
@@ -2736,8 +2745,11 @@ function renderHoldingsTab() {
 
 // ─── Performance Tab ─────────────────────────────────────────────────────────
 function renderPerformance() {
-  const totalVal = filteredPositions.reduce((s,p) => s + (p.market_value || p.value || 0), 0);
+  const positionsVal = filteredPositions.reduce((s,p) => s + (p.market_value || p.value || 0), 0);
   const totalBook = filteredPositions.reduce((s,p) => s + (p.book_value || p.market_value || p.value || 0), 0);
+  // Use latest history value if available — includes cash balances
+  const latestHistoryVal = (portfolioHistory && portfolioHistory.length > 0) ? portfolioHistory[portfolioHistory.length - 1].value : 0;
+  const totalVal = (latestHistoryVal > positionsVal) ? latestHistoryVal : positionsVal;
   const aggregated = aggregatePositions(filteredPositions);
 
   // Use period-specific return from history data when a filter is active
@@ -2755,13 +2767,16 @@ function renderPerformance() {
   const best = withReturn.length > 0 ? withReturn[0] : null;
   const worst = withReturn.length > 0 ? withReturn[withReturn.length - 1] : null;
 
+  const isFiltered = activeDateRange !== 'all';
+  const perfNote = isFiltered ? ' (all\u2011time)' : '';
+
   const grid = document.getElementById('perfSummaryGrid');
   grid.innerHTML = '';
   const cards = [
     { label: periodLabel + ' Return', value: pct(totalRet), cls: totalRet >= 0 ? 'positive' : 'negative', sub: fmt(totalGL) },
-    { label: 'Best Performer', value: best ? (best.security?.symbol || best.symbol || '--') : '--', cls: 'positive', sub: best ? pct(best.ret) : '' },
-    { label: 'Worst Performer', value: worst ? (worst.security?.symbol || worst.symbol || '--') : '--', cls: worst && worst.ret < 0 ? 'negative' : '', sub: worst ? pct(worst.ret) : '' },
-    { label: 'Wtd Avg Return', value: pct(withReturn.length > 0 ? (function(){ const tv = withReturn.reduce((s,p)=>s+(p.market_value||p.value||0),0); return tv > 0 ? withReturn.reduce((s,p)=>s+p.ret*((p.market_value||p.value||0)/tv),0) : 0; })() : 0), cls: '', sub: aggregated.length + ' holdings' },
+    { label: 'Best Performer' + perfNote, value: best ? (best.security?.symbol || best.symbol || '--') : '--', cls: 'positive', sub: best ? pct(best.ret) : '' },
+    { label: 'Worst Performer' + perfNote, value: worst ? (worst.security?.symbol || worst.symbol || '--') : '--', cls: worst && worst.ret < 0 ? 'negative' : '', sub: worst ? pct(worst.ret) : '' },
+    { label: 'Wtd Avg Return' + perfNote, value: pct(withReturn.length > 0 ? (function(){ const tv = withReturn.reduce((s,p)=>s+(p.market_value||p.value||0),0); return tv > 0 ? withReturn.reduce((s,p)=>s+p.ret*((p.market_value||p.value||0)/tv),0) : 0; })() : 0), cls: '', sub: aggregated.length + ' holdings' },
   ];
   cards.forEach(c => {
     const d = document.createElement('div');
@@ -2810,8 +2825,11 @@ function renderPerformance() {
 
 // ─── Benchmark Comparison ────────────────────────────────────────────────────
 function renderBenchmarkComparison(portfolioReturn) {
-  const totalVal = filteredPositions.reduce((s,p) => s + (p.market_value || p.value || 0), 0);
+  const positionsVal = filteredPositions.reduce((s,p) => s + (p.market_value || p.value || 0), 0);
   const totalBook = filteredPositions.reduce((s,p) => s + (p.book_value || p.market_value || p.value || 0), 0);
+  // Use latest history value if available — includes cash balances
+  const latestHistoryVal = (portfolioHistory && portfolioHistory.length > 0) ? portfolioHistory[portfolioHistory.length - 1].value : 0;
+  const totalVal = (latestHistoryVal > positionsVal) ? latestHistoryVal : positionsVal;
   const aggregated = aggregatePositions(filteredPositions);
   const periodReturn = (activeDateRange !== 'all') ? getPeriodReturn() : null;
   const totalGL = periodReturn ? periodReturn.change : (totalVal - totalBook);
