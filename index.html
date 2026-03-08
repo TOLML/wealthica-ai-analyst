@@ -2718,8 +2718,8 @@ function renderHoldingsTab() {
   let sorted = [...aggregated];
   switch(sortBy) {
     case 'value': sorted.sort((a,b) => (b.market_value||b.value||0) - (a.market_value||a.value||0)); break;
-    case 'gainloss': sorted.sort((a,b) => ((b.market_value||b.value||0)-(b.book_value||(b.market_value||b.value||0))) - ((a.market_value||a.value||0)-(a.book_value||(a.market_value||a.value||0)))); break;
-    case 'return': sorted.sort((a,b) => { const ra = a.book_value ? ((a.market_value||a.value||0)-a.book_value)/a.book_value : 0; const rb = b.book_value ? ((b.market_value||b.value||0)-b.book_value)/b.book_value : 0; return rb - ra; }); break;
+    case 'gainloss': sorted.sort((a,b) => { const amv=a.market_value||a.value||0, abv=(a.book_value!=null?a.book_value:amv), bmv=b.market_value||b.value||0, bbv=(b.book_value!=null?b.book_value:bmv); return (bmv-bbv)-(amv-abv); }); break;
+    case 'return': sorted.sort((a,b) => { const abv = (a.book_value != null ? a.book_value : (a.market_value||a.value||0)); const ra = abv > 0 ? ((a.market_value||a.value||0)-abv)/abv : 0; const bbv = (b.book_value != null ? b.book_value : (b.market_value||b.value||0)); const rb = bbv > 0 ? ((b.market_value||b.value||0)-bbv)/bbv : 0; return rb - ra; }); break;
     case 'weight': sorted.sort((a,b) => (b.market_value||b.value||0) - (a.market_value||a.value||0)); break;
     case 'name': sorted.sort((a,b) => ((a.security?.symbol||a.symbol||'') ).localeCompare(b.security?.symbol||b.symbol||'')); break;
     case 'rating': sorted.sort((a,b) => (positionRatings[b.security?.symbol||b.symbol]?.score||0) - (positionRatings[a.security?.symbol||a.symbol]?.score||0)); break;
@@ -4140,8 +4140,8 @@ function renderHoldingsTable() {
   let sorted = [...aggregated];
   switch(sortBy) {
     case 'value': sorted.sort((a,b) => (b.market_value||b.value||0) - (a.market_value||a.value||0)); break;
-    case 'gainloss': sorted.sort((a,b) => ((b.market_value||b.value||0)-(b.book_value||(b.market_value||b.value||0))) - ((a.market_value||a.value||0)-(a.book_value||(a.market_value||a.value||0)))); break;
-    case 'return': sorted.sort((a,b) => { const ra = (a.book_value||1) > 0 ? ((a.market_value||a.value||0)-(a.book_value||0))/(a.book_value||1) : 0; const rb = (b.book_value||1) > 0 ? ((b.market_value||b.value||0)-(b.book_value||0))/(b.book_value||1) : 0; return rb-ra; }); break;
+    case 'gainloss': sorted.sort((a,b) => { const amv=a.market_value||a.value||0, abv=(a.book_value!=null?a.book_value:amv), bmv=b.market_value||b.value||0, bbv=(b.book_value!=null?b.book_value:bmv); return (bmv-bbv)-(amv-abv); }); break;
+    case 'return': sorted.sort((a,b) => { const abv = (a.book_value != null ? a.book_value : (a.market_value||a.value||0)); const ra = abv > 0 ? ((a.market_value||a.value||0)-abv)/abv : 0; const bbv = (b.book_value != null ? b.book_value : (b.market_value||b.value||0)); const rb = bbv > 0 ? ((b.market_value||b.value||0)-bbv)/bbv : 0; return rb-ra; }); break;
     case 'name': sorted.sort((a,b) => ((a.security?.symbol||a.symbol||'')).localeCompare(b.security?.symbol||b.symbol||'')); break;
   }
 
