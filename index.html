@@ -2495,10 +2495,10 @@ function scoreLabel(score) {
 // ─── Rendering Helpers ───────────────────────────────────────────────────────
 function fmt(n, decimals) {
   if (decimals === undefined) decimals = 0;
-  if (n === undefined || n === null || isNaN(n)) return '--';
+  if (n === undefined || n === null || !isFinite(n)) return '--';
   return new Intl.NumberFormat('en-CA', { style: 'currency', currency: 'CAD', minimumFractionDigits: decimals, maximumFractionDigits: decimals }).format(n);
 }
-function pct(n) { if (n === undefined || n === null || isNaN(n)) return ''; return (n >= 0 ? '+' : '') + n.toFixed(2) + '%'; }
+function pct(n) { if (n === undefined || n === null || !isFinite(n)) return ''; return (n >= 0 ? '+' : '') + n.toFixed(2) + '%'; }
 function escapeHtml(str) { const d = document.createElement('div'); d.textContent = str; return d.innerHTML; }
 
 function makeChart(key, ctx, config) {
@@ -3970,9 +3970,9 @@ function buildPortfolioSummary() {
     regions[rg] = (regions[rg] || 0) + mv;
   });
   const assetClassPct = {};
-  Object.entries(assetClasses).forEach(([k,v]) => { assetClassPct[k] = Math.round(v / totalValue * 1000) / 10; });
+  Object.entries(assetClasses).forEach(([k,v]) => { assetClassPct[k] = totalValue > 0 ? Math.round(v / totalValue * 1000) / 10 : 0; });
   const regionPct = {};
-  Object.entries(regions).forEach(([k,v]) => { regionPct[k] = Math.round(v / totalValue * 1000) / 10; });
+  Object.entries(regions).forEach(([k,v]) => { regionPct[k] = totalValue > 0 ? Math.round(v / totalValue * 1000) / 10 : 0; });
 
   // Portfolio health scores
   const scores = computeScores();
