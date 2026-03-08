@@ -1313,7 +1313,7 @@ function setDateRange(range) {
   const activeBtn = document.querySelector('.date-btn[onclick="setDateRange(\'' + range + '\')"]');
   if (activeBtn) activeBtn.classList.add('active');
   if (addon) {
-    loadPortfolio().catch(err => console.error('Date range reload failed:', err));
+    loadPortfolio().catch(err => console.error('Date range reload failed:', err.message));
   } else {
     renderAllTabs();
   }
@@ -1474,7 +1474,7 @@ if (typeof Addon === 'undefined') {
       loadPortfolio();
       fetchGroups();
     });
-    addon.on('reload', function() { if (addon) loadPortfolio().catch(err => console.error('Reload failed:', err)); });
+    addon.on('reload', function() { if (addon) loadPortfolio().catch(err => console.error('Reload failed:', err.message)); });
     addon.on('update', function(options) {
       if (!addon) return;
       currentOptions = { ...currentOptions, ...options };
@@ -1483,10 +1483,10 @@ if (typeof Addon === 'undefined') {
         const gf = options.groupsFilter;
         selectedGroups = !gf ? [] : (typeof gf === 'string' ? gf.split(',').filter(Boolean) : Array.isArray(gf) ? gf : []);
       }
-      loadPortfolio().catch(err => console.error('Update failed:', err));
+      loadPortfolio().catch(err => console.error('Update failed:', err.message));
     });
   } catch(e) {
-    console.log('Not running inside Wealthica.', e);
+    console.log('Not running inside Wealthica.');
     showToast('Demo mode — not inside Wealthica', 'error');
     loadDemoData();
   }
@@ -1533,7 +1533,7 @@ async function fetchGroups() {
   try {
     groups = await addonRef.request({ method: 'GET', endpoint: 'groups' });
   } catch(e) {
-    console.log('Groups endpoint not available, trying user profile:', e);
+    console.log('Groups endpoint not available, trying user profile');
   }
   if (!addon) return; // addon nulled during async wait
   if (!Array.isArray(groups) || groups.length === 0) {
@@ -1541,7 +1541,7 @@ async function fetchGroups() {
       const user = await addonRef.api.getUser();
       if (user && user.groups && Array.isArray(user.groups)) groups = user.groups;
     } catch(e) {
-      console.log('User groups not available:', e);
+      console.log('User groups not available');
     }
   }
   if (Array.isArray(groups) && groups.length > 0) {
@@ -1794,8 +1794,8 @@ async function loadPortfolio() {
     // Fetch portfolio history (awaited so charts have data)
     await fetchHistory(query);
   } catch(err) {
-    console.error('Failed to load portfolio:', err);
-    showToast('Failed to load: ' + (err.message || err), 'error');
+    console.error('Failed to load portfolio:', err.message);
+    showToast('Failed to load portfolio data', 'error');
   }
 }
 
@@ -1813,7 +1813,7 @@ async function fetchHistory(query) {
       try {
         history = await addonRef.request({ method: 'GET', endpoint: 'history', query: query });
       } catch(e2) {
-        console.log('History fallback also failed:', e2);
+        console.log('History fallback also failed');
       }
     }
     let arr = [];
@@ -1821,7 +1821,7 @@ async function fetchHistory(query) {
       arr = history;
     } else if (history && typeof history === 'object' && !Array.isArray(history)) {
       arr = history.results || history.data || history.history || [];
-      if (arr.length === 0) console.log('[Wealthica] History response format:', Object.keys(history));
+      if (arr.length === 0) console.log('[Wealthica] History response: no recognized array field');
     }
     if (arr.length > 0) {
       // Normalize: ensure each entry has a total value (aggregate investments if needed)
@@ -1885,7 +1885,7 @@ async function fetchHistory(query) {
       portfolioHistoryFull = [];
     }
   } catch(e) {
-    console.log('History not available:', e);
+    console.log('History not available');
     portfolioHistory = [];
     portfolioHistoryFull = [];
   }
@@ -3816,12 +3816,12 @@ async function ratePositions() {
         showToast('Rated ' + parsed.positions.length + ' positions', 'success');
       }
     } catch(parseErr) {
-      console.error('Failed to parse AI ratings:', parseErr, text);
+      console.error('Failed to parse AI ratings:', parseErr.message);
       showToast('AI returned invalid format. Try again.', 'error');
     }
   } catch(err) {
-    console.error('Rating error:', err);
-    showToast('Rating failed: ' + err.message, 'error');
+    console.error('Rating error:', err.message);
+    showToast('Rating failed', 'error');
   }
 
   btn.disabled = false;
@@ -3894,10 +3894,10 @@ async function streamAIResponse(systemPrompt, messages, responseEl, onComplete) 
     responseEl.classList.remove('loading');
     if (onComplete) onComplete(fullText);
   } catch(err) {
-    console.error('Analysis error:', err);
+    console.error('Analysis error:', err.message);
     responseEl.innerHTML = '<div class="ai-content" style="color:var(--red)"><strong>Error:</strong> ' + escapeHtml(err.message) + '</div>';
     responseEl.classList.remove('loading');
-    showToast('Analysis failed: ' + err.message, 'error');
+    showToast('Analysis failed', 'error');
   }
 }
 
@@ -4109,9 +4109,11 @@ function saveSettings() {
   const profile = getInvestorProfile();
   const selectedModel = getSelectedModel();
   if (addon) {
-    addon.saveData({ apiKey: key, investorProfile: profile, model: selectedModel }).then(() => { showToast('Settings saved', 'success'); updateStatus('connected', 'Settings saved'); }).catch(err => { console.log('Wealthica saveData failed, using localStorage:', err); try { localStorage.setItem('wealthica_ai_settings', JSON.stringify({ apiKey: key, investorProfile: profile, model: selectedModel })); } catch(e) {} showToast('Settings saved locally', 'success'); });
+    addon.saveData({ apiKey: key, model: selectedModel }).then(() => { showToast('Settings saved', 'success'); updateStatus('connected', 'Settings saved'); }).catch(err => { console.log('Wealthica saveData failed, using localStorage'); try { localStorage.setItem('wealthica_ai_key', key); localStorage.setItem('wealthica_ai_prefs', JSON.stringify({ model: selectedModel })); } catch(e) {} showToast('Settings saved locally', 'success'); });
+    // Save investor profile separately (non-sensitive)
+    try { localStorage.setItem('wealthica_ai_profile', JSON.stringify(profile)); } catch(e) {}
   } else {
-    try { localStorage.setItem('wealthica_ai_settings', JSON.stringify({ apiKey: key, investorProfile: profile, model: selectedModel })); } catch(e) {}
+    try { localStorage.setItem('wealthica_ai_key', key); localStorage.setItem('wealthica_ai_prefs', JSON.stringify({ model: selectedModel })); localStorage.setItem('wealthica_ai_profile', JSON.stringify(profile)); } catch(e) {}
     showToast('Settings saved locally', 'success'); updateStatus('connected', 'Settings set');
   }
   document.getElementById('settingsPanel').classList.remove('visible');
@@ -4433,7 +4435,7 @@ async function runTabAI(tab) {
     aiResponseCache[tab] = renderMarkdown(fullText);
   } catch(err) {
     resEl.innerHTML = '<div style="color:var(--red)"><strong>Error:</strong> ' + escapeHtml(err.message) + '</div>';
-    showToast('AI analysis failed: ' + err.message, 'error');
+    showToast('AI analysis failed', 'error');
   }
 
   btn.disabled = false;
@@ -4503,12 +4505,23 @@ function loadDemoData() {
   populateAccountFilter();
   // Restore settings from localStorage in demo mode
   try {
-    const saved = localStorage.getItem('wealthica_ai_settings');
-    if (saved) {
-      const s = JSON.parse(saved);
-      if (s.apiKey) { apiKey = s.apiKey; document.getElementById('apiKeyInput').value = apiKey; }
-      if (s.investorProfile) loadInvestorProfile(s.investorProfile);
-      if (s.model) document.getElementById('modelSelect').value = s.model;
+    // Support new separated storage format
+    const savedKey = localStorage.getItem('wealthica_ai_key');
+    if (savedKey) { apiKey = savedKey; document.getElementById('apiKeyInput').value = apiKey; }
+    const savedPrefs = localStorage.getItem('wealthica_ai_prefs');
+    if (savedPrefs) { const p = JSON.parse(savedPrefs); if (p.model) document.getElementById('modelSelect').value = p.model; }
+    const savedProfile = localStorage.getItem('wealthica_ai_profile');
+    if (savedProfile) loadInvestorProfile(JSON.parse(savedProfile));
+    // Migrate from old combined format
+    if (!savedKey) {
+      const legacy = localStorage.getItem('wealthica_ai_settings');
+      if (legacy) {
+        const s = JSON.parse(legacy);
+        if (s.apiKey) { apiKey = s.apiKey; document.getElementById('apiKeyInput').value = apiKey; localStorage.setItem('wealthica_ai_key', s.apiKey); }
+        if (s.investorProfile) { loadInvestorProfile(s.investorProfile); localStorage.setItem('wealthica_ai_profile', JSON.stringify(s.investorProfile)); }
+        if (s.model) { document.getElementById('modelSelect').value = s.model; localStorage.setItem('wealthica_ai_prefs', JSON.stringify({ model: s.model })); }
+        localStorage.removeItem('wealthica_ai_settings');
+      }
     }
   } catch(e) {}
   renderAllTabs();
@@ -4672,7 +4685,7 @@ function loadTestPortfolio(name) {
   populateAccountFilter();
   renderAllTabs();
   document.getElementById('btnAnalyze').disabled = !apiKey;
-  console.log('Loaded test portfolio: ' + name + ' (' + positions.length + ' positions, $' + tv.toLocaleString() + ' total)');
+  console.log('Loaded test portfolio: ' + name + ' (' + positions.length + ' positions)');
 }
 
 // Run all 10 test portfolios and log any rendering issues
