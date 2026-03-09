@@ -975,9 +975,6 @@
     <h3 class="section-title"><span class="st-icon red">&#9888;</span> Risk Factors</h3>
     <div class="risk-factors" id="riskFactors"></div>
 
-    <hr class="section-divider">
-    <h3 class="section-title"><span class="st-icon yellow">&#9741;</span> Correlation Analysis</h3>
-    <div class="chart-card"><h3>High Correlation Warnings</h3><div id="corrMatrixWrap" style="overflow-x:auto"></div></div>
     <div style="margin-top:20px">
       <button class="tab-ai-btn" id="aiBtn-risk" onclick="runTabAI('risk')">
         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polygon points="5 3 19 12 5 21 5 3"/></svg>
@@ -1226,7 +1223,7 @@ function renderActiveTab() {
     case 'holdings': renderHoldingsTab(); if (holdingsView === 'table') renderHoldingsTable(); break;
     case 'sectors': renderSectors(); break;
     case 'performance': renderPerformance(); break;
-    case 'risk': renderRisk(); renderCorrelationMatrix(); break;
+    case 'risk': renderRisk(); break;
     case 'region': renderRegion(); break;
     case 'models': { const _stats = renderModels(); renderStressTest(_stats); } break;
     case 'insights': renderInsightsTab(); break;
@@ -2190,8 +2187,12 @@ function inferAssetClass(pos) {
   const category = (pos.category || pos.security?.category || '').toLowerCase();
 
   // 0. Detect bare currency codes as cash (CAD, USD, EUR, GBP, etc.)
+  //    But skip if the position has a real security name (e.g., CAD = Colonial Coal is a stock, not cash)
   const currencies = ['CAD','USD','EUR','GBP','JPY','CHF','AUD','NZD','HKD','SGD','SEK','NOK','DKK','CNY','MXN','BRL','INR','KRW','TWD','ZAR'];
-  if (currencies.includes(sym) || /^[A-Z]{3}\.FX$/i.test(sym)) return 'Cash';
+  if (currencies.includes(sym) || /^[A-Z]{3}\.FX$/i.test(sym)) {
+    const hasStockName = name && !/(cash|currency|dollar|euro|pound|yen|franc|money\s*market)/i.test(name) && name !== sym.toLowerCase();
+    if (!hasStockName) return 'Cash';
+  }
 
   // 1. Use Wealthica's class / category — short-circuit for non-equity types only
   //    For equity, fall through to detailed ETF/stock pattern matching below
@@ -2985,9 +2986,7 @@ function renderRisk() {
   [
     { label: 'Diversification', value: scores.diversification, color: scoreColor(scores.diversification) },
     { label: 'Risk Mgmt', value: scores.riskManagement, color: scoreColor(scores.riskManagement) },
-    { label: 'Performance', value: scores.performance, color: scoreColor(scores.performance) },
     { label: 'Tax Efficiency', value: scores.taxEfficiency, color: scoreColor(scores.taxEfficiency) },
-    { label: 'Income', value: scores.income, color: scoreColor(scores.income) },
     { label: 'Overall Health', value: scores.health, color: scoreColor(scores.health) },
   ].forEach(s => {
     const d = document.createElement('div');
