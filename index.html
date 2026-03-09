@@ -821,6 +821,9 @@
         <h2>Portfolio Health Score</h2>
         <p id="healthSummary">Load your portfolio to see your health score and actionable insights.</p>
         <div class="sub-scores" id="subScores" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:8px;margin-top:12px;"></div>
+        <label style="display:inline-flex;align-items:center;gap:6px;margin-top:8px;font-size:12px;color:var(--text-muted);cursor:pointer;user-select:none">
+          <input type="checkbox" id="incomeToggle" onchange="toggleIncomeScore(this.checked)" style="margin:0;cursor:pointer"> Include Income Score in Health
+        </label>
       </div>
     </div>
 
@@ -1171,6 +1174,7 @@ let filteredPositions = [];
 let currentOptions = {};
 let positionRatings = {};
 let riskTolerance = 5;
+let includeIncome = false;
 let activeTab = 'overview';
 let availableGroups = [];
 let selectedGroups = []; // empty = all groups selected
@@ -2302,7 +2306,7 @@ let _scoresCache = null;
 let _scoresCacheKey = '';
 function computeScores() {
   // Simple cache: invalidate when positions or risk tolerance change
-  const cacheKey = filteredPositions.length + ':' + (filteredPositions[0]?.security?.symbol || '') + ':' + riskTolerance + ':' + (portfolioData.totalValue || 0);
+  const cacheKey = filteredPositions.length + ':' + (filteredPositions[0]?.security?.symbol || '') + ':' + riskTolerance + ':' + (portfolioData.totalValue || 0) + ':' + includeIncome;
   if (_scoresCache && _scoresCacheKey === cacheKey) return _scoresCache;
   const positions = aggregatePositions(filteredPositions);
   const totalVal = positions.reduce((s,p) => s + (p.market_value || p.value || 0), 0);
@@ -2459,14 +2463,10 @@ function computeScores() {
     ? incomeWeight.toFixed(1) + '% of portfolio in income-oriented holdings (target ~' + targetIncome + '% for your risk profile). ' + incomePositions.length + ' income-generating positions.'
     : 'Very low income allocation (' + incomeWeight.toFixed(1) + '%). Portfolio is growth-oriented. ' + (riskTolerance <= 5 ? 'Consider adding dividend ETFs or bond allocation.' : 'Appropriate for aggressive growth strategy.');
 
-  // ── Overall Health Score ──
-  const health = clamp(Math.round(
-    diversification * 0.25 +
-    riskManagement * 0.25 +
-    performance * 0.20 +
-    taxEfficiency * 0.15 +
-    incomeScore * 0.15
-  ));
+  // ── Overall Health Score ── (when income excluded, redistribute its 15% weight proportionally)
+  const health = includeIncome
+    ? clamp(Math.round(diversification * 0.25 + riskManagement * 0.25 + performance * 0.20 + taxEfficiency * 0.15 + incomeScore * 0.15))
+    : clamp(Math.round(diversification * (0.25/0.85) + riskManagement * (0.25/0.85) + performance * (0.20/0.85) + taxEfficiency * (0.15/0.85)));
 
   const weakAreas = [];
   if (diversification < 60) weakAreas.push('diversification (' + diversification + ')');
@@ -2520,6 +2520,12 @@ function scoreLabel(score) {
   if (score >= 40) return 'Fair';
   if (score >= 20) return 'Needs Work';
   return 'Critical';
+}
+
+function toggleIncomeScore(checked) {
+  includeIncome = checked;
+  _scoresCache = null; // invalidate cache
+  renderSummary();
 }
 
 // ─── Rendering Helpers ───────────────────────────────────────────────────────
@@ -2604,13 +2610,14 @@ function renderSummary() {
   // Render compact sub-scores in banner
   const subGrid = document.getElementById('subScores');
   subGrid.innerHTML = '';
-  [
+  const subItems = [
     { label: 'Diversification', value: scores.diversification },
     { label: 'Risk', value: scores.riskManagement },
     { label: 'Performance', value: scores.performance },
     { label: 'Tax', value: scores.taxEfficiency },
-    { label: 'Income', value: scores.income },
-  ].forEach(sub => {
+  ];
+  if (includeIncome) subItems.push({ label: 'Income', value: scores.income });
+  subItems.forEach(sub => {
     const d = document.createElement('div');
     d.style.cssText = 'background:var(--bg-primary);border-radius:6px;padding:6px 10px;';
     d.innerHTML = '<div style="font-size:10px;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.3px">' + sub.label + '</div>' +
@@ -2622,13 +2629,19 @@ function renderSummary() {
   // Render detailed score breakdown cards
   const breakdownGrid = document.getElementById('scoreBreakdown');
   breakdownGrid.innerHTML = '';
-  [
+  const breakdownItems = includeIncome ? [
     { label: 'Diversification', weight: '25%', value: scores.diversification, desc: scores.diversificationDetail, tab: 'sectors' },
     { label: 'Risk Management', weight: '25%', value: scores.riskManagement, desc: scores.riskDetail, tab: 'risk' },
     { label: 'Performance', weight: '20%', value: scores.performance, desc: scores.performanceDetail, tab: 'performance' },
     { label: 'Tax Efficiency', weight: '15%', value: scores.taxEfficiency, desc: scores.taxDetail, tab: 'insights' },
     { label: 'Income Potential', weight: '15%', value: scores.income, desc: scores.incomeDetail, tab: 'insights' },
-  ].forEach(item => {
+  ] : [
+    { label: 'Diversification', weight: '29%', value: scores.diversification, desc: scores.diversificationDetail, tab: 'sectors' },
+    { label: 'Risk Management', weight: '29%', value: scores.riskManagement, desc: scores.riskDetail, tab: 'risk' },
+    { label: 'Performance', weight: '24%', value: scores.performance, desc: scores.performanceDetail, tab: 'performance' },
+    { label: 'Tax Efficiency', weight: '18%', value: scores.taxEfficiency, desc: scores.taxDetail, tab: 'insights' },
+  ];
+  breakdownItems.forEach(item => {
     const color = scoreColor(item.value);
     const grade = scoreLabel(item.value);
     const gradeBg = item.value >= 70 ? 'var(--green-bg)' : item.value >= 40 ? 'var(--yellow-bg)' : 'var(--red-bg)';
