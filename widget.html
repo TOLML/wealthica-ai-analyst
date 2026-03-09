@@ -177,6 +177,20 @@
   .open-app-btn:active { transform: translateY(0) scale(0.98); box-shadow: 0 2px 8px rgba(99, 102, 241, 0.3); }
   .open-app-btn svg { width: 10px; height: 10px; }
 
+  /* Income toggle */
+  .income-toggle {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    margin-bottom: 4px;
+    padding: 2px 6px;
+    font-size: 9px;
+    color: var(--text-muted);
+    cursor: pointer;
+    user-select: none;
+  }
+  .income-toggle input { margin: 0; width: 12px; height: 12px; cursor: pointer; }
+
   /* Loading skeleton */
   .skeleton { background: linear-gradient(90deg, var(--border) 25%, var(--bg-card-hover) 50%, var(--border) 75%); background-size: 200% 100%; animation: shimmer 1.5s infinite; border-radius: 6px; }
   @keyframes shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
@@ -256,6 +270,12 @@
   </div>
 
 
+  <!-- Income toggle -->
+  <label class="income-toggle">
+    <input type="checkbox" id="incomeToggle" onchange="toggleIncome(this.checked)">
+    Include Income Score
+  </label>
+
   <!-- Open Full App -->
   <button class="open-app-btn" id="openAppBtn" onclick="openFullApp()">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -276,53 +296,135 @@ let portfolioData = { positions: [], institutions: [], totalValue: 0, totalBook:
 let filteredPositions = [];
 let portfolioHistory = [];
 let riskTolerance = 5;
+let includeIncome = false;
 
-// ─── Correlated Asset Map ────────────────────────────────────────────────────
-const CORRELATED_ASSETS = {
-  'BTC': 'BTC', 'BTCC.B.TO': 'BTC', 'BTCX.B.TO': 'BTC', 'EBIT.TO': 'BTC', 'FBTC': 'BTC', 'IBIT': 'BTC', 'GBTC': 'BTC', 'BTCC.TO': 'BTC',
-  'ETH': 'ETH', 'ETHX.B.TO': 'ETH',
-  'SPY': 'SP500', 'VOO': 'SP500', 'IVV': 'SP500', 'VFV.TO': 'SP500', 'ZSP.TO': 'SP500', 'XUS.TO': 'SP500', 'SPX': 'SP500',
-  'QQQ': 'NASDAQ', 'QQQM': 'NASDAQ', 'QQC.TO': 'NASDAQ', 'ZNQ.TO': 'NASDAQ', 'XQQ.TO': 'NASDAQ',
-  'XIU.TO': 'TSX60', 'ZCN.TO': 'TSX', 'XIC.TO': 'TSX', 'VCN.TO': 'TSX',
-  'VTI': 'USTOTAL', 'ITOT': 'USTOTAL',
-  'XEQT.TO': 'GLOBALEQ', 'VEQT.TO': 'GLOBALEQ',
-  'XGRO.TO': 'GLOBALBAL', 'VGRO.TO': 'GLOBALBAL',
-  'XBAL.TO': 'GLOBALCONS', 'VBAL.TO': 'GLOBALCONS',
-  'XBB.TO': 'CABOND', 'ZAG.TO': 'CABOND', 'VAB.TO': 'CABOND',
-  'XEF.TO': 'INTLEQ', 'VIU.TO': 'INTLEQ', 'ZEA.TO': 'INTLEQ', 'VXUS': 'INTLEQ', 'IXUS': 'INTLEQ',
-  'XEC.TO': 'EMEQ', 'VEE.TO': 'EMEQ', 'VWO': 'EMEQ', 'IEMG': 'EMEQ',
-  'GLD': 'GOLD', 'IAU': 'GOLD', 'CGL.TO': 'GOLD', 'MNT.TO': 'GOLD',
-};
-function normalizeAsset(sym) { return CORRELATED_ASSETS[sym] || sym; }
-
-// ─── Asset Classification ────────────────────────────────────────────────────
-function inferAssetClass(p) {
-  const sym = (p.security?.symbol || p.symbol || '').toUpperCase();
-  const name = (p.security?.name || p.name || '').toLowerCase();
-  const type = (p.security?.type || p.type || '').toLowerCase();
-  if (type === 'cryptocurrency' || /^(btc|eth|sol|ada|dot|matic|avax|link|uni|aave|doge|shib)/i.test(sym) || /bitcoin|ethereum|crypto/i.test(name)) return 'Crypto';
-  if (/bond|fixed|zag|xbb|vab|tlt|ief|agg|bnd|zcb|cbo|xsh|zfl|zst|zsb|hbb|clf/i.test(sym) || /bond|fixed income|treasury|t-bill/i.test(name)) return 'Fixed Income';
-  if (/gld|iau|slv|cgl|mnt|pdbc|gsg|dba|dbc|com/i.test(sym) || /gold|silver|commodity|commodities/i.test(name)) return 'Commodities';
-  if (/reit|vno|o\b|nnn|xre|zre|vre|hr\.un|rei\.un|ap\.un|car\.un|iip\.un|d\.un|sru\.un|crt\.un/i.test(sym) || /real estate|reit/i.test(name)) return 'Real Estate';
-  if (/cash|hisa|csav|mny|psa|hsav|^bil$|^sgov$/i.test(sym) || /cash|money market|savings|high interest/i.test(name) || type === 'cash') return 'Cash';
-  if (/cpd|zpr|hpf|zpf/i.test(sym) || /preferred/i.test(name)) return 'Preferred Shares';
-  if (/uti|fortis|emera|hydro|cu\.|aqn|bep|enb|trp|ppl|key|su\.|cnq|vet|cpg|tvk|wcp|ath|meg|bir/i.test(sym)) return sym.match(/enb|trp|ppl|su\.|cnq|vet|cpg|tvk|wcp|ath|meg|bir/i) ? 'Energy' : 'Utilities';
-  const finSyms = /ry\.|td\.|bns|bmo|cm\.|na\.|mfc|slf|gwo|ial|pow|igm|x\.|cf\.|slr/i;
-  if (finSyms.test(sym)) return 'Financials';
-  return 'Equity';
+// ─── Correlated Asset Normalization ──────────────────────────────────────────
+function normalizeAsset(sym) {
+  const s = sym.toUpperCase().replace(/\.(TO|TSX|V|VN|CN)$/i, '');
+  if (/^(BTCC|BTCX|BTCQ|FBTC|IBIT|GBTC|BITO|BTCZ|BTCY|QBTC)(\.B)?$/.test(s) || s === 'BTC' || /^BTC\b/.test(s)) return 'BTC';
+  if (/^(ETHX|ETHY|ETHQ|ETHA|FETH)(\.B)?$/.test(s) || s === 'ETH' || /^ETH\b/.test(s)) return 'ETH';
+  if (/^(VFV|VSP|ZSP|HXS|XUS)(\.B)?$/.test(s) || ['SPY','VOO','IVV','SPLG'].includes(s)) return 'SP500';
+  if (/^(XIU|XIC|VCN|ZCN|HXT)(\.B)?$/.test(s)) return 'TSX_INDEX';
+  if (/^(XQQ|ZQQ|QQC|HXQ)(\.B)?$/.test(s) || ['QQQ','QQQM','TQQQ'].includes(s)) return 'QQQ';
+  if (/^(XEF|VIU|ZEA)(\.B)?$/.test(s) || ['EFA','VEA','IEFA','VXUS','IXUS'].includes(s)) return 'INTL_DEV';
+  if (/^(XEC|VEE|ZEM)(\.B)?$/.test(s) || ['EEM','VWO','IEMG'].includes(s)) return 'EM';
+  return s;
 }
 
 // ─── Region Inference ────────────────────────────────────────────────────────
-function inferRegion(p) {
-  const sym = (p.security?.symbol || p.symbol || '').toUpperCase();
-  const cur = (p.security?.currency || p.currency || '').toUpperCase();
-  if (/\.TO$|\.V$|\.CN$|\.NE$/.test(sym)) return 'Canada';
-  if (cur === 'CAD' && !/\./.test(sym)) return 'Canada';
-  if (cur === 'USD') return 'United States';
-  if (/xef|viu|zea|eafe/i.test(sym)) return 'International';
-  if (/xec|vee|vwo|iemg|eem/i.test(sym)) return 'Emerging Markets';
-  if (/xeqt|veqt|xgro|vgro|xbal|vbal/i.test(sym)) return 'Global';
-  return 'Other';
+function inferRegion(pos) {
+  const symbol = typeof pos === 'string' ? pos : (pos?.security?.symbol || pos?.symbol || '');
+  const category = typeof pos === 'string' ? '' : (pos?.category || '').toLowerCase();
+  const currency = typeof pos === 'string' ? '' : (pos?.security?.currency || pos?.currency || '').toUpperCase();
+  const exchange = typeof pos === 'string' ? '' : (pos?.security?.exchange || pos?.security?.stock_exchange || '').toUpperCase();
+  const secType = typeof pos === 'string' ? '' : (pos?.security?.type || pos?.type || '').toLowerCase();
+  if (!symbol && !category) return 'Unknown';
+  if (category) {
+    if (/canad/i.test(category)) return 'Canada';
+    if (/\bus\b|united states|american/i.test(category)) return 'United States';
+    if (/international|global|emerging|europe|asia|japan|china|india|latin|eafe|frontier|developing/i.test(category)) return 'International';
+    if (/crypto|digital/i.test(category)) return 'Crypto';
+  }
+  const s = symbol.toUpperCase();
+  const intlETFs = ['XEF.TO','VIU.TO','XEC.TO','VEE.TO','ZEA.TO','VXUS','IXUS','EFA','EEM','VEA','VWO','IEFA','IEMG'];
+  if (intlETFs.includes(s)) return 'International';
+  const cryptos = ['BTC','ETH','SOL','ADA','DOT','DOGE','XRP','LINK','AVAX','MATIC','USDT','USDC','BNB','LTC','UNI','ATOM','NEAR','APT','ARB','SHIB','PEPE'];
+  if (cryptos.includes(s) || /^(BTC|ETH|SOL|XRP)\.(X|USD|CAD)$/.test(s)) return 'Crypto';
+  if (secType === 'crypto' || secType === 'cryptocurrency') return 'Crypto';
+  if (/\.(TO|TSX|V|VN|CN)$/i.test(s)) return 'Canada';
+  if (/\.(L|LSE|PA|DE|AS|MI|MC|SW|HK|SS|SZ|T|AX)$/i.test(s)) return 'International';
+  if (exchange) {
+    if (/TSX|TSE|CVE|NEO|CSE|XTSE|XCNQ|CNSX|TSXV/i.test(exchange)) return 'Canada';
+    if (/NYSE|NASDAQ|NYSEARCA|NYSEMKT|BATS|XNYS|XNAS|ARCX/i.test(exchange)) return 'United States';
+    if (/LSE|FRA|EPA|TYO|HKG|ASX|AMS|STO|HEL|BIT|BME/i.test(exchange)) return 'International';
+  }
+  if (currency === 'CAD') return 'Canada';
+  if (currency === 'USD') return 'United States';
+  if (currency === 'EUR' || currency === 'GBP' || currency === 'JPY' || currency === 'AUD' || currency === 'CHF' || currency === 'HKD' || currency === 'CNY') return 'International';
+  if (currency && currency !== 'CAD' && currency !== 'USD') return 'International';
+  return 'Unknown';
+}
+
+// ─── Asset Classification ────────────────────────────────────────────────────
+function inferAssetClass(pos) {
+  const sym = (pos.security?.symbol || pos.symbol || '').toUpperCase();
+  const name = (pos.security?.name || pos.name || '').toLowerCase();
+  const type = (pos.security?.type || pos.type || '').toLowerCase();
+  const assetClass = (pos.class || pos.security?.asset_class || '').toLowerCase();
+  const category = (pos.category || pos.security?.category || '').toLowerCase();
+  const currencies = ['CAD','USD','EUR','GBP','JPY','CHF','AUD','NZD','HKD','SGD','SEK','NOK','DKK','CNY','MXN','BRL','INR','KRW','TWD','ZAR'];
+  if (currencies.includes(sym) || /^[A-Z]{3}\.FX$/i.test(sym)) {
+    const hasStockName = name && !/(cash|currency|dollar|euro|pound|yen|franc|money\s*market)/i.test(name) && name !== sym.toLowerCase();
+    if (!hasStockName) return 'Cash';
+  }
+  if (assetClass && !/equity|stock/i.test(assetClass)) {
+    if (/crypto|digital/i.test(assetClass)) return 'Crypto';
+    if (/fixed.income|bond|debt/i.test(assetClass)) return 'Fixed Income';
+    if (/real.estate|reit/i.test(assetClass)) return 'Real Estate';
+    if (/cash|money.market/i.test(assetClass)) return 'Cash';
+    if (/commodity/i.test(assetClass)) return 'Commodities';
+    if (/alternative/i.test(assetClass)) return 'Alternatives';
+  }
+  if (type === 'crypto' || type === 'cryptocurrency') return 'Crypto';
+  if (type === 'bond' || type === 'fixed-income') return 'Fixed Income';
+  if (type === 'cash' || type === 'money-market') return 'Cash';
+  if (type === 'commodity') return 'Commodities';
+  const cryptoList = ['BTC','ETH','SOL','ADA','DOT','DOGE','XRP','LINK','AVAX','MATIC','USDT','USDC','BNB','LTC','UNI','ATOM','NEAR','APT','ARB','OP','FTM','ALGO','XLM','VET','HBAR','FIL','ICP','SAND','MANA','AXS','CRO','SHIB','PEPE'];
+  if (cryptoList.includes(sym) || /^(BTC|ETH|SOL|XRP)\.(X|USD|CAD)$/.test(sym)) return 'Crypto';
+  if (/^(XEQT|VEQT)\.(TO|TSX)$/.test(sym) || ['VT','VTI','ITOT','ACWI'].includes(sym)) return 'Diversified Equity';
+  if (/^(XGRO|VGRO)\.(TO|TSX)$/.test(sym)) return 'Diversified Equity';
+  if (/^(XBAL|VBAL|XCNS|VCNS|XINC|VRIF)\.(TO|TSX)$/.test(sym)) return 'Diversified Balanced';
+  if (name.includes('all-in-one') || name.includes('all in one') || (name.includes('asset allocation') && name.includes('etf'))) return 'Diversified Balanced';
+  if (/^(VFV|VSP|ZSP|HXS|XUS)\.(TO|TSX)$/.test(sym) || ['SPY','VOO','IVV','QQQ','DIA','IWM','RSP'].includes(sym)) return 'US Equity Index';
+  if (/^(XIU|XIC|VCN|ZCN|HXT)\.(TO|TSX)$/.test(sym)) return 'Canadian Equity Index';
+  if (name.includes('bond') || name.includes('fixed income') || name.includes('aggregate') || name.includes('treasury') || name.includes('income fund') || name.includes('money market') || name.includes('savings')) return 'Fixed Income';
+  if (/^(XBB|ZAG|VAB|ZDB|XSB|ZST|VSB|CLF|PSA|CSAV)\.(TO|TSX)$/.test(sym) || ['BND','AGG','TLT','HYG','LQD','SHY','IEF','VCIT','VCSH','BSV'].includes(sym)) return 'Fixed Income';
+  if (name.includes('reit') || name.includes('real estate') || name.includes('property') || /\.UN\.(TO|TSX)$/.test(sym)) return 'Real Estate';
+  if (/^(XRE|ZRE|VRE)\.(TO|TSX)$/.test(sym) || ['VNQ','XLRE','IYR','SCHH','RWR'].includes(sym)) return 'Real Estate';
+  return inferEquitySector(sym, name, category);
+}
+
+function inferEquitySector(sym, name, category) {
+  if (category) {
+    if (/tech/i.test(category)) return 'Technology';
+    if (/financ|bank/i.test(category)) return 'Financials';
+    if (/energy|oil|gas/i.test(category)) return 'Energy';
+    if (/health|pharma|biotech/i.test(category)) return 'Healthcare';
+    if (/consumer.disc|retail/i.test(category)) return 'Consumer Discretionary';
+    if (/consumer.stap/i.test(category)) return 'Consumer Staples';
+    if (/industrial|aerospace|defense/i.test(category)) return 'Industrials';
+    if (/material|mining|metal|gold|silver/i.test(category)) return 'Materials';
+    if (/utilit/i.test(category)) return 'Utilities';
+    if (/telecom|communicat/i.test(category)) return 'Communications';
+    if (/real.estate|reit/i.test(category)) return 'Real Estate';
+    if (/international|emerging|eafe|europe|asia|japan|china|frontier|developing/i.test(category)) return 'International Equity';
+    if (/global|world|all.country/i.test(category)) return 'Diversified Equity';
+  }
+  if (/\b(tech|software|semiconductor|chip|cloud|cyber|data|digital|ai |artificial|compute|intel|microsoft|apple|google|meta |nvidia|amd |adobe|salesforce|oracle|sap |ibm )\b/.test(name) || /nasdaq|information tech/i.test(name)) return 'Technology';
+  if (/^(XIT|ZQQ|TEC|XQQ|SHOP|OTEX|CSU|DCBO|KXS|LSPD)\.(TO|TSX)$/.test(sym) || ['QQQ','XLK','VGT','ARKK','SMH','SOXX','IGV','AAPL','MSFT','NVDA','GOOGL','GOOG','META','AMZN','CRM','ADBE','ORCL','INTC','AMD','AVGO','CSCO','TXN'].includes(sym)) return 'Technology';
+  if (/\b(bank|financ|insurance|capital market|asset manage|wealth|brokerage|credit)\b/.test(name)) return 'Financials';
+  if (/^(TD|RY|BMO|BNS|CM|NA|MFC|SLF|GWO|IFC|POW|IAG|EQB|CWB|LB)\.(TO|TSX)$/.test(sym) || /^(ZEB|ZWB|XFN)\.(TO|TSX)$/.test(sym) || ['JPM','BAC','GS','MS','WFC','C','BRK.B','V','MA','AXP','XLF','VFH','KRE'].includes(sym)) return 'Financials';
+  if (/\b(energy|oil|gas|petroleum|pipeline|natural gas|crude|drilling|upstream|midstream|downstream)\b/.test(name)) return 'Energy';
+  if (/^(ENB|TRP|SU|CNQ|CVE|IMO|HSE|PPL|KEY|IPL|MEG|WCP|ARX|TVE|BIR|PEY)\.(TO|TSX)$/.test(sym) || /^(XEG|ZEO)\.(TO|TSX)$/.test(sym) || ['XLE','VDE','OIH','XOP','FENY'].includes(sym)) return 'Energy';
+  if (/\b(health|pharma|biotech|medical|hospital|therapeut|drug|diagnostic|genomic)\b/.test(name)) return 'Healthcare';
+  if (['XLV','VHT','IBB','XBI','ARKG'].includes(sym) || /^(ZUH|XHC)\.(TO|TSX)$/.test(sym)) return 'Healthcare';
+  if (/\b(consumer discret|retail|auto|restaurant|hotel|leisure|apparel|luxury|e-commerce|amazon|tesla|home depot|nike)\b/.test(name)) return 'Consumer Discretionary';
+  if (['XLY','VCR','AMZN','TSLA','HD','NKE','MCD','SBUX','TJX','LOW'].includes(sym)) return 'Consumer Discretionary';
+  if (/\b(consumer staple|food|beverage|grocery|household|tobacco|personal care|procter|costco|walmart|coca|pepsi)\b/.test(name)) return 'Consumer Staples';
+  if (['XLP','VDC','PG','KO','PEP','COST','WMT'].includes(sym) || /^(ATD|L|MRU|SAP|EMP\.A)\.(TO|TSX)$/.test(sym)) return 'Consumer Staples';
+  if (/\b(industrial|aerospace|defense|railway|railroad|transport|logistics|machin|equipment|construction|waste|infrastructure)\b/.test(name)) return 'Industrials';
+  if (/^(CNR|CP|CAE|WSP|TFI|GFL|SNC|STN|RBA|ATA)\.(TO|TSX)$/.test(sym) || ['XLI','VIS','CAT','BA','HON','UPS','GE','MMM','LMT','RTX'].includes(sym)) return 'Industrials';
+  if (/\b(gold|silver|mining|metal|copper|lithium|iron|steel|chemical|fertilizer|lumber|timber|material|resource)\b/.test(name)) return 'Materials';
+  if (/^(ABX|NTR|FNV|AEM|K |WFG|CCL|LUN|FM |HBM|ERO|CS |TKO|AGI|WPM|PAAS|FR )\.(TO|TSX)$/.test(sym) || /^(XGD|XMA|ZGD)\.(TO|TSX)$/.test(sym) || ['GLD','IAU','SLV','GDX','GDXJ','XLB','XME','NEM'].includes(sym)) return 'Materials';
+  if (/\b(utilit|electric|power|water|gas distribution|renewable|solar|wind|hydro|nuclear)\b/.test(name)) return 'Utilities';
+  if (/^(FTS|EMA|H |AQN|CPX|BEP\.UN|NPI|INE|TA |ALA)\.(TO|TSX)$/.test(sym) || ['XLU','VPU','NEE','DUK','SO','AEP'].includes(sym)) return 'Utilities';
+  if (/\b(telecom|communicat|media|entertainment|streaming|wireless|cable|broadcast|disney|netflix|google|meta |alphabet|comcast)\b/.test(name)) return 'Communications';
+  if (/^(T|BCE|RCI\.B|QBR\.B|SJR\.B|CGO)\.(TO|TSX)$/.test(sym) || ['XLC','VOX','GOOGL','META','DIS','NFLX','CMCSA','TMUS','VZ','T'].includes(sym)) return 'Communications';
+  if (/\b(international|emerging|global|world|eafe|europe|asia|japan|china|india|latin|frontier)\b/.test(name)) return 'International Equity';
+  if (/^(XEF|VIU|XEC|VEE|ZEA|ZEM|XEM|VXC|ZDM)\.(TO|TSX)$/.test(sym) || ['VXUS','IXUS','EFA','EEM','VEA','VWO','IEMG','ACWX'].includes(sym)) return 'International Equity';
+  if (/etf|fund/i.test(name) && !name.includes('bond')) return 'Equity Fund';
+  if (/preferred|pref/i.test(name)) return 'Preferred Shares';
+  return 'Equity';
 }
 
 // ─── Aggregation ─────────────────────────────────────────────────────────────
@@ -331,8 +433,8 @@ function aggregatePositions(positions) {
   positions.forEach(p => {
     const sym = (p.security?.symbol || p.symbol || 'UNKNOWN').toUpperCase();
     if (!map[sym]) { map[sym] = { ...p, market_value: 0, book_value: 0, quantity: 0 }; }
-    map[sym].market_value += (p.market_value || p.value || 0);
-    map[sym].book_value += (p.book_value || p.market_value || p.value || 0);
+    map[sym].market_value += (p.market_value != null ? p.market_value : (p.value || 0));
+    map[sym].book_value += (p.book_value != null ? p.book_value : (p.market_value || p.value || 0));
     map[sym].quantity += (p.quantity || 0);
   });
   return Object.values(map);
@@ -347,7 +449,7 @@ function computeScores() {
   if (!positions.length || !totalVal) return null;
 
   const weights = positions.map(p => (p.market_value || p.value || 0) / totalVal);
-  const totalBook = positions.reduce((s, p) => s + (p.book_value || p.market_value || p.value || 0), 0);
+  const totalBook = positions.reduce((s, p) => s + ((p.book_value != null ? p.book_value : (p.market_value || p.value || 0))), 0);
   const totalReturn = totalBook > 0 ? ((totalVal - totalBook) / totalBook) * 100 : 0;
 
   // Correlated asset grouping
@@ -396,7 +498,7 @@ function computeScores() {
   // 3. Performance
   const posReturns = positions.map(p => {
     const mv = p.market_value || p.value || 0;
-    const bv = p.book_value || mv;
+    const bv = (p.book_value != null ? p.book_value : mv);
     return bv > 0 ? ((mv - bv) / bv) * 100 : 0;
   });
   const avgReturn = posReturns.length > 0 ? posReturns.reduce((s, r) => s + r, 0) / posReturns.length : 0;
@@ -426,7 +528,8 @@ function computeScores() {
       if (weight < 0.02) return;
       if (cur === 'USD' && !isRRSP && (sector.includes('Equity') || sector === 'Financials' || sector === 'Technology' || sector === 'Healthcare')) { taxScore -= 2; }
       if (isRRSP && sector === 'Crypto') { taxScore -= 4; }
-      const gl = (p.market_value || p.value || 0) - (p.book_value || 0);
+      const bvTax = (p.book_value != null ? p.book_value : (p.market_value || p.value || 0));
+      const gl = (p.market_value || p.value || 0) - bvTax;
       if (gl < -2000 && isRegistered) { taxScore -= 2; }
     });
   });
@@ -444,10 +547,10 @@ function computeScores() {
   const incomeGap = Math.abs(incomeWeight - targetIncome);
   const incomeScore = clamp(Math.round(100 - incomeGap * 2.5));
 
-  // Overall
-  const health = clamp(Math.round(
-    diversification * 0.25 + riskManagement * 0.25 + performance * 0.20 + taxEfficiency * 0.15 + incomeScore * 0.15
-  ));
+  // Overall — when income is excluded, redistribute its 15% weight proportionally
+  const health = includeIncome
+    ? clamp(Math.round(diversification * 0.25 + riskManagement * 0.25 + performance * 0.20 + taxEfficiency * 0.15 + incomeScore * 0.15))
+    : clamp(Math.round(diversification * (0.25/0.85) + riskManagement * (0.25/0.85) + performance * (0.20/0.85) + taxEfficiency * (0.15/0.85)));
 
   // Alert: biggest weakness
   const weakAreas = [];
@@ -469,6 +572,12 @@ function fmt(n) {
   return new Intl.NumberFormat('en-CA', { style: 'currency', currency: 'CAD', minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(n);
 }
 function pct(n) { return (n >= 0 ? '+' : '') + n.toFixed(1) + '%'; }
+
+function toggleIncome(checked) {
+  includeIncome = checked;
+  const scores = computeScores();
+  render(scores);
+}
 
 function scoreColor(score) {
   if (score >= 70) return 'var(--green)';
@@ -617,7 +726,7 @@ function loadPortfolio() {
     });
     portfolioData.positions = positions;
     portfolioData.totalValue = positions.reduce((s, p) => s + (p.market_value || p.value || 0), 0);
-    portfolioData.totalBook = positions.reduce((s, p) => s + (p.book_value || p.market_value || p.value || 0), 0);
+    portfolioData.totalBook = positions.reduce((s, p) => s + ((p.book_value != null ? p.book_value : (p.market_value || p.value || 0))), 0);
     filteredPositions = [...positions];
     const scores = computeScores();
     render(scores);

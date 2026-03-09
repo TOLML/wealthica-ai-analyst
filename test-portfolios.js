@@ -124,7 +124,7 @@ function computeScores(filteredPositions, riskTolerance = 5) {
 
   const weights = positions.map(p => (p.market_value || p.value || 0) / totalVal);
   const n = positions.length;
-  const totalBook = positions.reduce((s,p) => s + (p.book_value || p.market_value || p.value || 0), 0);
+  const totalBook = positions.reduce((s,p) => s + ((p.book_value != null ? p.book_value : (p.market_value || p.value || 0))), 0);
   const totalReturn = totalBook > 0 ? ((totalVal - totalBook) / totalBook) * 100 : 0;
 
   // Group correlated assets
@@ -181,7 +181,7 @@ function computeScores(filteredPositions, riskTolerance = 5) {
   // 3. Performance
   const posReturns = positions.map(p => {
     const mv = p.market_value || p.value || 0;
-    const bv = p.book_value || mv;
+    const bv = (p.book_value != null ? p.book_value : mv);
     return bv > 0 ? ((mv - bv) / bv) * 100 : 0;
   });
   const avgReturn = posReturns.reduce((s,r) => s + r, 0) / posReturns.length;
@@ -213,7 +213,8 @@ function computeScores(filteredPositions, riskTolerance = 5) {
         taxIssues.push((p.security?.symbol||'') + ' USD in non-RRSP');
       }
       if (isRRSP && sector === 'Crypto') { taxScore -= 4; }
-      const gl = (p.market_value||p.value||0) - (p.book_value||0);
+      const bvTax = (p.book_value != null ? p.book_value : (p.market_value || p.value || 0));
+      const gl = (p.market_value||p.value||0) - bvTax;
       if (gl < -2000 && isRegistered) { taxScore -= 2; }
     });
   });
