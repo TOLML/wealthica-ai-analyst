@@ -49,7 +49,7 @@
     --border-accent: #6366f1;
     --text-primary: #f1f5f9;
     --text-secondary: #94a3b8;
-    --text-muted: #64748b;
+    --text-muted: #8b99ad;
     --accent: #818cf8;
     --accent-glow: rgba(129, 140, 248, 0.15);
     --green: #34d399;
@@ -141,6 +141,7 @@
   .tab-btn { padding: 8px 16px; background: none; border: none; border-radius: 8px; color: var(--text-muted); font-family: inherit; font-size: 13px; font-weight: 500; cursor: pointer; white-space: nowrap; transition: all 0.2s; }
   .tab-btn:hover { color: var(--text-primary); background: rgba(59,130,246,0.06); }
   .tab-btn.active { color: white; background: var(--accent); box-shadow: 0 2px 8px rgba(59,130,246,0.3); transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1); transform: scale(1.02); }
+  .tab-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 
   /* Filter Bar */
   .filter-bar { display: flex; align-items: center; gap: 12px; margin-bottom: 20px; flex-wrap: wrap; }
@@ -241,7 +242,8 @@
   .summary-card::before { content: ''; position: absolute; top: 0; left: 0; bottom: 0; width: 3px; background: linear-gradient(180deg, var(--accent), var(--purple)); border-radius: 3px 0 0 3px; }
   .summary-card:hover { border-color: var(--border-accent); }
   .summary-card.clickable-card { cursor: pointer; }
-  .summary-card.clickable-card:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,0,0,0.1); border-color: var(--accent); }
+  .summary-card.clickable-card:hover, .summary-card.clickable-card:focus-visible { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,0,0,0.1); border-color: var(--accent); }
+  .summary-card.clickable-card:focus-visible, .chart-card.clickable-card:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
   .summary-card .card-arrow { position: absolute; top: 12px; right: 12px; font-size: 14px; color: var(--text-muted); opacity: 0; transition: opacity 0.2s, transform 0.2s; }
   .summary-card.clickable-card:hover .card-arrow { opacity: 1; transform: translateX(2px); }
   .summary-card .label { font-size: 11px; font-weight: 500; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-muted); margin-bottom: 6px; }
@@ -773,16 +775,16 @@
   </div>
 
   <!-- Tab Navigation -->
-  <nav class="tab-nav" id="tabNav">
-    <button class="tab-btn active" onclick="switchTab('overview')">Overview</button>
-    <button class="tab-btn" onclick="switchTab('holdings')">Holdings</button>
-    <button class="tab-btn" onclick="switchTab('performance')">Performance</button>
-    <button class="tab-btn" onclick="switchTab('sectors')">Sectors</button>
-    <button class="tab-btn" onclick="switchTab('region')">Region</button>
-    <button class="tab-btn" onclick="switchTab('risk')">Risk</button>
-    <button class="tab-btn" onclick="switchTab('models')">Risk Models</button>
-    <button class="tab-btn" onclick="switchTab('insights')">Insights</button>
-    <button class="tab-btn" onclick="switchTab('ai')">AI Planner</button>
+  <nav class="tab-nav" id="tabNav" role="tablist" aria-label="Portfolio sections">
+    <button class="tab-btn active" role="tab" aria-selected="true" aria-controls="panel-overview" data-tab="overview" tabindex="0">Overview</button>
+    <button class="tab-btn" role="tab" aria-selected="false" aria-controls="panel-holdings" data-tab="holdings" tabindex="-1">Holdings</button>
+    <button class="tab-btn" role="tab" aria-selected="false" aria-controls="panel-performance" data-tab="performance" tabindex="-1">Performance</button>
+    <button class="tab-btn" role="tab" aria-selected="false" aria-controls="panel-sectors" data-tab="sectors" tabindex="-1">Sectors</button>
+    <button class="tab-btn" role="tab" aria-selected="false" aria-controls="panel-region" data-tab="region" tabindex="-1">Region</button>
+    <button class="tab-btn" role="tab" aria-selected="false" aria-controls="panel-risk" data-tab="risk" tabindex="-1">Risk</button>
+    <button class="tab-btn" role="tab" aria-selected="false" aria-controls="panel-models" data-tab="models" tabindex="-1">Risk Models</button>
+    <button class="tab-btn" role="tab" aria-selected="false" aria-controls="panel-insights" data-tab="insights" tabindex="-1">Insights</button>
+    <button class="tab-btn" role="tab" aria-selected="false" aria-controls="panel-ai" data-tab="ai" tabindex="-1">AI Planner</button>
   </nav>
 
   <!-- Filter Bar -->
@@ -804,7 +806,7 @@
   </div>
 
   <!-- ==================== OVERVIEW TAB ==================== -->
-  <section class="tab-panel active" id="panel-overview">
+  <section class="tab-panel active" id="panel-overview" role="tabpanel" aria-label="Overview">
     <div class="tab-description" id="dashboardDescription" style="display:none">
       <h2>Portfolio Dashboard</h2>
       <p id="dashboardDescText">Your portfolio health score is calculated from 5 dimensions: Diversification (25%), Risk Management (25%), Performance (20%), Tax Efficiency (15%), and Income (15%). Scores are intentionally conservative — a score of 70+ is genuinely good. Each dimension evaluates specific metrics like position concentration (HHI index), geographic spread, win/loss ratios, account type placement, and income allocation relative to your risk profile. Use the breakdown below to see where you're strong and where you can improve.</p>
@@ -829,10 +831,10 @@
 
     <h3 class="section-title"><span class="st-icon blue">&#9776;</span> Portfolio Summary</h3>
     <div class="summary-grid" id="summaryGrid">
-      <div class="summary-card clickable-card" onclick="switchTab('performance')" title="View Performance"><div class="label">Total Value</div><div class="value" id="totalValue">--</div><div class="sub" id="totalAccounts"></div><div class="card-arrow">&#8594;</div></div>
-      <div class="summary-card clickable-card" onclick="switchTab('holdings')" title="View Holdings"><div class="label">Positions</div><div class="value" id="totalPositions">--</div><div class="sub" id="positionsSub"></div><div class="card-arrow">&#8594;</div></div>
-      <div class="summary-card clickable-card" onclick="switchTab('performance')" title="View Performance"><div class="label" id="gainLossLabel">Total Gain/Loss</div><div class="value" id="totalGainLoss">--</div><div class="sub" id="gainLossPct"></div><div class="card-arrow">&#8594;</div></div>
-      <div class="summary-card clickable-card" onclick="switchTab('holdings')" title="View Holdings"><div class="label">Top Holding</div><div class="value" id="topHolding" style="font-size:16px">--</div><div class="sub" id="topHoldingPct"></div><div class="card-arrow">&#8594;</div></div>
+      <div class="summary-card clickable-card" tabindex="0" role="button" aria-label="View Performance — Total Value" data-nav="performance"><div class="label">Total Value</div><div class="value" id="totalValue">--</div><div class="sub" id="totalAccounts"></div><div class="card-arrow">&#8594;</div></div>
+      <div class="summary-card clickable-card" tabindex="0" role="button" aria-label="View Holdings — Positions" data-nav="holdings"><div class="label">Positions</div><div class="value" id="totalPositions">--</div><div class="sub" id="positionsSub"></div><div class="card-arrow">&#8594;</div></div>
+      <div class="summary-card clickable-card" tabindex="0" role="button" aria-label="View Performance — Gain/Loss" data-nav="performance"><div class="label" id="gainLossLabel">Total Gain/Loss</div><div class="value" id="totalGainLoss">--</div><div class="sub" id="gainLossPct"></div><div class="card-arrow">&#8594;</div></div>
+      <div class="summary-card clickable-card" tabindex="0" role="button" aria-label="View Holdings — Top Holding" data-nav="holdings"><div class="label">Top Holding</div><div class="value" id="topHolding" style="font-size:16px">--</div><div class="sub" id="topHoldingPct"></div><div class="card-arrow">&#8594;</div></div>
     </div>
 
     <hr class="section-divider">
@@ -842,8 +844,8 @@
     <hr class="section-divider">
     <h3 class="section-title"><span class="st-icon green">&#9683;</span> Allocation & Top Holdings</h3>
     <div class="charts-row">
-      <div class="chart-card clickable-card" onclick="switchTab('sectors')" style="cursor:pointer" title="View Sectors"><h3>Asset Allocation <span class="card-arrow" style="opacity:0.4;font-size:12px">&#8594;</span></h3><canvas id="allocationChart"></canvas></div>
-      <div class="chart-card clickable-card" onclick="switchTab('holdings')" style="cursor:pointer" title="View Holdings"><h3>Top Holdings <span class="card-arrow" style="opacity:0.4;font-size:12px">&#8594;</span></h3><canvas id="topHoldingsChart"></canvas></div>
+      <div class="chart-card clickable-card" tabindex="0" role="button" aria-label="View Sectors — Asset Allocation chart" data-nav="sectors" style="cursor:pointer"><h3>Asset Allocation <span class="card-arrow" style="opacity:0.4;font-size:12px">&#8594;</span></h3><canvas id="allocationChart" role="img" aria-label="Asset allocation doughnut chart"></canvas></div>
+      <div class="chart-card clickable-card" tabindex="0" role="button" aria-label="View Holdings — Top Holdings chart" data-nav="holdings" style="cursor:pointer"><h3>Top Holdings <span class="card-arrow" style="opacity:0.4;font-size:12px">&#8594;</span></h3><canvas id="topHoldingsChart" role="img" aria-label="Top holdings bar chart"></canvas></div>
     </div>
 
     <hr class="section-divider">
@@ -853,7 +855,7 @@
   </section>
 
   <!-- ==================== INSIGHTS TAB ==================== -->
-  <section class="tab-panel" id="panel-insights">
+  <section class="tab-panel" id="panel-insights" role="tabpanel" aria-label="Insights">
     <div class="tab-description">
       <h2>Insights & Suggestions</h2>
       <p>Actionable recommendations to improve your portfolio based on your current holdings, allocation, and risk profile.</p>
@@ -886,7 +888,7 @@
   </section>
 
   <!-- ==================== HOLDINGS TAB ==================== -->
-  <section class="tab-panel" id="panel-holdings">
+  <section class="tab-panel" id="panel-holdings" role="tabpanel" aria-label="Holdings">
     <div class="tab-description">
       <h2>Holdings Analysis</h2>
       <p>Individual position breakdown showing market values, book values, unrealized gains/losses, and portfolio weight for each security. Use AI Position Ratings to get Analyst-grade scoring and buy/hold/sell recommendations for every holding.</p>
@@ -913,7 +915,7 @@
       </button>
     </div>
     <h3 class="section-title"><span class="st-icon blue">&#9776;</span> Portfolio Weights</h3>
-    <div class="chart-card" style="margin-bottom:20px"><canvas id="holdingsWeightChart"></canvas></div>
+    <div class="chart-card" style="margin-bottom:20px"><canvas id="holdingsWeightChart" role="img" aria-label="Holdings weight distribution chart"></canvas></div>
     <hr class="section-divider">
     <h3 class="section-title"><span class="st-icon purple">&#9679;</span> Individual Positions</h3>
     <div class="holdings-grid" id="holdingsGrid"></div>
@@ -921,7 +923,7 @@
   </section>
 
   <!-- ==================== PERFORMANCE TAB ==================== -->
-  <section class="tab-panel" id="panel-performance">
+  <section class="tab-panel" id="panel-performance" role="tabpanel" aria-label="Performance">
     <div class="tab-description">
       <h2>Performance Analysis</h2>
       <p>Track your portfolio's returns, compare benchmark performance, and identify your best and worst performers across all positions.</p>
@@ -946,9 +948,9 @@
 
     <hr class="section-divider">
     <h3 class="section-title"><span class="st-icon purple">&#9686;</span> Position Analysis</h3>
-    <div class="chart-card"><h3 id="gainLossTitle">Gain/Loss by Position</h3><canvas id="gainLossChart"></canvas></div>
-    <div class="chart-card" style="margin-top:20px"><h3 id="acctPerfTitle">Portfolio Performance Summary</h3><canvas id="accountPerfChart"></canvas></div>
-    <div class="chart-card" style="margin-top:20px"><h3 id="returnPosTitle">Return by Position</h3><canvas id="benchmarkChart"></canvas></div>
+    <div class="chart-card"><h3 id="gainLossTitle">Gain/Loss by Position</h3><canvas id="gainLossChart" role="img" aria-label="Gain and loss by position chart"></canvas></div>
+    <div class="chart-card" style="margin-top:20px"><h3 id="acctPerfTitle">Portfolio Performance Summary</h3><canvas id="accountPerfChart" role="img" aria-label="Portfolio performance summary chart"></canvas></div>
+    <div class="chart-card" style="margin-top:20px"><h3 id="returnPosTitle">Return by Position</h3><canvas id="benchmarkChart" role="img" aria-label="Return by position chart"></canvas></div>
     <div style="margin-top:20px">
       <button class="tab-ai-btn" id="aiBtn-performance" onclick="runTabAI('performance')">
         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polygon points="5 3 19 12 5 21 5 3"/></svg>
@@ -959,7 +961,7 @@
   </section>
 
   <!-- ==================== RISK TAB ==================== -->
-  <section class="tab-panel" id="panel-risk">
+  <section class="tab-panel" id="panel-risk" role="tabpanel" aria-label="Risk">
     <div class="tab-description">
       <h2>Risk Analysis</h2>
       <p>Comprehensive risk assessment of your portfolio. Evaluate concentration risk, sector overweight, and position sizing. Scores are calculated based on diversification breadth, Herfindahl-Hirschman Index (HHI) concentration, geographic exposure, and volatility proxy from asset class composition.</p>
@@ -970,8 +972,8 @@
     <hr class="section-divider">
     <h3 class="section-title"><span class="st-icon purple">&#9683;</span> Concentration & Weights</h3>
     <div class="charts-row">
-      <div class="chart-card"><h3>Concentration</h3><canvas id="concentrationChart"></canvas></div>
-      <div class="chart-card"><h3>Position Weight Distribution</h3><canvas id="riskWeightsChart"></canvas></div>
+      <div class="chart-card"><h3>Concentration</h3><canvas id="concentrationChart" role="img" aria-label="Portfolio concentration doughnut chart"></canvas></div>
+      <div class="chart-card"><h3>Position Weight Distribution</h3><canvas id="riskWeightsChart" role="img" aria-label="Position weight distribution chart"></canvas></div>
     </div>
 
     <hr class="section-divider">
@@ -988,15 +990,15 @@
   </section>
 
   <!-- ==================== REGION TAB ==================== -->
-  <section class="tab-panel" id="panel-region">
+  <section class="tab-panel" id="panel-region" role="tabpanel" aria-label="Region">
     <div class="tab-description">
       <h2>Geographic Exposure</h2>
       <p>Analyze your portfolio's geographic diversification and currency exposure. Canadian investors often exhibit "home bias" — overweighting domestic securities despite Canada representing only ~3% of global market capitalization. A well-diversified portfolio typically includes exposure to US, international developed, and emerging markets.</p>
     </div>
     <h3 class="section-title"><span class="st-icon blue">&#9673;</span> Geographic & Currency Breakdown</h3>
     <div class="charts-row">
-      <div class="chart-card"><h3>Geographic Allocation</h3><canvas id="geoChart"></canvas></div>
-      <div class="chart-card"><h3>Currency Exposure</h3><canvas id="currencyChart"></canvas></div>
+      <div class="chart-card"><h3>Geographic Allocation</h3><canvas id="geoChart" role="img" aria-label="Geographic allocation doughnut chart"></canvas></div>
+      <div class="chart-card"><h3>Currency Exposure</h3><canvas id="currencyChart" role="img" aria-label="Currency exposure doughnut chart"></canvas></div>
     </div>
 
     <hr class="section-divider">
@@ -1012,15 +1014,15 @@
   </section>
 
   <!-- ==================== SECTORS TAB ==================== -->
-  <section class="tab-panel" id="panel-sectors">
+  <section class="tab-panel" id="panel-sectors" role="tabpanel" aria-label="Sectors">
     <div class="tab-description">
       <h2>Sector Allocation</h2>
       <p>Breakdown of your portfolio by industry sector and asset class. Heavy concentration in a single sector increases exposure to industry-specific risks. A balanced portfolio typically spreads across Technology, Financials, Healthcare, Energy, Consumer, and other sectors to reduce correlation risk.</p>
     </div>
     <h3 class="section-title"><span class="st-icon blue">&#9683;</span> Sector Overview</h3>
     <div class="charts-row">
-      <div class="chart-card"><h3>Sector Allocation</h3><canvas id="sectorDetailChart"></canvas></div>
-      <div class="chart-card"><h3>Sector Values</h3><canvas id="sectorBarChart"></canvas></div>
+      <div class="chart-card"><h3>Sector Allocation</h3><canvas id="sectorDetailChart" role="img" aria-label="Sector allocation doughnut chart"></canvas></div>
+      <div class="chart-card"><h3>Sector Values</h3><canvas id="sectorBarChart" role="img" aria-label="Sector values bar chart"></canvas></div>
     </div>
 
     <hr class="section-divider">
@@ -1036,7 +1038,7 @@
   </section>
 
   <!-- ==================== RISK MODELS TAB (unified models + stress test) ==================== -->
-  <section class="tab-panel" id="panel-models">
+  <section class="tab-panel" id="panel-models" role="tabpanel" aria-label="Risk Models">
     <div class="tab-description">
       <h2>Risk Models & Stress Testing</h2>
       <p>Quantitative risk analysis combining industry-standard models with historical stress scenarios. All calculations use estimated volatility based on your holdings' asset classes. Formulas are shown so you can verify the math. Stress scenarios model how your portfolio would react to events like the 2008 crisis or a rate shock.</p>
@@ -1056,8 +1058,8 @@
     <h3 class="section-title"><span class="st-icon purple">&#9830;</span> Monte Carlo Simulation</h3>
     <div id="monteCarloSection" class="model-section"></div>
     <div class="charts-row">
-      <div class="chart-card"><h3>Monte Carlo Distribution (1-Year)</h3><canvas id="monteCarloChart"></canvas></div>
-      <div class="chart-card"><h3>Factor Exposure</h3><canvas id="factorChart"></canvas></div>
+      <div class="chart-card"><h3>Monte Carlo Distribution (1-Year)</h3><canvas id="monteCarloChart" role="img" aria-label="Monte Carlo simulation distribution chart"></canvas></div>
+      <div class="chart-card"><h3>Factor Exposure</h3><canvas id="factorChart" role="img" aria-label="Factor exposure radar chart"></canvas></div>
     </div>
 
     <hr class="section-divider">
@@ -1076,7 +1078,7 @@
     </div>
     <div class="summary-grid" id="stressMetrics"></div>
     <div class="scenario-grid" id="scenarioGrid"></div>
-    <div class="chart-card" style="margin-bottom:20px"><h3>Scenario Impact Comparison</h3><canvas id="scenarioChart"></canvas></div>
+    <div class="chart-card" style="margin-bottom:20px"><h3>Scenario Impact Comparison</h3><canvas id="scenarioChart" role="img" aria-label="Stress test scenario impact chart"></canvas></div>
 
     <hr class="section-divider">
     <!-- Recommendations -->
@@ -1097,7 +1099,7 @@
 
 
   <!-- ==================== AI ANALYST TAB ==================== -->
-  <section class="tab-panel" id="panel-ai">
+  <section class="tab-panel" id="panel-ai" role="tabpanel" aria-label="AI Planner">
     <div class="analysis-header">
       <h2>
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>
@@ -1188,7 +1190,8 @@ let lastSystemPrompt = '';
 const charts = {};
 function getSelectedModel() { return document.getElementById('modelSelect')?.value || 'claude-sonnet-4-20250514'; }
 
-const CHART_COLORS = ['#6366f1','#06b6d4','#8b5cf6','#14b8a6','#f43f5e','#0ea5e9','#d946ef','#10b981','#f59e0b','#3b82f6','#ec4899','#22d3ee'];
+// Colorblind-safe palette (Okabe-Ito inspired, optimized for deuteranopia/protanopia)
+const CHART_COLORS = ['#6366f1','#e69f00','#56b4e9','#009e73','#f0e442','#0072b2','#d55e00','#cc79a7','#8b5cf6','#0ea5e9','#14b8a6','#f59e0b'];
 
 // ─── Prompt Templates ────────────────────────────────────────────────────────
 const PROMPTS = {
@@ -1206,19 +1209,60 @@ const PROMPTS = {
 };
 
 // ─── Tab Management ──────────────────────────────────────────────────────────
-function switchTab(tab) {
+function switchTab(tab, focusTab) {
   activeTab = tab;
   document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
-  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-  document.getElementById('panel-' + tab).classList.add('active');
-  document.querySelectorAll('.tab-btn').forEach(b => {
-    if (b.getAttribute('onclick') === "switchTab('" + tab + "')") b.classList.add('active');
+  var tabBtns = document.querySelectorAll('.tab-btn[role="tab"]');
+  tabBtns.forEach(function(b) {
+    var isActive = b.getAttribute('data-tab') === tab;
+    b.classList.toggle('active', isActive);
+    b.setAttribute('aria-selected', isActive ? 'true' : 'false');
+    b.setAttribute('tabindex', isActive ? '0' : '-1');
   });
+  document.getElementById('panel-' + tab).classList.add('active');
+  if (focusTab) {
+    var activeBtn = document.querySelector('.tab-btn[data-tab="' + tab + '"]');
+    if (activeBtn) activeBtn.focus();
+  }
   // Only show risk slider on tabs where it affects output
-  const riskWrap = document.getElementById('riskSliderWrap');
+  var riskWrap = document.getElementById('riskSliderWrap');
   if (riskWrap) riskWrap.style.display = ['risk', 'models'].includes(tab) ? '' : 'none';
   renderActiveTab();
 }
+
+// Keyboard navigation for tabs (Arrow keys, Home, End)
+document.addEventListener('DOMContentLoaded', function() {
+  var tabNav = document.getElementById('tabNav');
+  if (!tabNav) return;
+  tabNav.addEventListener('click', function(e) {
+    var btn = e.target.closest('.tab-btn[data-tab]');
+    if (btn) switchTab(btn.getAttribute('data-tab'));
+  });
+  // Clickable cards: click and Enter/Space keyboard support
+  document.addEventListener('click', function(e) {
+    var card = e.target.closest('[data-nav]');
+    if (card) switchTab(card.getAttribute('data-nav'));
+  });
+  document.addEventListener('keydown', function(e) {
+    if (e.key !== 'Enter' && e.key !== ' ') return;
+    var card = e.target.closest('[data-nav]');
+    if (card) { e.preventDefault(); switchTab(card.getAttribute('data-nav')); }
+  });
+  tabNav.addEventListener('keydown', function(e) {
+    var tabs = Array.from(tabNav.querySelectorAll('.tab-btn[role="tab"]'));
+    var current = tabs.indexOf(document.activeElement);
+    if (current === -1) return;
+    var next = -1;
+    if (e.key === 'ArrowRight' || e.key === 'ArrowDown') { next = (current + 1) % tabs.length; }
+    else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') { next = (current - 1 + tabs.length) % tabs.length; }
+    else if (e.key === 'Home') { next = 0; }
+    else if (e.key === 'End') { next = tabs.length - 1; }
+    if (next >= 0) {
+      e.preventDefault();
+      switchTab(tabs[next].getAttribute('data-tab'), true);
+    }
+  });
+});
 
 function renderActiveTab() {
   if (filteredPositions.length === 0) return;
@@ -1351,7 +1395,7 @@ function doughnutLabels(totalVal) {
   return {
     display: function(ctx) {
       const v = ctx.dataset.data[ctx.dataIndex];
-      return totalVal > 0 && (v / totalVal * 100) >= 5;
+      return totalVal > 0 && (v / totalVal * 100) >= 2;
     },
     color: function() { return getThemeColor('label'); },
     font: { family: "'JetBrains Mono', monospace", size: 10, weight: 600 },
