@@ -467,7 +467,7 @@ function computeScores() {
   // 1. Diversification
   const hhi = groupWeights.reduce((s, w) => s + w * w, 0);
   const minHHI = effectiveN > 0 ? 1 / effectiveN : 1;
-  const hhiScore = (effectiveN <= 1 || minHHI >= 1) ? 0 : Math.round((1 - (hhi - minHHI) / (1 - minHHI)) * 100);
+  const hhiScore = effectiveN <= 1 ? 0 : Math.round((1 - (hhi - minHHI) / (1 - minHHI)) * 100);
   const sectors = {};
   positions.forEach(p => { const sec = inferAssetClass(p); sectors[sec] = (sectors[sec] || 0) + (p.market_value || p.value || 0); });
   const sectorCount = Object.keys(sectors).length;

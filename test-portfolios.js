@@ -142,7 +142,7 @@ function computeScores(filteredPositions, riskTolerance = 5) {
   const effectiveN = groupWeights.length;
   const hhi = groupWeights.reduce((s,w) => s + w*w, 0);
   const minHHI = effectiveN > 0 ? 1/effectiveN : 1;
-  const hhiScore = (effectiveN <= 1 || minHHI >= 1) ? 0 : Math.round((1 - (hhi - minHHI) / (1 - minHHI)) * 100);
+  const hhiScore = effectiveN <= 1 ? 0 : Math.round((1 - (hhi - minHHI) / (1 - minHHI)) * 100);
 
   const sectors = {};
   positions.forEach(p => { const sec = inferAssetClass(p); sectors[sec] = (sectors[sec]||0) + (p.market_value||p.value||0); });
@@ -208,7 +208,7 @@ function computeScores(filteredPositions, riskTolerance = 5) {
       const mv = p.market_value || p.value || 0;
       const weight = totalVal > 0 ? mv / totalVal : 0;
       if (weight < 0.02) return;
-      if (cur === 'USD' && !isRRSP && (sector.includes('Equity') || sector === 'Financials' || sector === 'Technology')) {
+      if (cur === 'USD' && !isRRSP && (sector.includes('Equity') || sector === 'Financials' || sector === 'Technology' || sector === 'Healthcare')) {
         taxScore -= 2;
         taxIssues.push((p.security?.symbol||'') + ' USD in non-RRSP');
       }

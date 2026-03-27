@@ -2333,7 +2333,7 @@ function computeScores() {
   const effectiveN = groupWeights.length;
   const hhi = groupWeights.reduce((s,w) => s + w*w, 0);
   const minHHI = effectiveN > 0 ? 1/effectiveN : 1;
-  const hhiScore = (effectiveN <= 1 || minHHI >= 1) ? 0 : Math.round((1 - (hhi - minHHI) / (1 - minHHI)) * 100);
+  const hhiScore = effectiveN <= 1 ? 0 : Math.round((1 - (hhi - minHHI) / (1 - minHHI)) * 100);
 
   const sectors = {};
   positions.forEach(p => { const sec = inferAssetClass(p); sectors[sec] = (sectors[sec]||0) + (p.market_value||p.value||0); });
@@ -2439,7 +2439,7 @@ function computeScores() {
       // Unrealized losses in registered accounts (can't harvest)
       const bvTax = (p.book_value != null ? p.book_value : (p.market_value || p.value || 0));
       const gl = (p.market_value||p.value||0) - bvTax;
-      if (gl < -2000 && isRegistered && !isNonReg) { taxScore -= 2; taxIssues.push(escapeHtml(sym) + ' has ' + fmt(gl) + ' unrealized loss in registered account — cannot tax-loss harvest'); }
+      if (gl < -2000 && isRegistered) { taxScore -= 2; taxIssues.push(escapeHtml(sym) + ' has ' + fmt(gl) + ' unrealized loss in registered account — cannot tax-loss harvest'); }
     });
   });
   // Bonus: having registered accounts at all
@@ -3099,7 +3099,7 @@ function renderRegion() {
   const currTotal = currEntries.reduce((s,e) => s + e[1], 0);
   makeChart('currency', document.getElementById('currencyChart'), {
     type: 'doughnut',
-    data: { labels: currEntries.map(e=>e[0]), datasets: [{ data: currEntries.map(e=>e[1]), backgroundColor: ['#6366f1','#14b8a6','#f59e0b','#f43f5e','#8b5cf6'], borderWidth: 2, borderColor: 'var(--bg-card)', hoverBorderWidth: 0, hoverOffset: 12 }] },
+    data: { labels: currEntries.map(e=>e[0]), datasets: [{ data: currEntries.map(e=>e[1]), backgroundColor: CHART_COLORS.slice(0, currEntries.length), borderWidth: 2, borderColor: 'var(--bg-card)', hoverBorderWidth: 0, hoverOffset: 12 }] },
     options: { responsive: true, cutout: '60%', plugins: { datalabels: doughnutLabels(currTotal), legend: { position: 'bottom', labels: { padding: 10, usePointStyle: true, pointStyleWidth: 8, font: { size: 11 } } } } }
   });
 
@@ -3193,6 +3193,7 @@ function computePortfolioStats() {
 
   // Portfolio volatility using variance-covariance matrix
   // var(P) = sum_i sum_j w_i w_j sigma_i sigma_j rho_ij
+  // Correlation estimates updated 2026-03 to reflect post-2022 rate regime
   function corrEstimate(s1, s2, samePosition) {
     if (samePosition) return 1.0;
     if (s1 === s2) return 0.85; // Same sector, different positions
@@ -3201,9 +3202,9 @@ function computePortfolioStats() {
     const crypto = s => s === 'Crypto';
     if (eq(s1) && eq(s2)) return 0.70;
     if (bond(s1) && bond(s2)) return 0.80;
-    if ((eq(s1) && bond(s2)) || (bond(s1) && eq(s2))) return -0.20;
+    if ((eq(s1) && bond(s2)) || (bond(s1) && eq(s2))) return 0.15; // Was -0.20; positive since 2022 rate regime
     if (crypto(s1) && crypto(s2)) return 0.85;
-    if ((eq(s1) && crypto(s2)) || (crypto(s1) && eq(s2))) return 0.35;
+    if ((eq(s1) && crypto(s2)) || (crypto(s1) && eq(s2))) return 0.55; // Was 0.35; higher correlation observed in stress periods
     if ((s1 === 'Real Estate' && eq(s2)) || (s2 === 'Real Estate' && eq(s1))) return 0.55;
     if ((s1 === 'Commodities' && eq(s2)) || (s2 === 'Commodities' && eq(s1))) return 0.30;
     return 0.30;
@@ -3222,11 +3223,13 @@ function computePortfolioStats() {
   const cumulativeReturn = totalBook > 0 ? (totalVal - totalBook) / totalBook : 0;
   // Use portfolio history date range for holding period if available, else estimate
   let holdingYears = 2;
+  let holdingYearsEstimated = false;
   if (portfolioHistory && portfolioHistory.length >= 2) {
     const firstDate = new Date(portfolioHistory[0].date || portfolioHistory[0].d);
     const lastDate = new Date(portfolioHistory[portfolioHistory.length - 1].date || portfolioHistory[portfolioHistory.length - 1].d);
     holdingYears = Math.max(0.5, (lastDate - firstDate) / (365.25 * 24 * 60 * 60 * 1000));
   } else {
+    holdingYearsEstimated = true;
     holdingYears = Math.max(0.5, Math.abs(cumulativeReturn) > 0.5 ? 3 : Math.abs(cumulativeReturn) > 0.2 ? 2 : 1);
   }
   const portfolioReturn = Math.pow(1 + cumulativeReturn, 1 / holdingYears) - 1;
@@ -3298,7 +3301,7 @@ function computePortfolioStats() {
 
   return {
     totalVal, portfolioVol, portfolioBeta, portfolioYield, portfolioReturn,
-    sharpe, stdDev, trackingError, riskFreeRate,
+    sharpe, stdDev, trackingError, riskFreeRate, holdingYearsEstimated,
     var95_1d, var99_1d, var95_1m, var99_1m, cvar95_1d, cvar99_1d,
     mcResults, mc5th, mc25th, mcMedian, mc75th, mc95th, mcMean, mcMin, mcMax,
     factors, posStats,
@@ -3326,6 +3329,12 @@ function renderModels() {
       '<div class="mg-desc">' + m.desc + '</div>';
     gauges.appendChild(d);
   });
+  if (stats.holdingYearsEstimated) {
+    const caveat = document.createElement('div');
+    caveat.style.cssText = 'padding:8px 12px;margin-top:8px;border-radius:6px;background:var(--yellow-bg, rgba(245,158,11,0.1));color:var(--yellow, #f59e0b);font-size:11px;line-height:1.4';
+    caveat.textContent = 'Holding period estimated from return magnitude. Sharpe ratio and Monte Carlo projections may be less accurate without portfolio history data.';
+    gauges.appendChild(caveat);
+  }
 
   // VaR Section — with formulas shown
   const varSection = document.getElementById('varSection');
@@ -3381,9 +3390,9 @@ function renderModels() {
     return '$' + (binStart / 1000).toFixed(0) + 'k';
   });
   const binColors = histogram.map((_, i) => {
-    const binMid = minVal + (i + 0.5) * binWidth;
-    if (binMid < stats.totalVal * 0.9) return '#ef4444';
-    if (binMid < stats.totalVal) return '#f59e0b';
+    const binEnd = minVal + (i + 1) * binWidth;
+    if (binEnd < stats.totalVal * 0.9) return '#ef4444';
+    if (binEnd <= stats.totalVal) return '#f59e0b';
     return '#22c55e';
   });
   makeChart('monteCarlo', document.getElementById('monteCarloChart'), {
@@ -3807,7 +3816,7 @@ async function ratePositions() {
       }),
     });
 
-    if (!response.ok) { const err = await response.json().catch(()=>({})); throw new Error(err.error?.message || 'API error: ' + response.status); }
+    if (!response.ok) { const err = await response.json().catch(() => ({ error: { message: 'Could not parse error response' } })); throw new Error(err.error?.message || 'API error: ' + response.status); }
     const data = await response.json();
     const text = data.content?.[0]?.text || '';
 
@@ -3875,7 +3884,7 @@ async function streamAIResponse(systemPrompt, messages, responseEl, onComplete) 
       body: JSON.stringify({ model: getSelectedModel(), max_tokens: 4096, system: systemPrompt, messages: messages, stream: true }),
     });
 
-    if (!response.ok) { const err = await response.json().catch(()=>({})); throw new Error(err.error?.message || 'API error: ' + response.status); }
+    if (!response.ok) { const err = await response.json().catch(() => ({ error: { message: 'Could not parse error response' } })); throw new Error(err.error?.message || 'API error: ' + response.status); }
 
     const reader = response.body.getReader();
     const decoder = new TextDecoder();
@@ -3967,6 +3976,10 @@ async function sendFollowUp() {
   }
   conversationHistory.push({ role: 'user', content: question });
 
+  // Warn if estimated token usage is high
+  const estTokens = conversationHistory.reduce((s, m) => s + Math.ceil(m.content.length / 4), 0) + (lastSystemPrompt ? Math.ceil(lastSystemPrompt.length / 4) : 0);
+  if (estTokens > 80000) { showToast('Conversation is getting long — consider starting a new analysis for best results.', 'warning'); }
+
   await streamAIResponse(lastSystemPrompt, conversationHistory, responseEl, function(fullText) {
     conversationHistory.push({ role: 'assistant', content: fullText });
   });
@@ -3976,6 +3989,20 @@ function resetAnalyzeBtn() {
   const btn = document.getElementById('btnAnalyze');
   btn.disabled = !apiKey || filteredPositions.length === 0;
   btn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polygon points="5 3 19 12 5 21 5 3"/></svg> Get Advice';
+}
+
+function roundToSum100(obj) {
+  const entries = Object.entries(obj);
+  const total = entries.reduce((s, [,v]) => s + v, 0);
+  if (total === 0) return Object.fromEntries(entries.map(([k]) => [k, 0]));
+  const raw = entries.map(([k, v]) => ({ k, exact: v / total * 100 }));
+  const floored = raw.map(r => ({ ...r, floor: Math.floor(r.exact * 10) / 10 }));
+  let remainder = Math.round((100 - floored.reduce((s, r) => s + r.floor, 0)) * 10);
+  const diffs = floored.map((r, i) => ({ i, diff: r.exact * 10 - Math.floor(r.exact * 10) })).sort((a, b) => b.diff - a.diff);
+  for (let idx = 0; idx < diffs.length && remainder > 0; idx++, remainder--) {
+    floored[diffs[idx].i].floor = Math.round((floored[diffs[idx].i].floor + 0.1) * 10) / 10;
+  }
+  return Object.fromEntries(floored.map(r => [r.k, r.floor]));
 }
 
 function buildPortfolioSummary() {
@@ -4008,10 +4035,8 @@ function buildPortfolioSummary() {
     assetClasses[ac] = (assetClasses[ac] || 0) + mv;
     regions[rg] = (regions[rg] || 0) + mv;
   });
-  const assetClassPct = {};
-  Object.entries(assetClasses).forEach(([k,v]) => { assetClassPct[k] = totalValue > 0 ? Math.round(v / totalValue * 1000) / 10 : 0; });
-  const regionPct = {};
-  Object.entries(regions).forEach(([k,v]) => { regionPct[k] = totalValue > 0 ? Math.round(v / totalValue * 1000) / 10 : 0; });
+  const assetClassPct = totalValue > 0 ? roundToSum100(assetClasses) : Object.fromEntries(Object.keys(assetClasses).map(k => [k, 0]));
+  const regionPct = totalValue > 0 ? roundToSum100(regions) : Object.fromEntries(Object.keys(regions).map(k => [k, 0]));
 
   // Portfolio health scores
   const scores = computeScores();
@@ -4416,7 +4441,7 @@ async function runTabAI(tab) {
       body: JSON.stringify({ model: getSelectedModel(), max_tokens: 2048, system: systemPrompt, messages: [{ role: 'user', content: userMsg }], stream: true }),
     });
 
-    if (!response.ok) { const err = await response.json().catch(()=>({})); throw new Error(err.error?.message || 'API error: ' + response.status); }
+    if (!response.ok) { const err = await response.json().catch(() => ({ error: { message: 'Could not parse error response' } })); throw new Error(err.error?.message || 'API error: ' + response.status); }
 
     const reader = response.body.getReader();
     const decoder = new TextDecoder();
